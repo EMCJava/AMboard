@@ -24,7 +24,7 @@ CPin::CPin(CBaseNode* Owner)
 
 CPin::~CPin()
 {
-    BreakPin();
+    CPin::BreakPin();
 }
 
 void CPin::BreakPin()

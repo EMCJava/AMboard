@@ -14,6 +14,17 @@ CPin* CFlowPin::SetPin(CPin* NewPin) noexcept
     return Result;
 }
 
+CFlowPin::~CFlowPin()
+{
+    CFlowPin::BreakPin();
+}
+
+void CFlowPin::BreakPin()
+{
+    /// Release is enough, it can be a 1 to n connection
+    ReleasePin();
+}
+
 CFlowPin::CFlowPin(CBaseNode* Owner)
     : CPin(Owner)
 {

@@ -14,16 +14,16 @@ enum class EPinType {
 class CBaseNode;
 class CPin {
 
+protected:
     CPin* ReleasePin() noexcept;
 
-protected:
     virtual CPin* SetPin(CPin* NewPin) noexcept;
 
 public:
     CPin(CBaseNode* Owner);
     virtual ~CPin();
 
-    void BreakPin();
+    virtual void BreakPin();
     bool ConnectPin(CPin* NewPin) noexcept;
 
     [[nodiscard]] virtual bool Compatible(CPin* NewPin) noexcept;

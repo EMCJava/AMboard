@@ -11,5 +11,8 @@ class CFlowPin : public CPin {
     CPin* SetPin(CPin* NewPin) noexcept override;
 
 public:
+    ~CFlowPin();
+    void BreakPin() override;
+
     CFlowPin(CBaseNode* Owner);
 };
