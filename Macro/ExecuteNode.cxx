@@ -20,6 +20,12 @@ void CExecuteNode::ExecuteNode()
         m_OutFlowingNode[m_DesiredOutputPin]->ExecuteNode();
 }
 
+void CExecuteNode::AddInputOutputFlowPin()
+{
+    EmplacePin<CFlowPin>(true);
+    EmplacePin<CFlowPin>(false);
+}
+
 void CExecuteNode::Execute()
 {
 }

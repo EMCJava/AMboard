@@ -15,7 +15,8 @@ int main()
 {
     CPrintingNode Node1, Node2;
 
-    Node1.EmplacePin<CFlowPin>(false)->ConnectPin(Node2.EmplacePin<CFlowPin>(true));
+    Node1.GetFlowOutputPins().front()->ConnectPin(Node2.GetFlowInputPins().front());
+
     Node1.ExecuteNode();
 
     return 0;
