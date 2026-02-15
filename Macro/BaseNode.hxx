@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <ranges>
 #include <vector>
 
 #include "Pin.hxx"
@@ -34,6 +35,12 @@ public:
 
     const auto& GetInputPins() const noexcept { return m_InputPins; }
     const auto& GetOutputPins() const noexcept { return m_OutputPins; }
+
+    template <EPinType PinTy>
+    auto GetInputPinsWith() const noexcept
+    {
+        return m_InputPins | std::views::filter([](const auto& Pin) static { return *Pin == PinTy; });
+    }
 
     virtual void OnPinModified() noexcept { }
 

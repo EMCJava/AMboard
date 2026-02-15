@@ -1,0 +1,39 @@
+//
+// Created by LYS on 2/15/2026.
+//
+
+#pragma once
+
+#include "Pin.hxx"
+
+#include <typeindex>
+
+class CDataPin : public CPin {
+
+public:
+    CDataPin(CBaseNode* Owner);
+
+    template <typename Ty>
+    Ty TryGet() noexcept
+    {
+        if (m_DataType == std::type_index(typeid(Ty))) [[likely]] {
+            return *reinterpret_cast<Ty*>(m_Data);
+        }
+
+        return { };
+    }
+
+    template <typename Ty>
+        requires std::is_trivial_v<Ty>
+    Ty& Set(Ty NewValue) noexcept
+    {
+        m_DataType = std::type_index(typeid(Ty));
+        return *reinterpret_cast<Ty*>(m_Data) = NewValue;
+    }
+
+protected:
+    struct NullTy { };
+    std::type_index m_DataType { std::type_index(typeid(NullTy)) };
+
+    alignas(double) uint8_t m_Data[8];
+};

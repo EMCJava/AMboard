@@ -15,6 +15,7 @@ target_link_libraries(
         AMboard
         ExecuteNode.lib
         BaseNode.lib
+        DataPin.lib
         FlowPin.lib
         Pin.lib
 )

@@ -3,8 +3,10 @@
 //
 
 #pragma once
+#include <type_traits>
 
 enum class EPinType {
+    None,
     Data,
     Flow
 };
@@ -31,8 +33,15 @@ public:
     [[nodiscard]] operator bool() const noexcept { return m_ConnectedPin != nullptr; } // NOLINT
     [[nodiscard]] operator EPinType() const noexcept { return m_PinType; } // NOLINT
 
+    template <typename PinTy>
+        requires std::is_base_of_v<CPin, PinTy>
+    [[nodiscard]] PinTy* As() noexcept
+    {
+        return static_cast<PinTy*>(this);
+    }
+
 protected:
-    EPinType m_PinType = EPinType::Data;
+    EPinType m_PinType = EPinType::None;
 
     CBaseNode* m_Owner = nullptr;
     CPin* m_ConnectedPin = nullptr;
