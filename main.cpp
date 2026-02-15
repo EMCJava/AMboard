@@ -1,6 +1,8 @@
-#include <iostream>
+#include <Macro/BaseNode.hxx>
 
 int main() {
-    std::cout << "Hello, World!" << std::endl;
+
+    CBaseNode Node;
+
     return 0;
 }
