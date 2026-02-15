@@ -34,6 +34,9 @@ void CExecuteNode::OnPinModified() noexcept
 {
     CBaseNode::OnPinModified();
 
+    if (m_IsDestructing)
+        return;
+
     m_InFlowingPin.clear();
     std::ranges::copy(GetInputPins() | FlowPinFilter | FlowPinTransform, std::back_inserter(m_InFlowingPin));
     m_OutFlowingPin.clear();
