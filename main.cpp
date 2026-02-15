@@ -1,9 +1,13 @@
-#include "Macro/DataPin.hxx"
+#include <Control/EventHooker.hxx>
+#include <chrono>
 
+#include <Macro/DataPin.hxx>
 #include <Macro/ExecuteNode.hxx>
 #include <Macro/FlowPin.hxx>
 
 #include <iostream>
+
+#include <windows.h>
 
 class CPrintingNode : public CExecuteNode {
 public:
@@ -78,6 +82,17 @@ int main()
     OutputPins[1]->ConnectPin(Node2.GetFlowInputPins().front());
 
     BranchingNode.ExecuteNode();
+
+    SEventHooker EH;
+    EH.KeyboardEventCallback = [](const SKeyboardEventData& Data) static {
+        std::cout << Data.vkCode << std::endl;
+    };
+
+    MSG msg;
+    while (GetMessage(&msg, nullptr, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
 
     return 0;
 }
