@@ -43,16 +43,38 @@ protected:
     }
 };
 
+class CSequenceNode : public CExecuteNode {
+public:
+    CSequenceNode()
+    {
+        AddInputOutputFlowPin();
+    }
+
+    void ExecuteNode() override
+    {
+        for (const auto* Pin : GetFlowOutputPins())
+            if (*Pin)
+                Pin->GetConnectedOwner()->As<CExecuteNode>()->ExecuteNode();
+    }
+};
+
 int main()
 {
     CBranchingNode BranchingNode;
     if (auto DataPins = BranchingNode.GetInputPinsWith<EPinType::Data>(); !DataPins.empty())
-        DataPins.front()->As<CDataPin>()->Set(false);
+        DataPins.front()->As<CDataPin>()->Set(true);
 
     CPrintingNode Node1("true"), Node2("false");
 
+    CSequenceNode SequenceNode;
+    SequenceNode.EmplacePin<CFlowPin>(false)->ConnectPin(Node1.GetFlowInputPins().front());
+    SequenceNode.EmplacePin<CFlowPin>(false)->ConnectPin(Node1.GetFlowInputPins().front());
+    SequenceNode.EmplacePin<CFlowPin>(false)->ConnectPin(Node1.GetFlowInputPins().front());
+    SequenceNode.EmplacePin<CFlowPin>(false)->ConnectPin(Node1.GetFlowInputPins().front());
+    SequenceNode.EmplacePin<CFlowPin>(false)->ConnectPin(Node1.GetFlowInputPins().front());
+
     auto OutputPins = BranchingNode.GetFlowOutputPins();
-    OutputPins[0]->ConnectPin(Node1.GetFlowInputPins().front());
+    OutputPins[0]->ConnectPin(SequenceNode.GetFlowInputPins().front());
     OutputPins[1]->ConnectPin(Node2.GetFlowInputPins().front());
 
     BranchingNode.ExecuteNode();

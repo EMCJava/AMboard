@@ -17,7 +17,7 @@ class CExecuteNode : public CBaseNode {
 public:
     CExecuteNode();
 
-    void ExecuteNode();
+    virtual void ExecuteNode();
 
     const auto& GetFlowInputPins() const noexcept { return m_InFlowingPin; }
     const auto& GetFlowOutputPins() const noexcept { return m_OutFlowingPin; }
