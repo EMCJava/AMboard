@@ -16,8 +16,8 @@ void CExecuteNode::ExecuteNode()
     m_DesiredOutputPin = 0;
     Execute();
 
-    if (m_DesiredOutputPin < m_OutFlowingNode.size())
-        m_OutFlowingNode[m_DesiredOutputPin]->ExecuteNode();
+    if (m_DesiredOutputPin < m_OutFlowingPin.size() && *m_OutFlowingPin[m_DesiredOutputPin])
+        static_cast<CExecuteNode*>(m_OutFlowingPin[m_DesiredOutputPin]->GetConnectedOwner())->ExecuteNode();
 }
 
 void CExecuteNode::AddInputOutputFlowPin()
@@ -34,15 +34,8 @@ void CExecuteNode::OnPinModified() noexcept
 {
     CBaseNode::OnPinModified();
 
-    m_OutFlowingNode.clear();
-    for (const auto& Pin : m_OutputPins) {
-        if (*Pin && *Pin == EPinType::Flow) {
-            if (auto* PinOwner = Pin->GetConnectedOwner()) {
-                if (*PinOwner == ENodeType::Execution) {
-                    assert(dynamic_cast<CExecuteNode*>(PinOwner) != nullptr);
-                    m_OutFlowingNode.push_back(static_cast<CExecuteNode*>(PinOwner));
-                }
-            }
-        }
-    }
+    m_InFlowingPin.clear();
+    std::ranges::copy(GetInputPins() | FlowPinFilter | FlowPinTransform, std::back_inserter(m_InFlowingPin));
+    m_OutFlowingPin.clear();
+    std::ranges::copy(GetOutputPins() | FlowPinFilter | FlowPinTransform, std::back_inserter(m_OutFlowingPin));
 }

@@ -49,7 +49,7 @@ bool CPin::ConnectPin(CPin* NewPin) noexcept
 
 bool CPin::Compatible(CPin* NewPin) noexcept
 {
-    return NewPin != nullptr;
+    return NewPin != nullptr && NewPin->m_PinType == m_PinType;
 }
 
 CBaseNode* CPin::GetConnectedOwner() const

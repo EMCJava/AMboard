@@ -19,8 +19,8 @@ public:
 
     void ExecuteNode();
 
-    auto GetFlowInputPins() const noexcept { return GetInputPins() | FlowPinFilter | FlowPinTransform; }
-    auto GetFlowOutputPins() const noexcept { return GetOutputPins() | FlowPinFilter | FlowPinTransform; }
+    const auto& GetFlowInputPins() const noexcept { return m_InFlowingPin; }
+    const auto& GetFlowOutputPins() const noexcept { return m_OutFlowingPin; }
 
 protected:
     void AddInputOutputFlowPin();
@@ -29,6 +29,7 @@ protected:
 
     virtual void Execute();
 
+    std::vector<CPin*> m_InFlowingPin;
     size_t m_DesiredOutputPin = 0;
-    std::vector<CExecuteNode*> m_OutFlowingNode;
+    std::vector<CPin*> m_OutFlowingPin;
 };
