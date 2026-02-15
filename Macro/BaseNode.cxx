@@ -3,3 +3,8 @@
 //
 
 #include "BaseNode.hxx"
+
+CBaseNode::~CBaseNode()
+{
+    m_IsDestructing = true;
+}

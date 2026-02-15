@@ -17,7 +17,7 @@ enum class ENodeType {
 
 class CBaseNode {
 public:
-    virtual ~CBaseNode() = default;
+    virtual ~CBaseNode();
 
     template <typename PinTy>
     auto* EmplacePin(const bool IsInput)
@@ -46,9 +46,18 @@ public:
 
     [[nodiscard]] operator ENodeType() const noexcept { return m_NodeType; } // NOLINT
 
+    template <typename NodeTy>
+        requires std::is_base_of_v<CBaseNode, NodeTy>
+    [[nodiscard]] NodeTy* As() noexcept
+    {
+        return static_cast<NodeTy*>(this);
+    }
+
 protected:
     ENodeType m_NodeType = ENodeType::Data;
 
     std::vector<std::unique_ptr<CPin>> m_InputPins;
     std::vector<std::unique_ptr<CPin>> m_OutputPins;
+
+    bool m_IsDestructing = false;
 };
