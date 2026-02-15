@@ -1,1 +1,4 @@
-create_library(BaseNode)
+create_library(Pin)
+create_library(FlowPin DEPS Pin)
+create_library(BaseNode DEPS Pin)
+create_library(ExecuteNode DEPS BaseNode FlowPin)

@@ -13,5 +13,8 @@ add_executable(AMboard main.cpp)
 
 target_link_libraries(
         AMboard
+        ExecuteNode.lib
         BaseNode.lib
+        FlowPin.lib
+        Pin.lib
 )

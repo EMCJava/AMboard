@@ -3,5 +3,3 @@
 //
 
 #include "BaseNode.hxx"
-
-CBaseNode::CBaseNode() = default;
