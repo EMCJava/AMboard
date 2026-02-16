@@ -11,6 +11,7 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 
+#include <glm/gtx/norm.hpp>
 #include <glm/gtx/transform.hpp>
 #include <glm/mat4x4.hpp>
 
@@ -58,12 +59,23 @@ CBoardEditor::CBoardEditor()
         m_UniformBindingGroup = GetDevice().CreateBindGroup(&bindGroupDesc);
     }
 
-    auto& [Size, Offset, HeaderColor] = *m_NodePipline->GetVertexBuffer().PushUninitialized<SNodeBackgroundRenderMeta>();
-    Size = { 150, 100 };
-    Offset = { 100, 100 };
-    HeaderColor = 0xFF00FFFF;
+    {
+        auto& [Size, Offset, HeaderColor, State] = *m_NodePipline->GetVertexBuffer().PushUninitialized<SNodeBackgroundRenderMeta>();
+        Size = { 150, 100 };
+        Offset = { 100, 100 };
+        HeaderColor = 0xFF00FFFF;
+        State = 0;
+    }
 
-    m_NodePipline->GetVertexBuffer().Upload(0);
+    {
+        auto& [Size, Offset, HeaderColor, State] = *m_NodePipline->GetVertexBuffer().PushUninitialized<SNodeBackgroundRenderMeta>();
+        Size = { 450, 150 };
+        Offset = { 250, 50 };
+        HeaderColor = 0xFFFF00FF;
+        State = 0;
+    }
+
+    m_NodePipline->GetVertexBuffer().Upload(0, 2);
 }
 
 CBoardEditor::~CBoardEditor() = default;
@@ -75,11 +87,13 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
         return EventStage;
     }
 
+    /// Drag canvas
     if (GetInputManager().GetMouseButtons().ConsumeHoldEvent(this, GLFW_MOUSE_BUTTON_MIDDLE)) {
         m_CameraOffset -= glm::vec2 { GetInputManager().GetDeltaCursor() } / m_CameraZoom;
         m_ScreenUniformDirty = true;
     }
 
+    /// Zoom canvas
     if (const auto Scroll = GetInputManager().GetDeltaScroll(); Scroll != 0) {
         const float ZoomFactor = 1.0f + (Scroll * 0.1f);
         const float NewZoom = glm::clamp(m_CameraZoom * ZoomFactor, 0.1f, 5.0f);
@@ -91,6 +105,51 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
         m_CameraOffset += (WorldPosBefore - WorldPosAfter);
 
         m_ScreenUniformDirty = true;
+    }
+
+    if (GetInputManager().GetMouseButtons().ConsumeEvent({ GLFW_MOUSE_BUTTON_LEFT, GLFW_RELEASE })) {
+
+        const auto MouseReleasePos = GetInputManager().GetCursorPosition();
+        if (glm::length2(glm::vec2 { MouseReleasePos - *MouseStartClickPos }) < 3 * 3) {
+            const glm::vec2 ClickPosition = ScreenToWorld(GetInputManager().GetCursorPosition());
+
+            const auto RenderMetas = m_NodePipline->GetRenderMetas();
+            for (auto& RenderMeta : RenderMetas) {
+
+                if (ClickPosition.x >= RenderMeta.Offset.x && ClickPosition.y >= RenderMeta.Offset.y
+                    && ClickPosition.x <= RenderMeta.Offset.x + RenderMeta.Size.x && ClickPosition.y <= RenderMeta.Offset.y + RenderMeta.Size.y) {
+
+                    const auto CurrentClickingNode = std::distance(RenderMetas.data(), &RenderMeta);
+                    if (m_SelectedNode.has_value()) { /// Deselect
+
+                        if (*m_SelectedNode == CurrentClickingNode) {
+                            RenderMeta.State ^= 1;
+                            m_NodePipline->GetVertexBuffer().Upload(CurrentClickingNode);
+
+                            m_SelectedNode.reset();
+                            break;
+                        }
+
+                        RenderMetas[*m_SelectedNode].State ^= 1;
+                        m_NodePipline->GetVertexBuffer().Upload(*m_SelectedNode);
+                    }
+
+                    m_SelectedNode = CurrentClickingNode;
+                    RenderMeta.State |= 1;
+                    m_NodePipline->GetVertexBuffer().Upload(CurrentClickingNode);
+
+                    break;
+                }
+            }
+        }
+
+        MouseStartClickPos.reset();
+    }
+
+    /// Click
+    if (GetInputManager().GetMouseButtons().ConsumeHoldEvent(this, GLFW_MOUSE_BUTTON_LEFT)) {
+        if (!MouseStartClickPos.has_value())
+            MouseStartClickPos = GetInputManager().GetCursorPosition();
     }
 
     return EWindowEventState::Normal;

@@ -12,12 +12,19 @@ struct SNodeBackgroundRenderMeta {
     glm::vec2 Size;
     glm::vec2 Offset;
     uint32_t HeaderColor;
+    uint32_t State;
 };
 
 class CNodePipline : public CRenderPipeline {
 
 public:
     CNodePipline(CWindowBase* Window);
+
+    template <typename Self>
+    auto GetRenderMetas(this Self&& s)
+    {
+        return s.m_RenderVertexBuffer->template GetView<SNodeBackgroundRenderMeta>();
+    }
 
     template <typename Self>
     decltype(auto) GetVertexBuffer(this Self&& s)

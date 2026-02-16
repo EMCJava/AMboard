@@ -9,6 +9,7 @@ struct VertexInput {
     @location(0) size: vec2<f32>,
     @location(1) offset: vec2<f32>,
     @location(2) header_color: u32,
+    @location(3) state: u32,
 }
 
 struct VertexOutput {
@@ -17,6 +18,7 @@ struct VertexOutput {
     @location(1) node_offset: vec2<f32>,
     @location(2) node_size: vec2<f32>,
     @location(3) @interpolate(flat) header_color: u32,
+    @location(4) @interpolate(flat) state: u32,
 }
 
 struct Camera {
@@ -30,8 +32,10 @@ struct Camera {
 const HEADER_HEIGHT: f32 = 30.0;
 const CORNER_RADIUS: f32 = 8.0;
 const BORDER_WIDTH: f32 = 2.0;
+const PICKED_BORDER_WIDTH: f32 = 4.0;
 const BODY_COLOR: vec4<f32> = vec4<f32>(0.15, 0.15, 0.2, 1.0);
-const BORDER_COLOR: vec4<f32> = vec4<f32>(0.3, 0.5, 0.9, 1.0);
+const BORDER_COLOR: vec4<f32> = vec4<f32>(0.3, 0.5, 0.9, 0.7);
+const PICKED_BORDER_COLOR: vec4<f32> = vec4<f32>(1.0, 0.74, 0.0, 1.0);
 
 @vertex
 fn vs_main(
@@ -64,6 +68,7 @@ fn vs_main(
     output.node_offset = input.offset;
     output.node_size = input.size;
     output.header_color = input.header_color;
+    output.state = input.state;
 
     return output;
 }
@@ -115,8 +120,14 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
         }
 
         // Add border
-        if (node_dist > -BORDER_WIDTH) {
-            color = BORDER_COLOR;
+        if((input.state & 1) == 0){
+            if (node_dist > -BORDER_WIDTH) {
+                color = BORDER_COLOR;
+            }
+        } else {
+            if (node_dist > -PICKED_BORDER_WIDTH) {
+                color = PICKED_BORDER_COLOR;
+            }
         }
     } else {
         discard; // Discard pixels outside the node
@@ -141,7 +152,7 @@ std::vector<SVertexBufferMeta> CNodePipline::GetVertexBufferMeta() const
     std::vector<SVertexBufferMeta> Result { 1 };
     auto& [Layout, Attributes] = Result.front();
 
-    Attributes.resize(3);
+    Attributes.resize(4);
 
     Attributes[0].shaderLocation = 0;
     Attributes[0].format = wgpu::VertexFormat::Float32x2;
@@ -154,6 +165,10 @@ std::vector<SVertexBufferMeta> CNodePipline::GetVertexBufferMeta() const
     Attributes[2].shaderLocation = 2;
     Attributes[2].format = wgpu::VertexFormat::Uint32;
     Attributes[2].offset = offsetof(SNodeBackgroundRenderMeta, HeaderColor);
+
+    Attributes[3].shaderLocation = 3;
+    Attributes[3].format = wgpu::VertexFormat::Uint32;
+    Attributes[3].offset = offsetof(SNodeBackgroundRenderMeta, State);
 
     Layout.arrayStride = sizeof(SNodeBackgroundRenderMeta);
     Layout.stepMode = wgpu::VertexStepMode::Instance;

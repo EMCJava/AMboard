@@ -7,6 +7,7 @@
 #include <dawn/webgpu_cpp.h>
 
 #include <memory>
+#include <ranges>
 
 class CDynamicVertexBuffer {
 
@@ -21,6 +22,12 @@ public:
     static auto Create(CWindowBase* Window)
     {
         return std::unique_ptr<CDynamicVertexBuffer> { new CDynamicVertexBuffer { Window, sizeof(Ty) } };
+    }
+
+    template <typename Ty, typename Self>
+    auto GetView(this Self&& s)
+    {
+        return std::views::counted(reinterpret_cast<std::conditional_t<std::is_const_v<Self>, const Ty*, Ty*>>(s.m_Data.data()), s.m_EffectiveBufferSize);
     }
 
     template <typename Ty = void>

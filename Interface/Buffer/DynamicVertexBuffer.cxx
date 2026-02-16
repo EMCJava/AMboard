@@ -39,5 +39,5 @@ CDynamicVertexBuffer::~CDynamicVertexBuffer()
 
 void CDynamicVertexBuffer::Upload(const std::size_t Offset, const std::size_t Count) noexcept
 {
-    m_Window->GetQueue().WriteBuffer(m_RenderBuffer, Offset * m_BytePerElement, m_Data.data(), Count * m_BytePerElement);
+    m_Window->GetQueue().WriteBuffer(m_RenderBuffer, Offset * m_BytePerElement, m_Data.data() + Offset * m_BytePerElement, Count * m_BytePerElement);
 }
