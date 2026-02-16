@@ -57,15 +57,16 @@ bool SButtonSet::ConsumeHoldEvent(void* ContextObject, int GLFWKeyCode)
             if (/* No one is checking */ Key.HoldLockHolder == nullptr || /* Owned */ Key.HoldLockHolder == ContextObject || /* Steal */ Key.HoldLockHolderFrame < GlobalFrameCounter - 1) {
                 Key.HoldLockHolder = ContextObject;
                 Key.HoldLockHolderFrame = GlobalFrameCounter;
-                return true;
-            }
 
-            /// Remove click event
-            for (int i = 0; i < ButtonEvents.size(); ++i) {
-                if (ButtonEvents.at(i).Key == GLFWKeyCode && ButtonEvents.at(i).Action == GLFW_PRESS) {
-                    ButtonEvents.erase(ButtonEvents.begin() + i);
-                    break;
+                /// Remove click event
+                for (int i = 0; i < ButtonEvents.size(); ++i) {
+                    if (ButtonEvents.at(i).Key == GLFWKeyCode && ButtonEvents.at(i).Action == GLFW_PRESS) {
+                        ButtonEvents.erase(ButtonEvents.begin() + i);
+                        break;
+                    }
                 }
+
+                return true;
             }
         } else {
             return /* Owned */ Key.HoldLockHolder == ContextObject;
