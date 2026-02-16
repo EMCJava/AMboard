@@ -11,6 +11,9 @@ add_subdirectory(Interface)
 add_subdirectory(Control)
 add_subdirectory(Macro)
 
+add_compile_definitions(GLM_ENABLE_EXPERIMENTAL GLM_FORCE_DEPTH_ZERO_TO_ONE GLM_FORCE_LEFT_HANDED)
+
+
 add_executable(AMboard main.cpp)
 
 target_link_libraries(
@@ -24,4 +27,6 @@ target_link_libraries(
         EventHooker.lib
 
         WindowBase.lib
+        DepthTexture.lib
+        RenderPipeline.lib
 )

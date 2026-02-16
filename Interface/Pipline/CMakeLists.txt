@@ -1,0 +1,2 @@
+create_library(RenderPipeline P_DEPS WindowBase)
+create_library(DepthTexture P_DEPS WindowBase)

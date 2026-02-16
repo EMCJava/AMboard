@@ -4,80 +4,79 @@
 
 #include "WebGPUAPI.hxx"
 
-#include <iostream>
 #include <cassert>
+#include <iostream>
 
 #include <dawn/webgpu.h>
 
 #include <GLFW/glfw3.h>
 
 #ifdef __EMSCRIPTEN__
-#    define GLFW_EXPOSE_NATIVE_EMSCRIPTEN
-#    ifndef GLFW_PLATFORM_EMSCRIPTEN   // not defined in older versions of emscripten
-#        define GLFW_PLATFORM_EMSCRIPTEN 0
-#    endif
-#else   // __EMSCRIPTEN__
-#    ifdef _GLFW_X11
-#        define GLFW_EXPOSE_NATIVE_X11
-#    endif
+#define GLFW_EXPOSE_NATIVE_EMSCRIPTEN
+#ifndef GLFW_PLATFORM_EMSCRIPTEN // not defined in older versions of emscripten
+#define GLFW_PLATFORM_EMSCRIPTEN 0
+#endif
+#else // __EMSCRIPTEN__
+#ifdef _GLFW_X11
+#define GLFW_EXPOSE_NATIVE_X11
+#endif
 #endif
 #ifdef _GLFW_WAYLAND
-#    define GLFW_EXPOSE_NATIVE_WAYLAND
+#define GLFW_EXPOSE_NATIVE_WAYLAND
 #endif
 #ifdef _GLFW_COCOA
-#    define GLFW_EXPOSE_NATIVE_COCOA
+#define GLFW_EXPOSE_NATIVE_COCOA
 #endif
 #ifdef _GLFW_WIN32
-#    define GLFW_EXPOSE_NATIVE_WIN32
+#define GLFW_EXPOSE_NATIVE_WIN32
 #endif
 
 #ifdef GLFW_EXPOSE_NATIVE_COCOA
-#    include <Foundation/Foundation.h>
-#    include <QuartzCore/CAMetalLayer.h>
+#include <Foundation/Foundation.h>
+#include <QuartzCore/CAMetalLayer.h>
 #endif
 
 #ifndef __EMSCRIPTEN__
-#    include <GLFW/glfw3native.h>
+#include <GLFW/glfw3native.h>
 #endif
 
 #ifdef __EMSCRIPTEN__
-#    include <emscripten.h>
-#else   // __EMSCRIPTEN__
-#    include <thread>
-#    include <chrono>
-#endif   // __EMSCRIPTEN__
+#include <emscripten.h>
+#else // __EMSCRIPTEN__
+#include <chrono>
+#include <thread>
+#endif // __EMSCRIPTEN__
 
 std::string_view
-toStdStringView( WGPUStringView wgpuStringView )
+toStdStringView(WGPUStringView wgpuStringView)
 {
     return wgpuStringView.data == nullptr
-        ? std::string_view( )
+        ? std::string_view()
         : wgpuStringView.length == WGPU_STRLEN
-        ? std::string_view( wgpuStringView.data )
+        ? std::string_view(wgpuStringView.data)
         : std::string_view(
               wgpuStringView.data,
-              wgpuStringView.length );
+              wgpuStringView.length);
 }
 
 WGPUStringView
-toWgpuStringView( std::string_view stdStringView )
+toWgpuStringView(std::string_view stdStringView)
 {
-    return { stdStringView.data( ), stdStringView.size( ) };
+    return { stdStringView.data(), stdStringView.size() };
 }
 
 WGPUStringView
-toWgpuStringView( const char* cString )
+toWgpuStringView(const char* cString)
 {
     return { cString, WGPU_STRLEN };
 }
 
-void
-sleepForMilliseconds( unsigned int milliseconds )
+void sleepForMilliseconds(unsigned int milliseconds)
 {
 #ifdef __EMSCRIPTEN__
-    emscripten_sleep( milliseconds );
+    emscripten_sleep(milliseconds);
 #else
-    std::this_thread::sleep_for( std::chrono::milliseconds( milliseconds ) );
+    std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
 #endif
 }
 // All utility functions are regrouped here
@@ -88,14 +87,14 @@ sleepForMilliseconds( unsigned int milliseconds )
  *     const adapter = await navigator.gpu.requestAdapter(options);
  */
 WGPUAdapter
-requestAdapterSync( WGPUInstance                     instance,
-                    WGPURequestAdapterOptions const* options )
+requestAdapterSync(WGPUInstance instance,
+    WGPURequestAdapterOptions const* options)
 {
     // A simple structure holding the local information shared with the
     // onAdapterRequestEnded callback.
     struct UserData {
-        WGPUAdapter adapter      = nullptr;
-        bool        requestEnded = false;
+        WGPUAdapter adapter = nullptr;
+        bool requestEnded = false;
     };
     UserData userData;
 
@@ -107,20 +106,18 @@ requestAdapterSync( WGPUInstance                     instance,
     // is to convey what we want to capture through the userdata1 pointer,
     // provided as the last argument of wgpuInstanceRequestAdapter and received
     // by the callback as its last argument.
-    auto onAdapterRequestEnded = []( WGPURequestAdapterStatus status,
-                                     WGPUAdapter              adapter,
-                                     WGPUStringView           message,
-                                     void*                    userdata1,
+    auto onAdapterRequestEnded = [](WGPURequestAdapterStatus status,
+                                     WGPUAdapter adapter,
+                                     WGPUStringView message,
+                                     void* userdata1,
                                      void* /* userdata2 */
                                      ) static {
-        UserData& userData = *reinterpret_cast<UserData*>( userdata1 );
-        if ( status == WGPURequestAdapterStatus_Success )
-        {
+        UserData& userData = *reinterpret_cast<UserData*>(userdata1);
+        if (status == WGPURequestAdapterStatus_Success) {
             userData.adapter = adapter;
-        } else
-        {
+        } else {
             std::cerr << "Error while requesting adapter: "
-                      << toStdStringView( message ) << std::endl;
+                      << toStdStringView(message) << std::endl;
         }
         userData.requestEnded = true;
     };
@@ -131,10 +128,11 @@ requestAdapterSync( WGPUInstance                     instance,
         /* mode = */ WGPUCallbackMode_AllowProcessEvents,
         /* callback = */ onAdapterRequestEnded,
         /* userdata1 = */ &userData,
-        /* userdata2 = */ nullptr };
+        /* userdata2 = */ nullptr
+    };
 
     // Call to the WebGPU request adapter procedure
-    wgpuInstanceRequestAdapter( instance, options, callbackInfo );
+    wgpuInstanceRequestAdapter(instance, options, callbackInfo);
 
     // We wait until userData.requestEnded gets true
 
@@ -142,29 +140,25 @@ requestAdapterSync( WGPUInstance                     instance,
     // pending async operations, in which case it invokes our callbacks.
     // NB: We test once before the loop not to wait for 200ms in case it is
     // already ready
-    wgpuInstanceProcessEvents( instance );
+    wgpuInstanceProcessEvents(instance);
 
-    while ( !userData.requestEnded )
-    {
+    while (!userData.requestEnded) {
         // Waiting for 200 ms to avoid asking too often to process events
-        sleepForMilliseconds( 200 );
+        sleepForMilliseconds(200);
 
-        wgpuInstanceProcessEvents( instance );
+        wgpuInstanceProcessEvents(instance);
     }
 
     return userData.adapter;
 }
-void
-inspectAdapter( WGPUAdapter adapter )
+void inspectAdapter(WGPUAdapter adapter)
 {
-    WGPULimits supportedLimits  = { };
+    WGPULimits supportedLimits = { };
     supportedLimits.nextInChain = nullptr;
 
-    bool success =
-        wgpuAdapterGetLimits( adapter, &supportedLimits ) == WGPUStatus_Success;
+    bool success = wgpuAdapterGetLimits(adapter, &supportedLimits) == WGPUStatus_Success;
 
-    if ( success )
-    {
+    if (success) {
         std::cout << "Adapter limits:" << std::endl;
         std::cout << " - maxTextureDimension1D: "
                   << supportedLimits.maxTextureDimension1D << std::endl;
@@ -180,39 +174,38 @@ inspectAdapter( WGPUAdapter adapter )
 
     // Get adapter features. This may allocate memory that we must later free with
     // wgpuSupportedFeaturesFreeMembers()
-    wgpuAdapterGetFeatures( adapter, &features );
+    wgpuAdapterGetFeatures(adapter, &features);
 
     std::cout << "Adapter features:" << std::endl;
-    std::cout << std::hex;   // Write integers as hexadecimal to ease comparison
-                             // with webgpu.h literals
-    for ( size_t i = 0; i < features.featureCount; ++i )
-    {
-        std::cout << " - 0x" << features.features[ i ] << std::endl;
+    std::cout << std::hex; // Write integers as hexadecimal to ease comparison
+                           // with webgpu.h literals
+    for (size_t i = 0; i < features.featureCount; ++i) {
+        std::cout << " - 0x" << features.features[i] << std::endl;
     }
-    std::cout << std::dec;   // Restore decimal numbers
+    std::cout << std::dec; // Restore decimal numbers
 
     // Free the memory that had potentially been allocated by
     // wgpuAdapterGetFeatures()
-    wgpuSupportedFeaturesFreeMembers( features );
+    wgpuSupportedFeaturesFreeMembers(features);
     // One shall no longer use features beyond this line.
     WGPUAdapterInfo properties;
     properties.nextInChain = nullptr;
-    wgpuAdapterGetInfo( adapter, &properties );
+    wgpuAdapterGetInfo(adapter, &properties);
     std::cout << "Adapter properties:" << std::endl;
     std::cout << " - vendorID: " << properties.vendorID << std::endl;
-    std::cout << " - vendorName: " << toStdStringView( properties.vendor )
+    std::cout << " - vendorName: " << toStdStringView(properties.vendor)
               << std::endl;
-    std::cout << " - architecture: " << toStdStringView( properties.architecture )
+    std::cout << " - architecture: " << toStdStringView(properties.architecture)
               << std::endl;
     std::cout << " - deviceID: " << properties.deviceID << std::endl;
-    std::cout << " - name: " << toStdStringView( properties.device ) << std::endl;
+    std::cout << " - name: " << toStdStringView(properties.device) << std::endl;
     std::cout << " - driverDescription: "
-              << toStdStringView( properties.description ) << std::endl;
+              << toStdStringView(properties.description) << std::endl;
     std::cout << std::hex;
     std::cout << " - adapterType: 0x" << properties.adapterType << std::endl;
     std::cout << " - backendType: 0x" << properties.backendType << std::endl;
-    std::cout << std::dec;   // Restore decimal numbers
-    wgpuAdapterInfoFreeMembers( properties );
+    std::cout << std::dec; // Restore decimal numbers
+    wgpuAdapterInfoFreeMembers(properties);
 }
 /**
  * Utility function to get a WebGPU device, so that
@@ -222,30 +215,28 @@ inspectAdapter( WGPUAdapter adapter )
  * It is very similar to requestAdapter
  */
 WGPUDevice
-requestDeviceSync( WGPUInstance                instance,
-                   WGPUAdapter                 adapter,
-                   WGPUDeviceDescriptor const* descriptor )
+requestDeviceSync(WGPUInstance instance,
+    WGPUAdapter adapter,
+    WGPUDeviceDescriptor const* descriptor)
 {
     struct UserData {
-        WGPUDevice device       = nullptr;
-        bool       requestEnded = false;
+        WGPUDevice device = nullptr;
+        bool requestEnded = false;
     };
     UserData userData;
 
     // The callback
-    auto onDeviceRequestEnded = []( WGPURequestDeviceStatus status,
-                                    WGPUDevice              device,
-                                    WGPUStringView          message,
-                                    void*                   userdata1,
+    auto onDeviceRequestEnded = [](WGPURequestDeviceStatus status,
+                                    WGPUDevice device,
+                                    WGPUStringView message,
+                                    void* userdata1,
                                     void* /* userdata2 */
                                     ) static {
-        UserData& userData = *reinterpret_cast<UserData*>( userdata1 );
-        if ( status == WGPURequestDeviceStatus_Success )
-        {
+        UserData& userData = *reinterpret_cast<UserData*>(userdata1);
+        if (status == WGPURequestDeviceStatus_Success) {
             userData.device = device;
-        } else
-        {
-            std::cerr << "Error while requesting device: " << toStdStringView( message )
+        } else {
+            std::cerr << "Error while requesting device: " << toStdStringView(message)
                       << std::endl;
         }
         userData.requestEnded = true;
@@ -257,42 +248,39 @@ requestDeviceSync( WGPUInstance                instance,
         /* mode = */ WGPUCallbackMode_AllowProcessEvents,
         /* callback = */ onDeviceRequestEnded,
         /* userdata1 = */ &userData,
-        /* userdata2 = */ nullptr };
+        /* userdata2 = */ nullptr
+    };
 
     // Call to the WebGPU request adapter procedure
-    wgpuAdapterRequestDevice( adapter, descriptor, callbackInfo );
+    wgpuAdapterRequestDevice(adapter, descriptor, callbackInfo);
 
     // Hand the execution to the WebGPU instance until the request ended
-    wgpuInstanceProcessEvents( instance );
-    while ( !userData.requestEnded )
-    {
-        sleepForMilliseconds( 200 );
-        wgpuInstanceProcessEvents( instance );
+    wgpuInstanceProcessEvents(instance);
+    while (!userData.requestEnded) {
+        sleepForMilliseconds(200);
+        wgpuInstanceProcessEvents(instance);
     }
 
     return userData.device;
 }
 // We create a utility function to inspect the device:
-void
-inspectDevice( WGPUDevice device )
+void inspectDevice(WGPUDevice device)
 {
 
     WGPUSupportedFeatures features = WGPU_SUPPORTED_FEATURES_INIT;
-    wgpuDeviceGetFeatures( device, &features );
+    wgpuDeviceGetFeatures(device, &features);
     std::cout << "Device features:" << std::endl;
     std::cout << std::hex;
-    for ( size_t i = 0; i < features.featureCount; ++i )
-    {
-        std::cout << " - 0x" << features.features[ i ] << std::endl;
+    for (size_t i = 0; i < features.featureCount; ++i) {
+        std::cout << " - 0x" << features.features[i] << std::endl;
     }
     std::cout << std::dec;
-    wgpuSupportedFeaturesFreeMembers( features );
+    wgpuSupportedFeaturesFreeMembers(features);
 
-    WGPULimits limits  = WGPU_LIMITS_INIT;
-    bool       success = wgpuDeviceGetLimits( device, &limits ) == WGPUStatus_Success;
+    WGPULimits limits = WGPU_LIMITS_INIT;
+    bool success = wgpuDeviceGetLimits(device, &limits) == WGPUStatus_Success;
 
-    if ( success )
-    {
+    if (success) {
         std::cout << "Device limits:" << std::endl;
         std::cout << " - maxTextureDimension1D: " << limits.maxTextureDimension1D
                   << std::endl;
@@ -356,35 +344,30 @@ inspectDevice( WGPUDevice device )
                   << limits.maxComputeWorkgroupsPerDimension << std::endl;
     }
 }
-void
-fetchBufferDataSync( WGPUInstance                       instance,
-                     WGPUBuffer                         bufferB,
-                     std::function<void( const void* )> processBufferData )
+void fetchBufferDataSync(WGPUInstance instance,
+    WGPUBuffer bufferB,
+    std::function<void(const void*)> processBufferData)
 {
     // We copy here what used to be in main():
     // Context passed to `onBufferBMapped` through theuserdata pointer:
     struct OnBufferBMappedContext {
-        bool operationEnded =
-            false;                          // Turned true as soon as the callback is invoked
-        bool mappingIsSuccessful = false;   // Turned true only if mapping succeeded
+        bool operationEnded = false; // Turned true as soon as the callback is invoked
+        bool mappingIsSuccessful = false; // Turned true only if mapping succeeded
     };
 
     // This function has the type WGPUBufferMapCallback as defined in webgpu.h
-    auto onBufferBMapped = []( WGPUMapAsyncStatus    status,
+    auto onBufferBMapped = [](WGPUMapAsyncStatus status,
                                struct WGPUStringView message,
-                               void*                 userdata1,
+                               void* userdata1,
                                void* /* userdata2 */
                                ) static {
-        OnBufferBMappedContext& context =
-            *reinterpret_cast<OnBufferBMappedContext*>( userdata1 );
+        OnBufferBMappedContext& context = *reinterpret_cast<OnBufferBMappedContext*>(userdata1);
         context.operationEnded = true;
-        if ( status == WGPUMapAsyncStatus_Success )
-        {
+        if (status == WGPUMapAsyncStatus_Success) {
             context.mappingIsSuccessful = true;
-        } else
-        {
+        } else {
             std::cout << "Could not map buffer B! Status: " << status
-                      << ", message: " << toStdStringView( message ) << std::endl;
+                      << ", message: " << toStdStringView(message) << std::endl;
         }
     };
 
@@ -393,142 +376,137 @@ fetchBufferDataSync( WGPUInstance                       instance,
 
     // And we build the callback info:
     WGPUBufferMapCallbackInfo callbackInfo = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
-    callbackInfo.mode                      = WGPUCallbackMode_AllowProcessEvents;
-    callbackInfo.callback                  = onBufferBMapped;
-    callbackInfo.userdata1                 = &context;
+    callbackInfo.mode = WGPUCallbackMode_AllowProcessEvents;
+    callbackInfo.callback = onBufferBMapped;
+    callbackInfo.userdata1 = &context;
 
     // And finally we launch the asynchronous operation
-    wgpuBufferMapAsync( bufferB,
-                        WGPUMapMode_Read,
-                        0,   // offset
-                        WGPU_WHOLE_MAP_SIZE,
-                        callbackInfo );
+    wgpuBufferMapAsync(bufferB,
+        WGPUMapMode_Read,
+        0, // offset
+        WGPU_WHOLE_MAP_SIZE,
+        callbackInfo);
 
     // Process events until the map operation ended
-    wgpuInstanceProcessEvents( instance );
-    while ( !context.operationEnded )
-    {
-        sleepForMilliseconds( 200 );
-        wgpuInstanceProcessEvents( instance );
+    wgpuInstanceProcessEvents(instance);
+    while (!context.operationEnded) {
+        sleepForMilliseconds(200);
+        wgpuInstanceProcessEvents(instance);
     }
 
-    if ( context.mappingIsSuccessful )
-    {
-        const void* bufferData =
-            wgpuBufferGetConstMappedRange( bufferB, 0, WGPU_WHOLE_MAP_SIZE );
-        processBufferData( bufferData );
+    if (context.mappingIsSuccessful) {
+        const void* bufferData = wgpuBufferGetConstMappedRange(bufferB, 0, WGPU_WHOLE_MAP_SIZE);
+        processBufferData(bufferData);
     }
 }
 
 wgpu::Surface
-glfwCreateWindowWGPUSurface( const wgpu::Instance& instance, GLFWwindow* window )
+glfwCreateWindowWGPUSurface(const wgpu::Instance& instance, GLFWwindow* window)
 {
 #ifndef __EMSCRIPTEN__
-    switch ( glfwGetPlatform( ) )
-    {
+    switch (glfwGetPlatform()) {
 #else
     // glfwGetPlatform is not available in older versions of emscripten
-    switch ( GLFW_PLATFORM_EMSCRIPTEN )
-    {
+    switch (GLFW_PLATFORM_EMSCRIPTEN) {
 #endif
 
 #ifdef GLFW_EXPOSE_NATIVE_X11
     case GLFW_PLATFORM_X11: {
-        Display* x11_display = glfwGetX11Display( );
-        Window   x11_window  = glfwGetX11Window( window );
+        Display* x11_display = glfwGetX11Display();
+        Window x11_window = glfwGetX11Window(window);
 
         WGPUSurfaceSourceXlibWindow fromXlibWindow;
         fromXlibWindow.chain.sType = WGPUSType_SurfaceSourceXlibWindow;
-        fromXlibWindow.chain.next  = nullptr;
-        fromXlibWindow.display     = x11_display;
-        fromXlibWindow.window      = x11_window;
+        fromXlibWindow.chain.next = nullptr;
+        fromXlibWindow.display = x11_display;
+        fromXlibWindow.window = x11_window;
 
         WGPUSurfaceDescriptor surfaceDescriptor;
         surfaceDescriptor.nextInChain = &fromXlibWindow.chain;
-        surfaceDescriptor.label       = (WGPUStringView) { nullptr, WGPU_STRLEN };
+        surfaceDescriptor.label = (WGPUStringView) { nullptr, WGPU_STRLEN };
 
-        return wgpuInstanceCreateSurface( instance, &surfaceDescriptor );
+        return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
     }
-#endif   // GLFW_EXPOSE_NATIVE_X11
+#endif // GLFW_EXPOSE_NATIVE_X11
 
 #ifdef GLFW_EXPOSE_NATIVE_WAYLAND
     case GLFW_PLATFORM_WAYLAND: {
-        struct wl_display* wayland_display = glfwGetWaylandDisplay( );
-        struct wl_surface* wayland_surface = glfwGetWaylandWindow( window );
+        struct wl_display* wayland_display = glfwGetWaylandDisplay();
+        struct wl_surface* wayland_surface = glfwGetWaylandWindow(window);
 
         WGPUSurfaceSourceWaylandSurface fromWaylandSurface;
         fromWaylandSurface.chain.sType = WGPUSType_SurfaceSourceWaylandSurface;
-        fromWaylandSurface.chain.next  = nullptr;
-        fromWaylandSurface.display     = wayland_display;
-        fromWaylandSurface.surface     = wayland_surface;
+        fromWaylandSurface.chain.next = nullptr;
+        fromWaylandSurface.display = wayland_display;
+        fromWaylandSurface.surface = wayland_surface;
 
         WGPUSurfaceDescriptor surfaceDescriptor;
         surfaceDescriptor.nextInChain = &fromWaylandSurface.chain;
-        surfaceDescriptor.label       = (WGPUStringView) { nullptr, WGPU_STRLEN };
+        surfaceDescriptor.label = (WGPUStringView) { nullptr, WGPU_STRLEN };
 
-        return wgpuInstanceCreateSurface( instance, &surfaceDescriptor );
+        return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
     }
-#endif   // GLFW_EXPOSE_NATIVE_WAYLAND
+#endif // GLFW_EXPOSE_NATIVE_WAYLAND
 
 #ifdef GLFW_EXPOSE_NATIVE_COCOA
     case GLFW_PLATFORM_COCOA: {
-        id        metal_layer = [CAMetalLayer layer];
-        NSWindow* ns_window   = glfwGetCocoaWindow( window );
+        id metal_layer = [CAMetalLayer layer];
+        NSWindow* ns_window = glfwGetCocoaWindow(window);
         [ns_window.contentView setWantsLayer:YES];
         [ns_window.contentView setLayer:metal_layer];
 
         WGPUSurfaceSourceMetalLayer fromMetalLayer;
         fromMetalLayer.chain.sType = WGPUSType_SurfaceSourceMetalLayer;
-        fromMetalLayer.chain.next  = nullptr;
-        fromMetalLayer.layer       = metal_layer;
+        fromMetalLayer.chain.next = nullptr;
+        fromMetalLayer.layer = metal_layer;
 
         WGPUSurfaceDescriptor surfaceDescriptor;
         surfaceDescriptor.nextInChain = &fromMetalLayer.chain;
-        surfaceDescriptor.label       = (WGPUStringView) { nullptr, WGPU_STRLEN };
+        surfaceDescriptor.label = (WGPUStringView) { nullptr, WGPU_STRLEN };
 
-        return wgpuInstanceCreateSurface( instance, &surfaceDescriptor );
+        return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
     }
-#endif   // GLFW_EXPOSE_NATIVE_COCOA
+#endif // GLFW_EXPOSE_NATIVE_COCOA
 
 #ifdef GLFW_EXPOSE_NATIVE_WIN32
     case GLFW_PLATFORM_WIN32: {
-        HWND      hwnd      = glfwGetWin32Window( window );
-        HINSTANCE hinstance = GetModuleHandle( nullptr );
+        HWND hwnd = glfwGetWin32Window(window);
+        HINSTANCE hinstance = GetModuleHandle(nullptr);
 
         wgpu::SurfaceSourceWindowsHWND fromWindowsHWND;
         fromWindowsHWND.hinstance = hinstance;
-        fromWindowsHWND.hwnd      = hwnd;
+        fromWindowsHWND.hwnd = hwnd;
 
         wgpu::SurfaceDescriptor surfaceDescriptor;
         surfaceDescriptor.nextInChain = &fromWindowsHWND;
 
-        return instance.CreateSurface( &surfaceDescriptor );
+        return instance.CreateSurface(&surfaceDescriptor);
     }
-#endif   // GLFW_EXPOSE_NATIVE_WIN32
+#endif // GLFW_EXPOSE_NATIVE_WIN32
 
 #ifdef GLFW_EXPOSE_NATIVE_EMSCRIPTEN
     case GLFW_PLATFORM_EMSCRIPTEN: {
-#    ifdef WEBGPU_BACKEND_EMDAWNWEBGPU
+#ifdef WEBGPU_BACKEND_EMDAWNWEBGPU
         WGPUEmscriptenSurfaceSourceCanvasHTMLSelector fromCanvasHTMLSelector;
         fromCanvasHTMLSelector.chain.sType = WGPUSType_EmscriptenSurfaceSourceCanvasHTMLSelector;
-        fromCanvasHTMLSelector.selector    = (WGPUStringView) { "canvas", WGPU_STRLEN };
-#    else
+        fromCanvasHTMLSelector.selector = (WGPUStringView) { "canvas", WGPU_STRLEN };
+#else
         WGPUSurfaceDescriptorFromCanvasHTMLSelector fromCanvasHTMLSelector;
         fromCanvasHTMLSelector.chain.sType = WGPUSType_SurfaceDescriptorFromCanvasHTMLSelector;
-        fromCanvasHTMLSelector.selector    = "canvas";
-#    endif
+        fromCanvasHTMLSelector.selector = "canvas";
+#endif
         fromCanvasHTMLSelector.chain.next = nullptr;
 
         WGPUSurfaceDescriptor surfaceDescriptor;
         surfaceDescriptor.nextInChain = &fromCanvasHTMLSelector.chain;
-#    ifdef WEBGPU_BACKEND_EMDAWNWEBGPU
+#ifdef WEBGPU_BACKEND_EMDAWNWEBGPU
         surfaceDescriptor.label = (WGPUStringView) { nullptr, WGPU_STRLEN };
-#    else
+#else
         surfaceDescriptor.label = nullptr;
-#    endif
-        return wgpuInstanceCreateSurface( instance, &surfaceDescriptor );
+#endif
+        return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
     }
-#endif   // GLFW_EXPOSE_NATIVE_EMSCRIPTEN
+#endif // GLFW_EXPOSE_NATIVE_EMSCRIPTEN
 
     default:
         // Unsupported platform

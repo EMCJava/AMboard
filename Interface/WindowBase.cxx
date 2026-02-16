@@ -4,8 +4,8 @@
 //
 
 #include "WindowBase.hxx"
-#include "Interface.hxx"
 #include "API/WebGPUAPI.hxx"
+#include "Interface.hxx"
 
 #include <cassert>
 #include <iostream>

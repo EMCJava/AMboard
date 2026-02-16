@@ -58,6 +58,7 @@ public:
     [[nodiscard]] const wgpu::Device& GetDevice() const noexcept { return m_Device; }
     [[nodiscard]] const wgpu::Queue& GetQueue() const noexcept { return m_Queue; }
     [[nodiscard]] wgpu::TextureFormat GetSurfaceFormat() const noexcept { return m_SurfaceFormat; }
+    [[nodiscard]] wgpu::TextureFormat GetDepthFormat() const noexcept { return m_DepthTextureFormat; }
 
     bool WindowShouldClose() const noexcept;
     void StartFrame(); // Just reset the last updated time
@@ -73,6 +74,7 @@ protected:
     wgpu::Queue m_Queue;
 
     wgpu::SurfaceConfiguration m_SurfaceConfig;
+    wgpu::TextureFormat m_DepthTextureFormat = wgpu::TextureFormat::Depth32Float;
     wgpu::TextureFormat m_SurfaceFormat;
 
     std::list<std::function<void()>> m_OnWindowResizes;
