@@ -23,6 +23,11 @@ void CBoardEditor::RenderNodes(const SRenderContext& RenderContext) const
     RenderContext.RenderPassEncoder.Draw(4, NodeVertexBuffer.GetBufferSize());
 }
 
+glm::vec2 CBoardEditor::ScreenToWorld(const glm::vec2& ScreenPos) const noexcept
+{
+    return ScreenPos / m_CameraZoom + m_CameraOffset;
+}
+
 CBoardEditor::CBoardEditor()
 {
     m_GridPipline = std::make_unique<CGridPipline>();
@@ -71,7 +76,21 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
     }
 
     if (GetInputManager().GetMouseButtons().ConsumeHoldEvent(this, GLFW_MOUSE_BUTTON_MIDDLE)) {
-        m_CameraOffset += GetInputManager().GetDeltaCursor();
+        m_CameraOffset -= glm::vec2 { GetInputManager().GetDeltaCursor() } / m_CameraZoom;
+        m_ScreenUniformDirty = true;
+    }
+
+    if (const auto Scroll = GetInputManager().GetDeltaScroll(); Scroll != 0) {
+        const float ZoomFactor = 1.0f + (Scroll * 0.1f);
+        const float NewZoom = glm::clamp(m_CameraZoom * ZoomFactor, 0.1f, 5.0f);
+
+        // Zoom towards mouse position
+        const glm::vec2 WorldPosBefore = ScreenToWorld(GetInputManager().GetCursorPosition());
+        m_CameraZoom = NewZoom;
+        const glm::vec2 WorldPosAfter = ScreenToWorld(GetInputManager().GetCursorPosition());
+        m_CameraOffset += (WorldPosBefore - WorldPosAfter);
+
+        m_ScreenUniformDirty = true;
     }
 
     return EWindowEventState::Normal;
@@ -80,9 +99,13 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
 {
     RenderContext.RenderPassEncoder.SetBindGroup(0, m_UniformBindingGroup, 0, nullptr);
-    m_SceneUniform->Projection = glm::ortho(0.0f, (float)GetWindowSize().x, (float)GetWindowSize().y, 0.0f, 0.0f, 1.0f);
-    m_SceneUniform->View = glm::translate(glm::mat4 { 1 }, glm::vec3(m_CameraOffset, 0));
-    GetQueue().WriteBuffer(m_SceneUniformBuffer, 0, m_SceneUniform.get(), sizeof(SSceneUniform));
+
+    if (m_ScreenUniformDirty) {
+        m_SceneUniform->Projection = glm::ortho(0.0f, (float)GetWindowSize().x, (float)GetWindowSize().y, 0.0f, 0.0f, 1.0f);
+        m_SceneUniform->View = glm::translate(glm::scale(glm::mat4 { 1 }, glm::vec3(m_CameraZoom, m_CameraZoom, 1.0f)), glm::vec3(-m_CameraOffset, 0));
+        GetQueue().WriteBuffer(m_SceneUniformBuffer, 0, m_SceneUniform.get(), sizeof(SSceneUniform));
+        m_ScreenUniformDirty = false;
+    }
 
     RenderContext.RenderPassEncoder.SetPipeline(*m_GridPipline);
     RenderContext.RenderPassEncoder.Draw(4);

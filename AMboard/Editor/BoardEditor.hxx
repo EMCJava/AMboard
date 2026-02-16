@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "BoardEditor.hxx"
+
 #include <Interface/WindowBase.hxx>
 
 #include <memory>
@@ -15,6 +17,8 @@ class CBoardEditor : public CWindowBase {
 
     void RenderNodes(const SRenderContext& RenderContext) const;
 
+    [[nodiscard]] glm::vec2 ScreenToWorld(const glm::vec2& ScreenPos) const noexcept;
+
 public:
     CBoardEditor();
     ~CBoardEditor();
@@ -24,6 +28,7 @@ public:
     void RenderBoard(const SRenderContext& RenderContext);
 
 protected:
+    bool m_ScreenUniformDirty = true;
     std::unique_ptr<class SSceneUniform> m_SceneUniform;
     wgpu::Buffer m_SceneUniformBuffer;
     wgpu::BindGroup m_UniformBindingGroup;
@@ -33,4 +38,5 @@ protected:
     std::vector<std::unique_ptr<class CBaseNode>> m_Nodes;
 
     glm::vec2 m_CameraOffset { };
+    float m_CameraZoom = 1;
 };
