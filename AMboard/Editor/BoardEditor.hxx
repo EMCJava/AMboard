@@ -31,4 +31,6 @@ protected:
     std::unique_ptr<class CGridPipline> m_GridPipline;
     std::unique_ptr<class CNodePipline> m_NodePipline;
     std::vector<std::unique_ptr<class CBaseNode>> m_Nodes;
+
+    glm::vec2 m_CameraOffset { };
 };

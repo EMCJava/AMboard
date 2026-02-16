@@ -8,6 +8,8 @@
 #include "NodePipline.hxx"
 
 #include <AMboard/Macro/BaseNode.hxx>
+#include <GLFW/glfw3.h>
+#include <iostream>
 
 #include <glm/gtx/transform.hpp>
 #include <glm/mat4x4.hpp>
@@ -63,14 +65,23 @@ CBoardEditor::~CBoardEditor() = default;
 
 CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 {
-    return CWindowBase::ProcessEvent();
+    if (const auto EventStage = CWindowBase::ProcessEvent();
+        EventStage != EWindowEventState::Normal) [[unlikely]] {
+        return EventStage;
+    }
+
+    if (GetInputManager().GetMouseButtons().ConsumeHoldEvent(this, GLFW_MOUSE_BUTTON_MIDDLE)) {
+        m_CameraOffset += GetInputManager().GetDeltaCursor();
+    }
+
+    return EWindowEventState::Normal;
 }
 
 void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
 {
     RenderContext.RenderPassEncoder.SetBindGroup(0, m_UniformBindingGroup, 0, nullptr);
     m_SceneUniform->Projection = glm::ortho(0.0f, (float)GetWindowSize().x, (float)GetWindowSize().y, 0.0f, 0.0f, 1.0f);
-    m_SceneUniform->View = glm::translate(glm::mat4 { 1 }, glm::vec3(1920, 1080, 0) / 2.f);
+    m_SceneUniform->View = glm::translate(glm::mat4 { 1 }, glm::vec3(m_CameraOffset, 0));
     GetQueue().WriteBuffer(m_SceneUniformBuffer, 0, m_SceneUniform.get(), sizeof(SSceneUniform));
 
     RenderContext.RenderPassEncoder.SetPipeline(*m_GridPipline);
