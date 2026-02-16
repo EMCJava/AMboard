@@ -82,7 +82,7 @@ void CRenderPipeline::CreatePipeline(const CWindowBase& Window, bool ForceRecrea
     }
 
     wgpu::DepthStencilState depthStencilState;
-    depthStencilState.depthCompare = wgpu::CompareFunction::Less;
+    depthStencilState.depthCompare = wgpu::CompareFunction::LessEqual;
     depthStencilState.depthWriteEnabled = true;
     depthStencilState.format = Window.GetDepthFormat();
     depthStencilState.stencilReadMask = 0;
