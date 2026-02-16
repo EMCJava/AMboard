@@ -7,6 +7,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(library)
 
 include_directories(.)
+add_subdirectory(Interface)
 add_subdirectory(Control)
 add_subdirectory(Macro)
 
@@ -21,4 +22,6 @@ target_link_libraries(
         Pin.lib
 
         EventHooker.lib
+
+        WindowBase.lib
 )

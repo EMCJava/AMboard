@@ -1,0 +1,17 @@
+{
+  "name": "amboard",
+  "version": "1.0.0",
+  "dependencies": [
+    "glm",
+    "glfw3",
+    "spdlog",
+    {
+      "name": "dawn",
+      "features": [
+        "d3d12",
+        "tint"
+      ],
+      "default-features": false
+    }
+  ]
+}

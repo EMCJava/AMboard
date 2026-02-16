@@ -1,13 +1,13 @@
+#include <Interface/WindowBase.hxx>
+
 #include <Control/EventHooker.hxx>
-#include <chrono>
 
 #include <Macro/DataPin.hxx>
 #include <Macro/ExecuteNode.hxx>
 #include <Macro/FlowPin.hxx>
 
+#include <chrono>
 #include <iostream>
-
-#include <windows.h>
 
 class CPrintingNode : public CExecuteNode {
 public:
@@ -88,11 +88,9 @@ int main()
         std::cout << Data.vkCode << std::endl;
     };
 
-    MSG msg;
-    while (GetMessage(&msg, nullptr, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-    }
+    CWindowBase Window;
+    Window.StartFrame();
+    while (Window.ProcessEvent()) { }
 
     return 0;
 }
