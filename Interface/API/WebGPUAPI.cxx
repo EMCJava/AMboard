@@ -464,7 +464,7 @@ glfwCreateWindowWGPUSurface(const wgpu::Instance& instance, GLFWwindow* window)
         surfaceDescriptor.nextInChain = &fromMetalLayer.chain;
         surfaceDescriptor.label = (WGPUStringView) { nullptr, WGPU_STRLEN };
 
-        return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
+        return wgpu::Surface::Acquire(wgpuInstanceCreateSurface(instance.Get(), &surfaceDescriptor));
     }
 #endif // GLFW_EXPOSE_NATIVE_COCOA
 
