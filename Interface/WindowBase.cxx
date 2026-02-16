@@ -52,7 +52,7 @@ SRenderContext::~SRenderContext()
 {
     RenderPassEncoder.End();
 
-    wgpu::CommandBufferDescriptor cmdBufferDescriptor = WGPU_COMMAND_BUFFER_DESCRIPTOR_INIT;
+    wgpu::CommandBufferDescriptor cmdBufferDescriptor;
     cmdBufferDescriptor.label = "Command buffer";
     const wgpu::CommandBuffer command = CommandEncoder.Finish(&cmdBufferDescriptor);
 
