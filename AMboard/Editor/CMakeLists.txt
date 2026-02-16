@@ -1,1 +1,2 @@
-create_library(BoardEditor DEPS WindowBase)
+create_library(NodePipline DEPS WindowBase RenderPipeline DynamicVertexBuffer)
+create_library(BoardEditor DEPS WindowBase P_DEPS NodePipline)

@@ -143,7 +143,7 @@ fn vs_main(@builtin(vertex_index) vid: u32) -> VertexOutput {
     let pos = vec2<f32>(x, y);
 
     var out: VertexOutput;
-    out.position = vec4<f32>(pos, 0.0, 1.0);
+    out.position = vec4<f32>(pos, 1.0, 1.0);
     out.world_pos = (inverse_mat4(u.proj * u.view) * vec4<f32>(pos, 0.0, 1.0)).xy;
     return out;
 }
@@ -234,14 +234,15 @@ int main()
     while (Window.ProcessEvent()) {
 
         if (const auto RenderContext = Window.GetRenderContext(DepthTexture)) {
-            RenderContext.RenderPassEncoder.SetPipeline(GridPipline);
             RenderContext.RenderPassEncoder.SetBindGroup(0, uniformBindingGroup, 0, nullptr);
-
-            SceneUniform.Projection = glm::ortho(0.0f, (float)Window.GetWindowSize().x, (float)Window.GetWindowSize().y, 0.0f, -1.0f, 1.0f);
-            SceneUniform.View = glm::scale(glm::mat4 { 1 }, glm::vec3(5));
+            SceneUniform.Projection = glm::ortho(0.0f, (float)Window.GetWindowSize().x, (float)Window.GetWindowSize().y, 0.0f, 0.0f, 1.0f);
+            SceneUniform.View = glm::translate(glm::mat4 { 1 }, glm::vec3(1920, 1080, 0) / 2.f);
             Window.GetQueue().WriteBuffer(sceneUniformBuffer, 0, &SceneUniform, sizeof(SSceneUniform));
 
+            RenderContext.RenderPassEncoder.SetPipeline(GridPipline);
             RenderContext.RenderPassEncoder.Draw(4);
+
+            Window.RenderBoard(RenderContext);
         }
     }
 
