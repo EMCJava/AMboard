@@ -1,0 +1,1 @@
+create_library(BoardEditor DEPS WindowBase)

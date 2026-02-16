@@ -1,8 +1,7 @@
 #include <Interface/Pipline/DepthTexture.hxx>
 #include <Interface/Pipline/RenderPipeline.hxx>
-#include <Interface/WindowBase.hxx>
 
-#include <AMboard/Control/EventHooker.hxx>
+#include <AMboard/Editor/BoardEditor.hxx>
 
 #include <AMboard/Macro/DataPin.hxx>
 #include <AMboard/Macro/ExecuteNode.hxx>
@@ -198,7 +197,7 @@ int main()
 
     BranchingNode.ExecuteNode();
 
-    CWindowBase Window;
+    CBoardEditor Window;
 
     CDepthTexture DepthTexture { Window };
 

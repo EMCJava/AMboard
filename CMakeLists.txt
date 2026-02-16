@@ -25,7 +25,7 @@ target_link_libraries(
 
         EventHooker.lib
 
-        WindowBase.lib
+        BoardEditor.lib
         DepthTexture.lib
         RenderPipeline.lib
 )
