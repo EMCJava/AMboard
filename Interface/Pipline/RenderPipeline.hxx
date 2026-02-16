@@ -24,9 +24,9 @@ protected:
 
     void DefineSceneUniforms(wgpu::BindGroupLayoutEntry& Entry);
 
-    virtual wgpu::ShaderModule CompileShader(const wgpu::Device& Device);
-    virtual std::vector<wgpu::BindGroupLayout> CreateBindingGroupLayout(const wgpu::Device& Device);
-    virtual std::vector<SVertexBufferMeta> GetVertexBufferMeta() const { return { }; }
+    [[nodiscard]] virtual wgpu::ShaderModule CompileShader(const wgpu::Device& Device);
+    [[nodiscard]] virtual std::vector<wgpu::BindGroupLayout> CreateBindingGroupLayout(const wgpu::Device& Device);
+    [[nodiscard]] virtual std::vector<SVertexBufferMeta> GetVertexBufferMeta() const { return { }; }
 
 public:
     CRenderPipeline();
