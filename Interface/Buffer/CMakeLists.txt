@@ -1,0 +1,1 @@
+create_library(DynamicVertexBuffer DEPS dawn::webgpu_dawn P_DEPS WindowBase)
