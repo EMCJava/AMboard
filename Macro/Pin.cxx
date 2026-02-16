@@ -4,6 +4,7 @@
 
 #include "Pin.hxx"
 
+#include <utility>
 #include <stdexcept>
 
 CPin* CPin::SetPin(CPin* NewPin) noexcept

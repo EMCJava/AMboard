@@ -11,6 +11,7 @@
 #include <spdlog/spdlog.h>
 
 #include <cassert>
+#include <ranges>
 
 constexpr int DoubleClickingFrameInterval = 40;
 
