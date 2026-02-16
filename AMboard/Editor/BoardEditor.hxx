@@ -37,7 +37,9 @@ protected:
     std::unique_ptr<class CNodePipline> m_NodePipline;
 
     std::optional<glm::ivec2> MouseStartClickPos;
+    std::optional<int> NodeDragThreshold;
 
+    bool m_DraggingNode = false;
     std::optional<std::size_t> m_SelectedNode;
     std::vector<std::unique_ptr<class CBaseNode>> m_Nodes;
 

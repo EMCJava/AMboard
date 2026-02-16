@@ -141,6 +141,12 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     return color;
 })";
 
+bool SNodeBackgroundRenderMeta::InBound(const glm::vec2 Position) const noexcept
+{
+    return Position.x >= Offset.x && Position.y >= Offset.y
+        && Position.x <= Offset.x + Size.x && Position.y <= Offset.y + Size.y;
+}
+
 CNodePipline::CNodePipline(CWindowBase* Window)
 {
     SetShaderCode(NodeRenderShader);

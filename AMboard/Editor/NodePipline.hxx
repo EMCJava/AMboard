@@ -13,6 +13,8 @@ struct SNodeBackgroundRenderMeta {
     glm::vec2 Offset;
     uint32_t HeaderColor;
     uint32_t State;
+
+    [[nodiscard]] bool InBound(glm::vec2 Position) const noexcept;
 };
 
 class CNodePipline : public CRenderPipeline {

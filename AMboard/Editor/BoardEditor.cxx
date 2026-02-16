@@ -111,13 +111,12 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
         const auto MouseReleasePos = GetInputManager().GetCursorPosition();
         if (glm::length2(glm::vec2 { MouseReleasePos - *MouseStartClickPos }) < 3 * 3) {
-            const glm::vec2 ClickPosition = ScreenToWorld(GetInputManager().GetCursorPosition());
+            const glm::vec2 ClickPosition = ScreenToWorld(MouseReleasePos);
 
             const auto RenderMetas = m_NodePipline->GetRenderMetas();
             for (auto& RenderMeta : RenderMetas) {
 
-                if (ClickPosition.x >= RenderMeta.Offset.x && ClickPosition.y >= RenderMeta.Offset.y
-                    && ClickPosition.x <= RenderMeta.Offset.x + RenderMeta.Size.x && ClickPosition.y <= RenderMeta.Offset.y + RenderMeta.Size.y) {
+                if (RenderMeta.InBound(ClickPosition)) {
 
                     const auto CurrentClickingNode = std::distance(RenderMetas.data(), &RenderMeta);
                     if (m_SelectedNode.has_value()) { /// Deselect
@@ -148,8 +147,36 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
     /// Click
     if (GetInputManager().GetMouseButtons().ConsumeHoldEvent(this, GLFW_MOUSE_BUTTON_LEFT)) {
-        if (!MouseStartClickPos.has_value())
+
+        const auto CurrentMousePosition = GetInputManager().GetCursorPosition();
+        const auto WorldMousePosition = ScreenToWorld(CurrentMousePosition);
+
+        if (!MouseStartClickPos.has_value()) {
             MouseStartClickPos = GetInputManager().GetCursorPosition();
+
+            m_DraggingNode = false;
+            if (m_SelectedNode.has_value()) {
+                if (m_NodePipline->GetRenderMetas()[*m_SelectedNode].InBound(WorldMousePosition)) {
+                    m_DraggingNode = true;
+                    NodeDragThreshold = 3 * 3;
+                }
+            }
+
+        } else if (m_DraggingNode) {
+
+            if (NodeDragThreshold.has_value()) {
+                if (glm::length2(glm::vec2 { CurrentMousePosition - *MouseStartClickPos }) > *NodeDragThreshold) {
+                    NodeDragThreshold.reset();
+                }
+            }
+
+            if (!NodeDragThreshold.has_value()) {
+                if (const auto DeltaCursor = GetInputManager().GetDeltaCursor(); DeltaCursor.x || DeltaCursor.y) {
+                    m_NodePipline->GetRenderMetas()[*m_SelectedNode].Offset += GetInputManager().GetDeltaCursor();
+                    m_NodePipline->GetVertexBuffer().Upload(*m_SelectedNode);
+                }
+            }
+        }
     }
 
     return EWindowEventState::Normal;
