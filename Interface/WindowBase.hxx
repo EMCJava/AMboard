@@ -7,8 +7,8 @@
 
 #include <chrono>
 #include <functional>
-#include <memory>
 #include <list>
+#include <memory>
 
 #include <glm/vec2.hpp>
 
@@ -53,7 +53,12 @@ public:
     float GetDeltaTime() const noexcept { return m_DeltaTime; }
     CInputManager& GetInputManager() const noexcept;
 
-    bool ProcessEvent();
+    enum class EWindowEventState {
+        Normal,
+        Minimized,
+        Closed
+    };
+    virtual EWindowEventState ProcessEvent();
     SRenderContext GetRenderContext(const wgpu::TextureView& DepthTextureView = { });
 
     [[nodiscard]] const wgpu::Device& GetDevice() const noexcept { return m_Device; }

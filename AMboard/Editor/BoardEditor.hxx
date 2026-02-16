@@ -19,9 +19,16 @@ public:
     CBoardEditor();
     ~CBoardEditor();
 
+    EWindowEventState ProcessEvent() override;
+
     void RenderBoard(const SRenderContext& RenderContext);
 
 protected:
+    std::unique_ptr<class SSceneUniform> m_SceneUniform;
+    wgpu::Buffer m_SceneUniformBuffer;
+    wgpu::BindGroup m_UniformBindingGroup;
+
+    std::unique_ptr<class CGridPipline> m_GridPipline;
     std::unique_ptr<class CNodePipline> m_NodePipline;
     std::vector<std::unique_ptr<class CBaseNode>> m_Nodes;
 };

@@ -221,12 +221,12 @@ CWindowBase::GetInputManager() const noexcept
     return *m_InputManager;
 }
 
-bool CWindowBase::ProcessEvent()
+CWindowBase::EWindowEventState CWindowBase::ProcessEvent()
 {
     GlobalFrameCounter++;
 
     if (glfwWindowShouldClose(m_Window.get()))
-        return false;
+        return EWindowEventState::Closed;
 
     m_InputManager->ClearEvents();
     glfwPollEvents();
@@ -234,7 +234,8 @@ bool CWindowBase::ProcessEvent()
 
     if (glfwGetWindowAttrib(m_Window.get(), GLFW_ICONIFIED) != 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds { 10 });
-        return false;
+        m_LastUpdateTime = std::chrono::steady_clock::now();
+        return EWindowEventState::Minimized;
     }
 
     m_WebGpuInstance.ProcessEvents();
@@ -243,7 +244,7 @@ bool CWindowBase::ProcessEvent()
     m_DeltaTime = std::chrono::duration<float> { NowTime - m_LastUpdateTime }.count();
     m_LastUpdateTime = NowTime;
 
-    return true;
+    return EWindowEventState::Normal;
 }
 
 SRenderContext

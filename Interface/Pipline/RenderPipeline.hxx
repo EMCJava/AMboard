@@ -30,7 +30,7 @@ protected:
 
 public:
     CRenderPipeline();
-    ~CRenderPipeline();
+    virtual ~CRenderPipeline();
 
     void SetShaderCode(const std::string_view Code) noexcept { m_ShaderCode = Code; }
     void CreatePipeline(const class CWindowBase& Window, bool ForceRecreate = true);

@@ -54,7 +54,7 @@ fn vs_main(
 
     // Calculate world position (2D)
     let world_pos_2d = input.offset + local_pos * input.size;
-    let world_pos = vec4<f32>(world_pos_2d.x, world_pos_2d.y, 0.5, 1.0);
+    let world_pos = vec4<f32>(world_pos_2d.x, world_pos_2d.y, 0.0, 1.0);
 
     // Apply view and projection matrices
     output.position = camera.projection * camera.view * world_pos;
