@@ -4,4 +4,4 @@ add_compile_definitions(GLM_ENABLE_EXPERIMENTAL GLM_FORCE_DEPTH_ZERO_TO_ONE GLM_
 
 create_library(GridPipline DEPS WindowBase RenderPipeline)
 create_library(NodePipline DEPS WindowBase RenderPipeline DynamicVertexBuffer)
-create_library(BoardEditor DEPS WindowBase P_DEPS GridPipline NodePipline glm::glm)
+create_library(BoardEditor DEPS WindowBase P_DEPS GridPipline NodePipline glm::glm TextRenderSystem)

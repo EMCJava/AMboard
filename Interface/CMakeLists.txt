@@ -4,6 +4,7 @@ find_package(glfw3 CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 
 add_subdirectory(API)
+add_subdirectory(Font)
 add_subdirectory(Buffer)
 add_subdirectory(Pipline)
 

@@ -36,6 +36,8 @@ protected:
     std::unique_ptr<class CGridPipline> m_GridPipline;
     std::unique_ptr<class CNodePipline> m_NodePipline;
 
+    std::unique_ptr<class CTextRenderSystem> m_TextSystem;
+
     std::optional<glm::ivec2> MouseStartClickPos;
     std::optional<int> NodeDragThreshold;
 

@@ -7,6 +7,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(library)
 
 include_directories(.)
+add_subdirectory(Util)
 add_subdirectory(Interface)
 add_subdirectory(AMBoard)
 

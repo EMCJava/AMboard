@@ -5,6 +5,9 @@
     "glm",
     "glfw3",
     "spdlog",
+    "cpptrace",
+    "harfbuzz",
+    "freetype",
     {
       "name": "dawn",
       "features": [

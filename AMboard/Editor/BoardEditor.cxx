@@ -7,9 +7,10 @@
 #include "GridPipline.hxx"
 #include "NodePipline.hxx"
 
+#include <Interface/Font/TextRenderSystem.hxx>
+
 #include <AMboard/Macro/BaseNode.hxx>
 #include <GLFW/glfw3.h>
-#include <iostream>
 
 #include <glm/gtx/norm.hpp>
 #include <glm/gtx/transform.hpp>
@@ -76,6 +77,9 @@ CBoardEditor::CBoardEditor()
     }
 
     m_NodePipline->GetVertexBuffer().Upload(0, 2);
+
+    m_TextSystem = std::make_unique<CTextRenderSystem>(this, "Res/Cubic_11.ttf");
+    m_TextSystem->RegisterTextGroup("1 Hello World~~~", 1, { { 700, 0 }, 0xFF0FF0FF });
 }
 
 CBoardEditor::~CBoardEditor() = default;
@@ -197,4 +201,6 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
     RenderContext.RenderPassEncoder.Draw(4);
 
     RenderNodes(RenderContext);
+
+    m_TextSystem->Render(RenderContext);
 }

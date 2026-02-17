@@ -69,7 +69,7 @@ void CRenderPipeline::CreatePipeline(const CWindowBase& Window, bool ForceRecrea
     pipelineDesc.primitive.frontFace = wgpu::FrontFace::CCW;
     pipelineDesc.primitive.cullMode = wgpu::CullMode::Back;
 
-    if (ForceRecreate || VertexLayouts.empty()) {
+    if (ForceRecreate || m_BindingGroupLayouts.empty()) {
         m_BindingGroupLayouts = CreateBindingGroupLayout(Window.GetDevice());
     }
 

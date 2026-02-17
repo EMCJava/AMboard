@@ -18,6 +18,13 @@ struct SVertexBufferMeta {
     std::vector<wgpu::VertexAttribute> Attributes;
 };
 
+struct SIndirectCommand {
+    uint32_t VertexCount = 0;
+    uint32_t InstanceCount = 0;
+    uint32_t FirstVertex = 0;
+    uint32_t FirstInstance = 0;
+};
+
 class CRenderPipeline {
 protected:
     static wgpu::ShaderModule CompileShaderFromCode(const wgpu::Device& Device, const std::string_view& Code);
