@@ -108,9 +108,5 @@ int CRangeManager::FirstFit(const int Count) const
 
 int CRangeManager::GetFirstFreeIndex() const noexcept
 {
-    if (m_Intervals.empty()) [[unlikely]] {
-        return 0;
-    }
-
-    return std::prev(m_Intervals.end())->second + 1;
+    return FirstFit(1);
 }
