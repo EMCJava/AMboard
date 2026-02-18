@@ -1,0 +1,2 @@
+create_library(NodeBackgroundPipline DEPS WindowBase RenderPipeline DynamicGPUBuffer)
+create_library(NodeRenderer DEPS RangeManager WebGPUAPI glm::glm P_DEPS DynamicGPUBuffer NodeBackgroundPipline WindowBase Assertions)

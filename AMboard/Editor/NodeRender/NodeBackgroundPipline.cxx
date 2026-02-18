@@ -2,14 +2,14 @@
 // Created by LYS on 2/17/2026.
 //
 
-#include "NodePipline.hxx"
+#include "NodeBackgroundPipline.hxx"
 
 const auto NodeRenderShader = R"(
 struct VertexInput {
     @location(0) size: vec2<f32>,
-    @location(1) offset: vec2<f32>,
-    @location(2) header_color: u32,
-    @location(3) state: u32,
+    @location(1) header_color: u32,
+    @builtin(vertex_index) vertex_index: u32,
+    @builtin(instance_index) inst_id: u32,
 }
 
 struct VertexOutput {
@@ -26,7 +26,14 @@ struct Camera {
     projection: mat4x4<f32>,
 }
 
+struct NodeCommon {
+    offset: vec2<f32>,
+    state: u32,
+    _padding: u32,
+}
+
 @group(0) @binding(0) var<uniform> camera: Camera;
+@group(1) @binding(0) var<storage, read> text_commons: array<NodeCommon>;
 
 // Blueprint node constants
 const HEADER_HEIGHT: f32 = 30.0;
@@ -38,15 +45,13 @@ const BORDER_COLOR: vec4<f32> = vec4<f32>(0.3, 0.5, 0.9, 0.7);
 const PICKED_BORDER_COLOR: vec4<f32> = vec4<f32>(1.0, 0.74, 0.0, 1.0);
 
 @vertex
-fn vs_main(
-    @builtin(vertex_index) vertex_index: u32,
-    input: VertexInput,
-) -> VertexOutput {
+fn vs_main(input: VertexInput) -> VertexOutput {
     var output: VertexOutput;
 
-    // Triangle strip vertices (4 vertices for a quad)
-    // Order: bottom-left, top-left, bottom-right, top-right
-    let strip_index = vertex_index % 4u;
+    let text_common = text_commons[input.inst_id];
+
+    // Triangle strip vertices (4 vertices for a quad)    // Order: bottom-left, top-left, bottom-right, top-right
+    let strip_index = input.vertex_index % 4u;
     var local_pos: vec2<f32>;
 
     switch strip_index {
@@ -57,7 +62,7 @@ fn vs_main(
     }
 
     // Calculate world position (2D)
-    let world_pos_2d = input.offset + local_pos * input.size;
+    let world_pos_2d = text_common.offset + local_pos * input.size;
     let world_pos = vec4<f32>(world_pos_2d.x, world_pos_2d.y, 0.0, 1.0);
 
     // Apply view and projection matrices
@@ -65,10 +70,10 @@ fn vs_main(
 
     // Pass through data
     output.uv = local_pos;
-    output.node_offset = input.offset;
+    output.node_offset = text_common.offset;
     output.node_size = input.size;
     output.header_color = input.header_color;
-    output.state = input.state;
+    output.state = text_common.state;
 
     return output;
 }
@@ -141,43 +146,52 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     return color;
 })";
 
-bool SNodeBackgroundRenderMeta::InBound(const glm::vec2 Position) const noexcept
-{
-    return Position.x >= Offset.x && Position.y >= Offset.y
-        && Position.x <= Offset.x + Size.x && Position.y <= Offset.y + Size.y;
-}
-
-CNodePipline::CNodePipline(CWindowBase* Window)
+CNodeBackgroundPipline::CNodeBackgroundPipline(const CWindowBase* Window)
 {
     SetShaderCode(NodeRenderShader);
-    m_RenderVertexBuffer = CDynamicGPUBuffer::Create<SNodeBackgroundRenderMeta>(Window);
+
+    m_RenderVertexBuffer = CDynamicGPUBuffer::Create<SNodeBackgroundInstanceBuffer>(Window);
 }
 
-std::vector<SVertexBufferMeta> CNodePipline::GetVertexBufferMeta() const
+std::vector<SVertexBufferMeta> CNodeBackgroundPipline::GetVertexBufferMeta() const
 {
     std::vector<SVertexBufferMeta> Result { 1 };
     auto& [Layout, Attributes] = Result.front();
 
-    Attributes.resize(4);
+    Attributes.resize(2);
 
     Attributes[0].shaderLocation = 0;
     Attributes[0].format = wgpu::VertexFormat::Float32x2;
-    Attributes[0].offset = offsetof(SNodeBackgroundRenderMeta, Size);
+    Attributes[0].offset = offsetof(SNodeBackgroundInstanceBuffer, Size);
 
     Attributes[1].shaderLocation = 1;
-    Attributes[1].format = wgpu::VertexFormat::Float32x2;
-    Attributes[1].offset = offsetof(SNodeBackgroundRenderMeta, Offset);
+    Attributes[1].format = wgpu::VertexFormat::Uint32;
+    Attributes[1].offset = offsetof(SNodeBackgroundInstanceBuffer, HeaderColor);
 
-    Attributes[2].shaderLocation = 2;
-    Attributes[2].format = wgpu::VertexFormat::Uint32;
-    Attributes[2].offset = offsetof(SNodeBackgroundRenderMeta, HeaderColor);
-
-    Attributes[3].shaderLocation = 3;
-    Attributes[3].format = wgpu::VertexFormat::Uint32;
-    Attributes[3].offset = offsetof(SNodeBackgroundRenderMeta, State);
-
-    Layout.arrayStride = sizeof(SNodeBackgroundRenderMeta);
+    Layout.arrayStride = sizeof(SNodeBackgroundInstanceBuffer);
     Layout.stepMode = wgpu::VertexStepMode::Instance;
 
     return Result;
+}
+
+std::vector<wgpu::BindGroupLayout> CNodeBackgroundPipline::CreateBindingGroupLayout(const wgpu::Device& Device)
+{
+    auto SceneLayout = CRenderPipeline::CreateBindingGroupLayout(Device);
+
+    std::vector<wgpu::BindGroupLayoutEntry> bindingLayouts(1);
+
+    // Binding 0: Text common SSBO
+    bindingLayouts[0].binding = 0;
+    bindingLayouts[0].visibility = wgpu::ShaderStage::Vertex;
+    bindingLayouts[0].buffer.type = wgpu::BufferBindingType::ReadOnlyStorage;
+
+    // Create a bind group layout
+    wgpu::BindGroupLayoutDescriptor bindGroupLayoutDesc { };
+    bindGroupLayoutDesc.label = "Node Binding";
+    bindGroupLayoutDesc.entryCount = bindingLayouts.size();
+    bindGroupLayoutDesc.entries = bindingLayouts.data();
+
+    SceneLayout.emplace_back(Device.CreateBindGroupLayout(&bindGroupLayoutDesc));
+
+    return SceneLayout;
 }

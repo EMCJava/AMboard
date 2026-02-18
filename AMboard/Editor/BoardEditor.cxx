@@ -5,7 +5,8 @@
 #include "BoardEditor.hxx"
 
 #include "GridPipline.hxx"
-#include "NodePipline.hxx"
+
+#include "NodeRender/NodeRenderer.hxx"
 
 #include <Interface/Font/TextRenderSystem.hxx>
 
@@ -16,15 +17,6 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/mat4x4.hpp>
 
-void CBoardEditor::RenderNodes(const SRenderContext& RenderContext) const
-{
-    const auto& NodeVertexBuffer = m_NodePipline->GetVertexBuffer();
-
-    RenderContext.RenderPassEncoder.SetPipeline(*m_NodePipline);
-    RenderContext.RenderPassEncoder.SetVertexBuffer(0, NodeVertexBuffer, 0, NodeVertexBuffer.GetBufferByteSize());
-    RenderContext.RenderPassEncoder.Draw(4, NodeVertexBuffer.GetBufferSize());
-}
-
 glm::vec2 CBoardEditor::ScreenToWorld(const glm::vec2& ScreenPos) const noexcept
 {
     return ScreenPos / m_CameraZoom + m_CameraOffset;
@@ -34,9 +26,6 @@ CBoardEditor::CBoardEditor()
 {
     m_GridPipline = std::make_unique<CGridPipline>();
     m_GridPipline->CreatePipeline(*this);
-
-    m_NodePipline = std::make_unique<CNodePipline>(this);
-    m_NodePipline->CreatePipeline(*this);
 
     {
         m_SceneUniform = std::make_unique<SSceneUniform>();
@@ -60,29 +49,13 @@ CBoardEditor::CBoardEditor()
         m_UniformBindingGroup = GetDevice().CreateBindGroup(&bindGroupDesc);
     }
 
+    m_NodeRenderer = std::make_unique<CNodeRenderer>(this);
     m_TextSystem = std::make_unique<CTextRenderSystem>(this, "Res/Cubic_11.ttf");
 
-    {
-        auto& [Size, Offset, HeaderColor, State] = *m_NodePipline->GetVertexBuffer().PushUninitialized<SNodeBackgroundRenderMeta>();
-        Size = { 150, 100 };
-        Offset = { 100, 100 };
-        HeaderColor = 0x668DABFF;
-        State = 0;
-
-        m_NodeTextHandles.emplace_back(m_TextSystem->RegisterTextGroup("Node 1", 0.4, { SNodeTextHandle::TitleOffset + Offset, 0xFFFFFFFF }));
-    }
-
-    {
-        auto& [Size, Offset, HeaderColor, State] = *m_NodePipline->GetVertexBuffer().PushUninitialized<SNodeBackgroundRenderMeta>();
-        Size = { 450, 150 };
-        Offset = { 250, 50 };
-        HeaderColor = 0x668DABFF;
-        State = 0;
-
-        m_NodeTextHandles.emplace_back(m_TextSystem->RegisterTextGroup("Node 2", 0.4, { SNodeTextHandle::TitleOffset + Offset, 0xFFFFFFFF }));
-    }
-
-    m_NodePipline->GetVertexBuffer().Upload(0, 2);
+    m_NodeRenderer->CreateNode({ 100, 100 }, { 150, 100 }, 0x668DABFF);
+    m_NodeTextHandles.emplace_back(m_TextSystem->RegisterTextGroup("Node 1", 0.4, { SNodeTextHandle::TitleOffset + glm::vec2 { 100, 100 }, 0xFFFFFFFF }));
+    m_NodeRenderer->CreateNode({ 250, 50 }, { 450, 150 }, 0x668DABFF);
+    m_NodeTextHandles.emplace_back(m_TextSystem->RegisterTextGroup("Node 2", 0.4, { SNodeTextHandle::TitleOffset + glm::vec2 { 250, 50 }, 0xFFFFFFFF }));
 }
 
 CBoardEditor::~CBoardEditor() = default;
@@ -120,31 +93,27 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
         if (glm::length2(glm::vec2 { MouseReleasePos - *MouseStartClickPos }) < 3 * 3) {
             const glm::vec2 ClickPosition = ScreenToWorld(MouseReleasePos);
 
-            const auto RenderMetas = m_NodePipline->GetRenderMetas();
-            for (auto& RenderMeta : RenderMetas) {
+            for (auto [Left, Right] : m_NodeRenderer->GetValidRange()) {
+                for (int i = Left; i <= Right; ++i) {
 
-                if (RenderMeta.InBound(ClickPosition)) {
+                    if (m_NodeRenderer->InBound(i, ClickPosition)) [[unlikely]] {
 
-                    const auto CurrentClickingNode = std::distance(RenderMetas.data(), &RenderMeta);
-                    if (m_SelectedNode.has_value()) { /// Deselect
+                        if (m_SelectedNode.has_value()) { /// Deselect
 
-                        if (*m_SelectedNode == CurrentClickingNode) {
-                            RenderMeta.State ^= 1;
-                            m_NodePipline->GetVertexBuffer().Upload(CurrentClickingNode);
+                            if (*m_SelectedNode == i) {
+                                m_NodeRenderer->ToggleSelect(i);
+                                m_SelectedNode.reset();
+                                break;
+                            }
 
-                            m_SelectedNode.reset();
-                            break;
+                            m_NodeRenderer->ToggleSelect(*m_SelectedNode);
                         }
 
-                        RenderMetas[*m_SelectedNode].State ^= 1;
-                        m_NodePipline->GetVertexBuffer().Upload(*m_SelectedNode);
+                        m_SelectedNode = i;
+                        m_NodeRenderer->Select(i);
+
+                        break;
                     }
-
-                    m_SelectedNode = CurrentClickingNode;
-                    RenderMeta.State |= 1;
-                    m_NodePipline->GetVertexBuffer().Upload(CurrentClickingNode);
-
-                    break;
                 }
             }
         }
@@ -163,7 +132,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
             m_DraggingNode = false;
             if (m_SelectedNode.has_value()) {
-                if (m_NodePipline->GetRenderMetas()[*m_SelectedNode].InBound(WorldMousePosition)) {
+                if (m_NodeRenderer->InBound(*m_SelectedNode, WorldMousePosition)) {
                     m_DraggingNode = true;
                     NodeDragThreshold = 3 * 3;
                 }
@@ -179,12 +148,8 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
             if (!NodeDragThreshold.has_value()) {
                 if (const auto DeltaCursor = GetInputManager().GetDeltaCursor(); DeltaCursor.x || DeltaCursor.y) {
-                    auto& NodeOffset = m_NodePipline->GetRenderMetas()[*m_SelectedNode].Offset;
-
-                    NodeOffset += glm::vec2 { GetInputManager().GetDeltaCursor() } / m_CameraZoom;
-                    m_NodePipline->GetVertexBuffer().Upload(*m_SelectedNode);
-
-                    m_TextSystem->SetTextPosition(m_NodeTextHandles[*m_SelectedNode].TitleText, NodeOffset + SNodeTextHandle::TitleOffset);
+                    const auto NodePosition = m_NodeRenderer->MoveNode(*m_SelectedNode, glm::vec2 { GetInputManager().GetDeltaCursor() } / m_CameraZoom);
+                    m_TextSystem->SetTextPosition(m_NodeTextHandles[*m_SelectedNode].TitleText, NodePosition + SNodeTextHandle::TitleOffset);
                 }
             }
         }
@@ -207,7 +172,7 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
     RenderContext.RenderPassEncoder.SetPipeline(*m_GridPipline);
     RenderContext.RenderPassEncoder.Draw(4);
 
-    RenderNodes(RenderContext);
+    m_NodeRenderer->Render(RenderContext);
 
     m_TextSystem->Render(RenderContext);
 }

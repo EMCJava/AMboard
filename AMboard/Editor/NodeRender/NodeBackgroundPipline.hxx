@@ -7,25 +7,20 @@
 #include <Interface/Buffer/DynamicGPUBuffer.hxx>
 #include <Interface/Pipline/RenderPipeline.hxx>
 
-struct SNodeBackgroundRenderMeta {
-
+struct SNodeBackgroundInstanceBuffer {
     glm::vec2 Size;
-    glm::vec2 Offset;
     uint32_t HeaderColor;
-    uint32_t State;
-
-    [[nodiscard]] bool InBound(glm::vec2 Position) const noexcept;
 };
 
-class CNodePipline : public CRenderPipeline {
+class CNodeBackgroundPipline : public CRenderPipeline {
 
 public:
-    CNodePipline(CWindowBase* Window);
+    CNodeBackgroundPipline(const CWindowBase* Window);
 
     template <typename Self>
     auto GetRenderMetas(this Self&& s)
     {
-        return s.m_RenderVertexBuffer->template GetView<SNodeBackgroundRenderMeta>();
+        return s.m_RenderVertexBuffer->template GetView<SNodeBackgroundInstanceBuffer>();
     }
 
     template <typename Self>
@@ -36,5 +31,7 @@ public:
 
 protected:
     [[nodiscard]] std::vector<SVertexBufferMeta> GetVertexBufferMeta() const override;
+    [[nodiscard]] std::vector<wgpu::BindGroupLayout> CreateBindingGroupLayout(const wgpu::Device& Device) override;
+
     std::unique_ptr<CDynamicGPUBuffer> m_RenderVertexBuffer;
 };

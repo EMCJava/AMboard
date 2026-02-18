@@ -22,8 +22,6 @@ struct SNodeTextHandle {
 
 class CBoardEditor : public CWindowBase {
 
-    void RenderNodes(const SRenderContext& RenderContext) const;
-
     [[nodiscard]] glm::vec2 ScreenToWorld(const glm::vec2& ScreenPos) const noexcept;
 
 public:
@@ -41,7 +39,8 @@ protected:
     wgpu::BindGroup m_UniformBindingGroup;
 
     std::unique_ptr<class CGridPipline> m_GridPipline;
-    std::unique_ptr<class CNodePipline> m_NodePipline;
+
+    std::unique_ptr<class CNodeRenderer> m_NodeRenderer;
 
     std::unique_ptr<class CTextRenderSystem> m_TextSystem;
     std::vector<SNodeTextHandle> m_NodeTextHandles;
