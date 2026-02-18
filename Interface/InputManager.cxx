@@ -215,7 +215,7 @@ void CInputManager::ResetCursorPosition() noexcept
 
 void CInputManager::RegisterCursorPosition(int cursorX, int cursorY)
 {
-    CursorPos = glm::vec2 { cursorX, cursorY } * ContentScale;
+    CursorPos = glm::vec2 { cursorX, cursorY } * FrameBufferScale;
 
     bHasMouseEvent = true;
 }
@@ -242,7 +242,7 @@ CInputManager::GetCursorPosition() const noexcept
     return CursorPos;
 }
 
-void CInputManager::SetContentScale(const glm::vec2& Scale) noexcept
+void CInputManager::SetFrameBufferScale(const glm::vec2& Scale) noexcept
 {
-    ContentScale = Scale;
+    FrameBufferScale = Scale;
 }

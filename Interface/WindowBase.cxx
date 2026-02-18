@@ -203,13 +203,13 @@ void CWindowBase::RecreateSurface()
         return;
     }
 
-    glm::vec2 ContentScale;
-    glfwGetWindowContentScale(m_Window.get(), &ContentScale.x, &ContentScale.y);
-    m_InputManager->SetContentScale(ContentScale);
-
     glfwGetFramebufferSize(m_Window.get(), &m_WindowSize.x, &m_WindowSize.y);
     m_SurfaceConfig.width = static_cast<uint32_t>(m_WindowSize.x);
     m_SurfaceConfig.height = static_cast<uint32_t>(m_WindowSize.y);
+
+    glm::ivec2 PhysicsWindowSize;
+    glfwGetWindowSize(m_Window.get(), &PhysicsWindowSize.x, &PhysicsWindowSize.y);
+    m_InputManager->SetFrameBufferScale(glm::vec2 { m_WindowSize } / glm::vec2 { PhysicsWindowSize });
 
     m_Surface.Configure(&m_SurfaceConfig);
 

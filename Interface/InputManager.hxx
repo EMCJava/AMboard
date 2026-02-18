@@ -197,7 +197,7 @@ protected:
     SButtonSet MouseButtons { MaxMouseCode };
 
     // Current(FIXME) window content scale
-    glm::vec2 ContentScale { 1 };
+    glm::vec2 FrameBufferScale { 1 };
 
     // Most recent cursor position
     glm::ivec2 CursorPos;
@@ -276,7 +276,7 @@ public:
      *
      * @param Scale New window content scale
      */
-    void SetContentScale(const glm::vec2& Scale) noexcept;
+    void SetFrameBufferScale(const glm::vec2& Scale) noexcept;
 
     /**
      * Should be called for every GLFW cursor callback
