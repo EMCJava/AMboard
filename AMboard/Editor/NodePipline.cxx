@@ -150,7 +150,7 @@ bool SNodeBackgroundRenderMeta::InBound(const glm::vec2 Position) const noexcept
 CNodePipline::CNodePipline(CWindowBase* Window)
 {
     SetShaderCode(NodeRenderShader);
-    m_RenderVertexBuffer = CDynamicVertexBuffer::Create<SNodeBackgroundRenderMeta>(Window);
+    m_RenderVertexBuffer = CDynamicGPUBuffer::Create<SNodeBackgroundRenderMeta>(Window);
 }
 
 std::vector<SVertexBufferMeta> CNodePipline::GetVertexBufferMeta() const

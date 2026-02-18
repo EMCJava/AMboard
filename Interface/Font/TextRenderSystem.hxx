@@ -6,7 +6,7 @@
 
 #include "TextRenderSystemHandle.hxx"
 
-#include <Interface/Buffer/DynamicVertexBuffer.hxx>
+#include <Interface/Buffer/DynamicGPUBuffer.hxx>
 #include <Interface/Pipline/TextRenderMeta.hxx>
 
 #include <filesystem>
@@ -46,8 +46,8 @@ protected:
 
     wgpu::BindGroup m_TextBindingGroup;
 
-    std::unique_ptr<CDynamicVertexBuffer> m_TextVertexBuffer;
-    std::unique_ptr<CDynamicVertexBuffer> m_TextGroupBuffer;
+    std::unique_ptr<CDynamicGPUBuffer> m_TextVertexBuffer;
+    std::unique_ptr<CDynamicGPUBuffer> m_TextGroupBuffer;
 
     std::list<std::pair<size_t, size_t>> m_TextVertexBufferFreeList;
     std::stack<size_t> m_TextGroupBufferFreeList;

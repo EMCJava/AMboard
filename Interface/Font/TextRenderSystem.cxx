@@ -189,8 +189,8 @@ CTextRenderSystem::~CTextRenderSystem() = default;
 
 CTextRenderSystem::CTextRenderSystem(const CWindowBase* Window)
     : m_Window(Window)
-    , m_TextGroupBuffer(CDynamicVertexBuffer::Create<STextRenderPerGroupMeta>(Window, wgpu::BufferUsage::Storage))
-    , m_TextVertexBuffer(CDynamicVertexBuffer::Create<STextRenderVertexMeta>(Window))
+    , m_TextGroupBuffer(CDynamicGPUBuffer::Create<STextRenderPerGroupMeta>(Window, wgpu::BufferUsage::Storage))
+    , m_TextVertexBuffer(CDynamicGPUBuffer::Create<STextRenderVertexMeta>(Window))
 {
     m_Pipline = std::make_unique<CTextPipline>();
     m_Pipline->CreatePipeline(*Window);

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <Interface/Buffer/DynamicVertexBuffer.hxx>
+#include <Interface/Buffer/DynamicGPUBuffer.hxx>
 #include <Interface/Pipline/RenderPipeline.hxx>
 
 struct SNodeBackgroundRenderMeta {
@@ -36,5 +36,5 @@ public:
 
 protected:
     [[nodiscard]] std::vector<SVertexBufferMeta> GetVertexBufferMeta() const override;
-    std::unique_ptr<CDynamicVertexBuffer> m_RenderVertexBuffer;
+    std::unique_ptr<CDynamicGPUBuffer> m_RenderVertexBuffer;
 };

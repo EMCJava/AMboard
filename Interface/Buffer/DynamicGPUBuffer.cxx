@@ -4,18 +4,18 @@
 
 #include <utility>
 
-#include "DynamicVertexBuffer.hxx"
+#include "DynamicGPUBuffer.hxx"
 
 #include <Interface/WindowBase.hxx>
 
-CDynamicVertexBuffer::CDynamicVertexBuffer(const CWindowBase* Window, const size_t BytePerElement, wgpu::BufferUsage ExtraUsage)
+CDynamicGPUBuffer::CDynamicGPUBuffer(const CWindowBase* Window, const size_t BytePerElement, wgpu::BufferUsage ExtraUsage)
     : m_BytePerElement(BytePerElement)
     , m_Window(Window)
 {
     m_BufferUsage |= ExtraUsage;
 }
 
-void* CDynamicVertexBuffer::PushVoidUninitialized()
+void* CDynamicGPUBuffer::PushVoidUninitialized()
 {
     if (m_EffectiveBufferSize + 1 > m_LogicalBufferSize)
         Resize(m_EffectiveBufferSize + 1);
@@ -23,17 +23,17 @@ void* CDynamicVertexBuffer::PushVoidUninitialized()
     return m_Data.data() + (m_EffectiveBufferSize - 1) * m_BytePerElement;
 }
 
-CDynamicVertexBuffer::~CDynamicVertexBuffer()
+CDynamicGPUBuffer::~CDynamicGPUBuffer()
 {
 }
 
-void CDynamicVertexBuffer::Resize(std::size_t Count)
+void CDynamicGPUBuffer::Resize(std::size_t Count)
 {
     m_LogicalBufferSize = Count;
 
     wgpu::BufferDescriptor bufferDesc;
 
-    bufferDesc.label = "DynamicVertexBuffer";
+    bufferDesc.label = "DynamicGPUBuffer";
     bufferDesc.size = m_LogicalBufferSize * m_BytePerElement;
     bufferDesc.usage = m_BufferUsage;
 
@@ -44,7 +44,7 @@ void CDynamicVertexBuffer::Resize(std::size_t Count)
     m_EffectiveBufferSize = Count;
 }
 
-void CDynamicVertexBuffer::Upload(const std::size_t Offset, const std::size_t Count) const noexcept
+void CDynamicGPUBuffer::Upload(const std::size_t Offset, const std::size_t Count) const noexcept
 {
     m_Window->GetQueue().WriteBuffer(m_RenderBuffer, Offset * m_BytePerElement, m_Data.data() + Offset * m_BytePerElement, Count * m_BytePerElement);
 }

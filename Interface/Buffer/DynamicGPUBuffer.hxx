@@ -10,19 +10,19 @@
 #include <ranges>
 #include <stdexcept>
 
-class CDynamicVertexBuffer {
+class CDynamicGPUBuffer {
 
-    CDynamicVertexBuffer(const class CWindowBase* Window, size_t BytePerElement, wgpu::BufferUsage ExtraUsage);
+    CDynamicGPUBuffer(const class CWindowBase* Window, size_t BytePerElement, wgpu::BufferUsage ExtraUsage);
 
     void* PushVoidUninitialized();
 
 public:
-    ~CDynamicVertexBuffer();
+    ~CDynamicGPUBuffer();
 
     template <typename Ty>
     static auto Create(const CWindowBase* Window, const wgpu::BufferUsage ExtraUsage = wgpu::BufferUsage::Vertex)
     {
-        return std::unique_ptr<CDynamicVertexBuffer> { new CDynamicVertexBuffer { Window, sizeof(Ty), ExtraUsage } };
+        return std::unique_ptr<CDynamicGPUBuffer> { new CDynamicGPUBuffer { Window, sizeof(Ty), ExtraUsage } };
     }
 
     template <typename Ty, typename Self>
