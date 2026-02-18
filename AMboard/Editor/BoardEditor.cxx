@@ -60,26 +60,29 @@ CBoardEditor::CBoardEditor()
         m_UniformBindingGroup = GetDevice().CreateBindGroup(&bindGroupDesc);
     }
 
+    m_TextSystem = std::make_unique<CTextRenderSystem>(this, "Res/Cubic_11.ttf");
+
     {
         auto& [Size, Offset, HeaderColor, State] = *m_NodePipline->GetVertexBuffer().PushUninitialized<SNodeBackgroundRenderMeta>();
         Size = { 150, 100 };
         Offset = { 100, 100 };
-        HeaderColor = 0xFF00FFFF;
+        HeaderColor = 0x668DABFF;
         State = 0;
+
+        m_NodeTextHandles.emplace_back(m_TextSystem->RegisterTextGroup("Node 1", 0.4, { SNodeTextHandle::TitleOffset + Offset, 0xFFFFFFFF }));
     }
 
     {
         auto& [Size, Offset, HeaderColor, State] = *m_NodePipline->GetVertexBuffer().PushUninitialized<SNodeBackgroundRenderMeta>();
         Size = { 450, 150 };
         Offset = { 250, 50 };
-        HeaderColor = 0xFFFF00FF;
+        HeaderColor = 0x668DABFF;
         State = 0;
+
+        m_NodeTextHandles.emplace_back(m_TextSystem->RegisterTextGroup("Node 2", 0.4, { SNodeTextHandle::TitleOffset + Offset, 0xFFFFFFFF }));
     }
 
     m_NodePipline->GetVertexBuffer().Upload(0, 2);
-
-    m_TextSystem = std::make_unique<CTextRenderSystem>(this, "Res/Cubic_11.ttf");
-    m_TextSystem->RegisterTextGroup("1 Hello World~~~", 1, { { 700, 0 }, 0xFF0FF0FF });
 }
 
 CBoardEditor::~CBoardEditor() = default;
@@ -176,8 +179,12 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
             if (!NodeDragThreshold.has_value()) {
                 if (const auto DeltaCursor = GetInputManager().GetDeltaCursor(); DeltaCursor.x || DeltaCursor.y) {
-                    m_NodePipline->GetRenderMetas()[*m_SelectedNode].Offset += GetInputManager().GetDeltaCursor();
+                    auto& NodeOffset = m_NodePipline->GetRenderMetas()[*m_SelectedNode].Offset;
+
+                    NodeOffset += GetInputManager().GetDeltaCursor();
                     m_NodePipline->GetVertexBuffer().Upload(*m_SelectedNode);
+
+                    m_TextSystem->SetTextPosition(m_NodeTextHandles[*m_SelectedNode].TitleText, NodeOffset + SNodeTextHandle::TitleOffset);
                 }
             }
         }

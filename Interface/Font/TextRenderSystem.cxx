@@ -243,6 +243,13 @@ CTextRenderSystem::CTextRenderSystem(const CWindowBase* Window, const std::files
 {
 }
 
+void CTextRenderSystem::SetTextPosition(const std::list<STextGroupHandle>::iterator& Group, const glm::vec2& Position)
+{
+    MAKE_SURE(Group->GroupId != -1)
+    m_TextGroupBuffer->At<STextRenderPerGroupMeta>(Group->GroupId).Offset = Position;
+    PushPerGroupBuffer(*Group);
+}
+
 void CTextRenderSystem::Render(const SRenderContext& RenderContext)
 {
     if (m_DrawCommands.empty()) {

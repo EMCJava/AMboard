@@ -6,12 +6,19 @@
 
 #include "BoardEditor.hxx"
 
+#include <Interface/Font/TextRenderSystemHandle.hxx>
 #include <Interface/WindowBase.hxx>
 
 #include <memory>
 #include <vector>
 
 #include <glm/vec2.hpp>
+
+struct SNodeTextHandle {
+    static constexpr glm::vec2 TitleOffset = { 10, 10 };
+
+    std::list<STextGroupHandle>::iterator TitleText;
+};
 
 class CBoardEditor : public CWindowBase {
 
@@ -37,6 +44,7 @@ protected:
     std::unique_ptr<class CNodePipline> m_NodePipline;
 
     std::unique_ptr<class CTextRenderSystem> m_TextSystem;
+    std::vector<SNodeTextHandle> m_NodeTextHandles;
 
     std::optional<glm::ivec2> MouseStartClickPos;
     std::optional<int> NodeDragThreshold;

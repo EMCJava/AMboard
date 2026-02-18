@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "TextRenderSystemHandle.hxx"
+
 #include <Interface/Buffer/DynamicVertexBuffer.hxx>
 #include <Interface/Pipline/TextRenderMeta.hxx>
 
@@ -12,16 +14,6 @@
 #include <stack>
 
 #include <dawn/webgpu_cpp.h>
-
-class CTextRenderSystem;
-struct STextGroupHandle {
-
-    std::string Text;
-    float Scale;
-
-    std::pair<size_t, size_t> VertexSpan { };
-    uint32_t GroupId = -1;
-};
 
 class CTextRenderSystem {
 
@@ -40,12 +32,15 @@ public:
     CTextRenderSystem(const CWindowBase* Window, std::shared_ptr<class CFont> Font);
     CTextRenderSystem(const CWindowBase* Window, const std::filesystem::path& FontPath);
 
+    void SetTextPosition(const std::list<STextGroupHandle>::iterator& Group, const glm::vec2& Position);
+
     void Render(const struct SRenderContext& RenderContext);
 
     std::list<STextGroupHandle>::iterator RegisterTextGroup(std::string Text, float Scale = 1, const STextRenderPerGroupMeta& Meta = { });
     void UpdateTextGroup(const std::list<STextGroupHandle>::iterator& Group);
     void UpdateGroupMeta(const std::list<STextGroupHandle>::iterator& Group);
     void UnregisterTextGroup(const std::list<STextGroupHandle>::iterator& Group);
+
 protected:
     const CWindowBase* m_Window;
 
