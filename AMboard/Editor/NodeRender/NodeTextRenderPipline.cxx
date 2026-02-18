@@ -140,8 +140,8 @@ void CNodeTextRenderPipline::PushVertexBuffer(STextGroupHandle& TextGroupHandle)
         CHECK(FirstFit <= OldVertexCount)
 
         /// Reallocate is needed
-        if (FirstFit == OldVertexCount) {
-            m_TextVertexBuffer->Resize(OldVertexCount + GlyphsToAllocate);
+        if (FirstFit + GlyphsToAllocate > OldVertexCount) {
+            m_TextVertexBuffer->Resize(FirstFit + GlyphsToAllocate);
         }
 
         TextGroupHandle.VertexSpan = { FirstFit, GlyphsToAllocate };

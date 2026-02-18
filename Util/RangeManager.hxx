@@ -15,6 +15,9 @@ public:
     void SetRange(int Offset, int Count);
 
     // O(log N) - Optimized based on "no double remove" guarantee
+    void RemoveSlot(int Index);
+
+    // O(log N) - Optimized based on "no double remove" guarantee
     void RemoveRange(int Offset, int Count);
 
     // O(N) - Linear scan to find the first available slot

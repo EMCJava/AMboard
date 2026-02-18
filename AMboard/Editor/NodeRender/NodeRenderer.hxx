@@ -25,6 +25,8 @@ struct SNodeTextHandle {
     static constexpr glm::vec2 TitleOffset = { 10, 10 };
 
     std::optional<std::list<STextGroupHandle>::iterator> TitleText;
+
+    void UnRegisterText(class CNodeTextRenderPipline* Pipline);
 };
 
 class CDynamicGPUBuffer;
@@ -44,6 +46,7 @@ public:
     glm::vec2 MoveNode(size_t Id, const glm::vec2& Delta) const;
 
     size_t CreateNode(const std::string& Title, const glm::vec2& Position, const glm::vec2& Size, uint32_t HeaderColor);
+    void RemoveNode(size_t Id);
 
     [[nodiscard]] bool InBound(size_t Id, const glm::vec2& Position) const noexcept;
 
@@ -63,5 +66,5 @@ protected:
     std::unique_ptr<CDynamicGPUBuffer> m_CommonNodeSSBOBuffer;
 
     std::unique_ptr<class CNodeBackgroundPipline> m_NodeBackgroundPipline;
-    std::unique_ptr<class CNodeTextRenderPipline> m_NodeTextPipline;
+    std::unique_ptr<CNodeTextRenderPipline> m_NodeTextPipline;
 };

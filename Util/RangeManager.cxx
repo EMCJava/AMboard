@@ -38,6 +38,11 @@ void CRangeManager::SetRange(int Offset, int Count)
     m_Intervals[Offset] = Right;
 }
 
+void CRangeManager::RemoveSlot(int Index)
+{
+    RemoveRange(Index, 1);
+}
+
 void CRangeManager::RemoveRange(int Offset, int Count)
 {
     const auto Right = Offset + Count - 1;

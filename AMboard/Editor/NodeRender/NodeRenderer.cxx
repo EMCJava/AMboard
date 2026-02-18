@@ -14,6 +14,13 @@
 
 #include <Interface/Font/Font.hxx>
 
+void SNodeTextHandle::UnRegisterText(CNodeTextRenderPipline* Pipline)
+{
+    if (TitleText.has_value()) {
+        Pipline->UnregisterTextGroup(*TitleText);
+    }
+}
+
 void CNodeRenderer::CreateCommonBindingGroup()
 {
     MAKE_SURE(m_CommonNodeSSBOBuffer)
@@ -50,7 +57,9 @@ void CNodeRenderer::WriteToNode(const size_t Id, const std::string& Title, const
 {
     MAKE_SURE(Id < m_IdCount)
 
-    m_CommonNodeSSBOBuffer->At<SCommonNodeSSBO>(Id).Position = Position;
+    auto& CommonNode = m_CommonNodeSSBOBuffer->At<SCommonNodeSSBO>(Id);
+    CommonNode.Position = Position;
+    CommonNode.State = 0;
 
     auto& BackgroundInstanceBuffer = m_NodeBackgroundPipline->GetVertexBuffer().At<SNodeBackgroundInstanceBuffer>(Id);
     BackgroundInstanceBuffer.HeaderColor = HeaderColor;
@@ -116,6 +125,12 @@ size_t CNodeRenderer::CreateNode(const std::string& Title, const glm::vec2& Posi
 
     WriteToNode(FreeId, Title, Position, Size, HeaderColor);
     return FreeId;
+}
+
+void CNodeRenderer::RemoveNode(const size_t Id)
+{
+    m_ValidIdRange.RemoveSlot(Id);
+    m_NodeTextHandles[Id].UnRegisterText(m_NodeTextPipline.get());
 }
 
 bool CNodeRenderer::InBound(const size_t Id, const glm::vec2& Position) const noexcept

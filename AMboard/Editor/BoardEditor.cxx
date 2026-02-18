@@ -51,8 +51,8 @@ CBoardEditor::CBoardEditor()
 
     m_NodeRenderer = std::make_unique<CNodeRenderer>(this);
 
-    m_NodeRenderer->CreateNode("Node", { 100, 100 }, { 150, 100 }, 0x668DABFF);
-    m_NodeRenderer->CreateNode("Node", { 250, 50 }, { 450, 150 }, 0x668DABFF);
+    m_NodeRenderer->CreateNode("Node", { 100, 100 }, { 150, 100 }, 0x668DAB88);
+    m_NodeRenderer->CreateNode("Node", { 250, 50 }, { 450, 150 }, 0x668DAB88);
 }
 
 CBoardEditor::~CBoardEditor() = default;
@@ -84,6 +84,20 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
         m_ScreenUniformDirty = true;
     }
 
+    /// Remove Node
+    if (GetInputManager().GetKeyboardButtons().ConsumeEvent(GLFW_KEY_DELETE)) {
+        if (m_SelectedNode.has_value()) {
+            m_NodeRenderer->RemoveNode(*m_SelectedNode);
+            m_SelectedNode.reset();
+        }
+    }
+
+    /// Create Node
+    if (GetInputManager().GetMouseButtons().ConsumeEvent(GLFW_MOUSE_BUTTON_RIGHT)) {
+        m_NodeRenderer->CreateNode("User Node", ScreenToWorld(GetInputManager().GetCursorPosition()), { 150 + rand() % 100, 100 + rand() % 20 }, ((rand() << 16) ^ rand()) & 0xFFFFFF00 | 0x88);
+    }
+
+    /// Select Node
     if (GetInputManager().GetMouseButtons().ConsumeEvent({ GLFW_MOUSE_BUTTON_LEFT, GLFW_RELEASE })) {
 
         const auto MouseReleasePos = GetInputManager().GetCursorPosition();
