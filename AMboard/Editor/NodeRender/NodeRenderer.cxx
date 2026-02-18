@@ -4,12 +4,15 @@
 
 #include "NodeRenderer.hxx"
 #include "NodeBackgroundPipline.hxx"
+#include "NodeTextRenderPipline.hxx"
 
 #include <Util/Assertions.hxx>
 
 #include <Interface/WindowBase.hxx>
 
 #include <Interface/Buffer/DynamicGPUBuffer.hxx>
+
+#include <Interface/Font/Font.hxx>
 
 void CNodeRenderer::CreateCommonBindingGroup()
 {
@@ -35,12 +38,15 @@ CNodeRenderer::CNodeRenderer(const CWindowBase* Window)
     m_NodeBackgroundPipline = std::make_unique<CNodeBackgroundPipline>(Window);
     m_NodeBackgroundPipline->CreatePipeline(*Window);
 
+    m_NodeTextPipline = std::make_unique<CNodeTextRenderPipline>(Window, std::make_shared<CFont>(Window, "Res/Cubic_11.ttf"));
+    m_NodeTextPipline->CreatePipeline(*Window);
+
     m_CommonNodeSSBOBuffer = CDynamicGPUBuffer::Create<SCommonNodeSSBO>(Window, wgpu::BufferUsage::Storage);
 }
 
 CNodeRenderer::~CNodeRenderer() = default;
 
-void CNodeRenderer::WriteToNode(const size_t Id, const glm::vec2& Position, const glm::vec2& Size, const uint32_t HeaderColor) const
+void CNodeRenderer::WriteToNode(const size_t Id, const std::string& Title, const glm::vec2& Position, const glm::vec2& Size, const uint32_t HeaderColor)
 {
     MAKE_SURE(Id < m_IdCount)
 
@@ -49,6 +55,13 @@ void CNodeRenderer::WriteToNode(const size_t Id, const glm::vec2& Position, cons
     auto& BackgroundInstanceBuffer = m_NodeBackgroundPipline->GetVertexBuffer().At<SNodeBackgroundInstanceBuffer>(Id);
     BackgroundInstanceBuffer.HeaderColor = HeaderColor;
     BackgroundInstanceBuffer.Size = Size;
+
+    if (!m_NodeTextHandles[Id].TitleText.has_value()) {
+        m_NodeTextHandles[Id].TitleText = m_NodeTextPipline->RegisterTextGroup(Id, Title, 0.4, { .Color = 0xFFFFFFFF });
+    } else {
+        (*m_NodeTextHandles[Id].TitleText)->Text = Title;
+        m_NodeTextPipline->UpdateTextGroup(*m_NodeTextHandles[Id].TitleText);
+    }
 
     m_NodeBackgroundPipline->GetVertexBuffer().Upload(Id);
     m_CommonNodeSSBOBuffer->Upload(Id);
@@ -79,7 +92,7 @@ glm::vec2 CNodeRenderer::MoveNode(size_t Id, const glm::vec2& Delta) const
     return NewPosition;
 }
 
-size_t CNodeRenderer::CreateNode(const glm::vec2& Position, const glm::vec2& Size, const uint32_t HeaderColor)
+size_t CNodeRenderer::CreateNode(const std::string& Title, const glm::vec2& Position, const glm::vec2& Size, const uint32_t HeaderColor)
 {
     const auto FreeId = m_ValidIdRange.GetFirstFreeIndex();
 
@@ -90,16 +103,18 @@ size_t CNodeRenderer::CreateNode(const glm::vec2& Position, const glm::vec2& Siz
         ++m_IdCount;
 
         CHECK(FreeId == m_CommonNodeSSBOBuffer->GetBufferSize());
-        m_CommonNodeSSBOBuffer->PushUninitialized<SCommonNodeSSBO>();
+        m_CommonNodeSSBOBuffer->PushUninitialized();
         /// Common buffer resized, need to recreate the binding group
         CreateCommonBindingGroup();
+
+        m_NodeTextHandles.emplace_back();
 
         m_NodeBackgroundPipline->GetVertexBuffer().PushUninitialized();
     }
 
     m_ValidIdRange.SetSlot(FreeId);
 
-    WriteToNode(FreeId, Position, Size, HeaderColor);
+    WriteToNode(FreeId, Title, Position, Size, HeaderColor);
     return FreeId;
 }
 
@@ -119,10 +134,20 @@ void CNodeRenderer::Render(const SRenderContext& RenderContext)
 
     RenderContext.RenderPassEncoder.SetBindGroup(1, m_CommonNodeSSBOBindingGroup, 0, nullptr);
 
-    RenderContext.RenderPassEncoder.SetVertexBuffer(0, m_NodeBackgroundPipline->GetVertexBuffer());
-    RenderContext.RenderPassEncoder.SetPipeline(*m_NodeBackgroundPipline);
+    {
+        RenderContext.RenderPassEncoder.SetVertexBuffer(0, m_NodeBackgroundPipline->GetVertexBuffer());
+        RenderContext.RenderPassEncoder.SetPipeline(*m_NodeBackgroundPipline);
+        for (auto const& [Left, Right] : m_ValidIdRange) {
+            RenderContext.RenderPassEncoder.Draw(4, Right - Left + 1, 0, Left);
+        }
+    }
 
-    for (auto const& [Left, Right] : m_ValidIdRange) {
-        RenderContext.RenderPassEncoder.Draw(4, Right - Left + 1, 0, Left);
+    {
+        RenderContext.RenderPassEncoder.SetBindGroup(2, m_NodeTextPipline->GetBindingGroup(), 0, nullptr);
+        RenderContext.RenderPassEncoder.SetVertexBuffer(0, m_NodeTextPipline->GetVertexBuffer());
+        RenderContext.RenderPassEncoder.SetPipeline(*m_NodeTextPipline);
+        for (auto const& [Left, Right] : m_NodeTextPipline->GetDrawCommands()) {
+            RenderContext.RenderPassEncoder.Draw(4, Right - Left + 1, 0, Left);
+        }
     }
 }

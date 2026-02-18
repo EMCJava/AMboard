@@ -12,12 +12,19 @@
 
 #include <dawn/webgpu_cpp.h>
 
+#include <optional>
 #include <memory>
 
 struct SCommonNodeSSBO {
     glm::vec2 Position;
     uint32_t State;
     uint8_t Padding[4];
+};
+
+struct SNodeTextHandle {
+    static constexpr glm::vec2 TitleOffset = { 10, 10 };
+
+    std::optional<std::list<STextGroupHandle>::iterator> TitleText;
 };
 
 class CDynamicGPUBuffer;
@@ -29,14 +36,14 @@ public:
     CNodeRenderer(const CWindowBase* Window);
     ~CNodeRenderer();
 
-    void WriteToNode(size_t Id, const glm::vec2& Position, const glm::vec2& Size, uint32_t HeaderColor) const;
+    void WriteToNode(size_t Id, const std::string& Title, const glm::vec2& Position, const glm::vec2& Size, uint32_t HeaderColor);
 
     void Select(size_t Id) const;
     void ToggleSelect(size_t Id) const;
 
     glm::vec2 MoveNode(size_t Id, const glm::vec2& Delta) const;
 
-    size_t CreateNode(const glm::vec2& Position, const glm::vec2& Size, uint32_t HeaderColor);
+    size_t CreateNode(const std::string& Title, const glm::vec2& Position, const glm::vec2& Size, uint32_t HeaderColor);
 
     [[nodiscard]] bool InBound(size_t Id, const glm::vec2& Position) const noexcept;
 
@@ -50,9 +57,11 @@ protected:
 
     size_t m_IdCount = 0;
     CRangeManager m_ValidIdRange;
+    std::vector<SNodeTextHandle> m_NodeTextHandles;
 
     wgpu::BindGroup m_CommonNodeSSBOBindingGroup;
     std::unique_ptr<CDynamicGPUBuffer> m_CommonNodeSSBOBuffer;
 
     std::unique_ptr<class CNodeBackgroundPipline> m_NodeBackgroundPipline;
+    std::unique_ptr<class CNodeTextRenderPipline> m_NodeTextPipline;
 };

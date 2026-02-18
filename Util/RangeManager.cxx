@@ -76,6 +76,31 @@ void CRangeManager::RemoveRange(int Offset, int Count)
     }
 }
 
+int CRangeManager::FirstFit(const int Count) const
+{
+    if (Count <= 0)
+        return 0; // Safety check, though usually n > 0
+
+    int CandidateStart = 0; // Valid ranges start at >= 0
+
+    for (const auto& [Left, Right] : m_Intervals) {
+
+        // Calculate the size of the empty gap before this interval
+        // The gap is [candidateStart, intervalStart - 1]
+        // Size = intervalStart - candidateStart
+        if (Left - CandidateStart >= Count) {
+            return CandidateStart;
+        }
+
+        // If the gap wasn't big enough, the next possible start
+        // is immediately after the current interval.
+        CandidateStart = Right + 1;
+    }
+
+    // If we checked all gaps and found nothing, append to the end
+    return CandidateStart;
+}
+
 int CRangeManager::GetFirstFreeIndex() const noexcept
 {
     if (m_Intervals.empty()) [[unlikely]] {

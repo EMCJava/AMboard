@@ -247,11 +247,6 @@ void CTextRenderSystem::UpdateTextGroup(const std::list<STextGroupHandle>::itera
     PushPerGroupBuffer(*Group);
 }
 
-void CTextRenderSystem::UpdateGroupMeta(const std::list<STextGroupHandle>::iterator& Group)
-{
-    PushPerGroupBuffer(*Group);
-}
-
 void CTextRenderSystem::UnregisterTextGroup(const std::list<STextGroupHandle>::iterator& Group)
 {
     if (Group->GroupId != -1) {

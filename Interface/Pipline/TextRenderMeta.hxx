@@ -11,6 +11,7 @@ struct STextRenderVertexMeta {
     glm::vec4 TextBound;
     glm::vec4 UVBound;
     uint32_t TextGroupIndex;
+    uint32_t NodeIndex;
 };
 
 struct STextRenderPerGroupMeta {

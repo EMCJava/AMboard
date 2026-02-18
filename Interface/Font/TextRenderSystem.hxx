@@ -38,7 +38,6 @@ public:
 
     std::list<STextGroupHandle>::iterator RegisterTextGroup(std::string Text, float Scale = 1, const STextRenderPerGroupMeta& Meta = { });
     void UpdateTextGroup(const std::list<STextGroupHandle>::iterator& Group);
-    void UpdateGroupMeta(const std::list<STextGroupHandle>::iterator& Group);
     void UnregisterTextGroup(const std::list<STextGroupHandle>::iterator& Group);
 
 protected:

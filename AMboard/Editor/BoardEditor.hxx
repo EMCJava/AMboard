@@ -14,12 +14,6 @@
 
 #include <glm/vec2.hpp>
 
-struct SNodeTextHandle {
-    static constexpr glm::vec2 TitleOffset = { 10, 10 };
-
-    std::list<STextGroupHandle>::iterator TitleText;
-};
-
 class CBoardEditor : public CWindowBase {
 
     [[nodiscard]] glm::vec2 ScreenToWorld(const glm::vec2& ScreenPos) const noexcept;
@@ -39,11 +33,7 @@ protected:
     wgpu::BindGroup m_UniformBindingGroup;
 
     std::unique_ptr<class CGridPipline> m_GridPipline;
-
     std::unique_ptr<class CNodeRenderer> m_NodeRenderer;
-
-    std::unique_ptr<class CTextRenderSystem> m_TextSystem;
-    std::vector<SNodeTextHandle> m_NodeTextHandles;
 
     std::optional<glm::ivec2> MouseStartClickPos;
     std::optional<int> NodeDragThreshold;

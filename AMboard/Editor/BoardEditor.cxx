@@ -50,12 +50,9 @@ CBoardEditor::CBoardEditor()
     }
 
     m_NodeRenderer = std::make_unique<CNodeRenderer>(this);
-    m_TextSystem = std::make_unique<CTextRenderSystem>(this, "Res/Cubic_11.ttf");
 
-    m_NodeRenderer->CreateNode({ 100, 100 }, { 150, 100 }, 0x668DABFF);
-    m_NodeTextHandles.emplace_back(m_TextSystem->RegisterTextGroup("Node 1", 0.4, { SNodeTextHandle::TitleOffset + glm::vec2 { 100, 100 }, 0xFFFFFFFF }));
-    m_NodeRenderer->CreateNode({ 250, 50 }, { 450, 150 }, 0x668DABFF);
-    m_NodeTextHandles.emplace_back(m_TextSystem->RegisterTextGroup("Node 2", 0.4, { SNodeTextHandle::TitleOffset + glm::vec2 { 250, 50 }, 0xFFFFFFFF }));
+    m_NodeRenderer->CreateNode("Node", { 100, 100 }, { 150, 100 }, 0x668DABFF);
+    m_NodeRenderer->CreateNode("Node", { 250, 50 }, { 450, 150 }, 0x668DABFF);
 }
 
 CBoardEditor::~CBoardEditor() = default;
@@ -148,8 +145,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
             if (!NodeDragThreshold.has_value()) {
                 if (const auto DeltaCursor = GetInputManager().GetDeltaCursor(); DeltaCursor.x || DeltaCursor.y) {
-                    const auto NodePosition = m_NodeRenderer->MoveNode(*m_SelectedNode, glm::vec2 { GetInputManager().GetDeltaCursor() } / m_CameraZoom);
-                    m_TextSystem->SetTextPosition(m_NodeTextHandles[*m_SelectedNode].TitleText, NodePosition + SNodeTextHandle::TitleOffset);
+                    m_NodeRenderer->MoveNode(*m_SelectedNode, glm::vec2 { GetInputManager().GetDeltaCursor() } / m_CameraZoom);
                 }
             }
         }
@@ -173,6 +169,4 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
     RenderContext.RenderPassEncoder.Draw(4);
 
     m_NodeRenderer->Render(RenderContext);
-
-    m_TextSystem->Render(RenderContext);
 }

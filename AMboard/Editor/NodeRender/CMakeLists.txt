@@ -1,2 +1,3 @@
 create_library(NodeBackgroundPipline DEPS WindowBase RenderPipeline DynamicGPUBuffer)
-create_library(NodeRenderer DEPS RangeManager WebGPUAPI glm::glm P_DEPS DynamicGPUBuffer NodeBackgroundPipline WindowBase Assertions)
+create_library(NodeTextRenderPipline DEPS RangeManager RenderPipeline P_DEPS Font WindowBase Assertions DynamicGPUBuffer)
+create_library(NodeRenderer DEPS RangeManager WebGPUAPI glm::glm P_DEPS Font DynamicGPUBuffer NodeBackgroundPipline NodeTextRenderPipline WindowBase Assertions)

@@ -17,6 +17,9 @@ public:
     // O(log N) - Optimized based on "no double remove" guarantee
     void RemoveRange(int Offset, int Count);
 
+    // O(N) - Linear scan to find the first available slot
+    int FirstFit(int Count) const;
+
     /// Starts from 0
     [[nodiscard]] int GetFirstFreeIndex() const noexcept;
 
