@@ -33,7 +33,7 @@ struct NodeCommon {
 }
 
 @group(0) @binding(0) var<uniform> camera: Camera;
-@group(1) @binding(0) var<storage, read> text_commons: array<NodeCommon>;
+@group(1) @binding(0) var<storage, read> node_commons: array<NodeCommon>;
 
 // Blueprint node constants
 const HEADER_HEIGHT: f32 = 30.0;
@@ -48,7 +48,7 @@ const PICKED_BORDER_COLOR: vec4<f32> = vec4<f32>(1.0, 0.74, 0.0, 1.0);
 fn vs_main(input: VertexInput) -> VertexOutput {
     var output: VertexOutput;
 
-    let text_common = text_commons[input.inst_id];
+    let node_common = node_commons[input.inst_id];
 
     // Triangle strip vertices (4 vertices for a quad)    // Order: bottom-left, top-left, bottom-right, top-right
     let strip_index = input.vertex_index % 4u;
@@ -62,7 +62,7 @@ fn vs_main(input: VertexInput) -> VertexOutput {
     }
 
     // Calculate world position (2D)
-    let world_pos_2d = text_common.offset + local_pos * input.size;
+    let world_pos_2d = node_common.offset + local_pos * input.size;
     let world_pos = vec4<f32>(world_pos_2d.x, world_pos_2d.y, 0.0, 1.0);
 
     // Apply view and projection matrices
@@ -70,10 +70,10 @@ fn vs_main(input: VertexInput) -> VertexOutput {
 
     // Pass through data
     output.uv = local_pos;
-    output.node_offset = text_common.offset;
+    output.node_offset = node_common.offset;
     output.node_size = input.size;
     output.header_color = input.header_color;
-    output.state = text_common.state;
+    output.state = node_common.state;
 
     return output;
 }
