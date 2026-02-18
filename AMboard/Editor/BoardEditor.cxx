@@ -181,7 +181,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
                 if (const auto DeltaCursor = GetInputManager().GetDeltaCursor(); DeltaCursor.x || DeltaCursor.y) {
                     auto& NodeOffset = m_NodePipline->GetRenderMetas()[*m_SelectedNode].Offset;
 
-                    NodeOffset += GetInputManager().GetDeltaCursor();
+                    NodeOffset += glm::vec2 { GetInputManager().GetDeltaCursor() } / m_CameraZoom;
                     m_NodePipline->GetVertexBuffer().Upload(*m_SelectedNode);
 
                     m_TextSystem->SetTextPosition(m_NodeTextHandles[*m_SelectedNode].TitleText, NodeOffset + SNodeTextHandle::TitleOffset);
