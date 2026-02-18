@@ -153,3 +153,61 @@ CFont::LoadCharacter(uint32_t Codepoint)
         return &CharacterCacheIt->second;
     }
 }
+void CFont::BuildVertex(const std::string& Text, float Scale, const std::function<STextVertexArchetype*(size_t)>& Allocator, size_t Stride)
+{
+    hb_buffer_t* hb_buffer = hb_buffer_create();
+    hb_buffer_add_utf8(hb_buffer, Text.c_str(), -1, 0, -1);
+    hb_buffer_guess_segment_properties(hb_buffer);
+
+    hb_shape(m_TextShaper.get(), hb_buffer, nullptr, 0);
+
+    unsigned int GlyphsCount;
+    const hb_glyph_info_t* GlyphInfos = hb_buffer_get_glyph_infos(hb_buffer, &GlyphsCount);
+    const hb_glyph_position_t* GlyphPositions = hb_buffer_get_glyph_positions(hb_buffer, &GlyphsCount);
+
+    /// No text push empty draw command
+    if (GlyphsCount == 0) {
+        return;
+    }
+
+    auto* VertexArchetypeMemory = reinterpret_cast<std::byte*>(Allocator(GlyphsCount));
+
+    float XPosition = 0, YPosition = 0;
+    float MaxHeight = 0;
+    float MaxYOutOfBound = 0;
+
+    for (unsigned int i = 0; i < GlyphsCount; i++) {
+        const SCharacter* Character = LoadCharacter(GlyphInfos[i].codepoint);
+        if (Character == nullptr)
+            continue;
+
+        const auto& glyph_pos = GlyphPositions[i];
+
+        auto& VertexArchetype = *reinterpret_cast<STextVertexArchetype*>(VertexArchetypeMemory + Stride * i);
+
+        VertexArchetype = {
+            .TextBound = {
+                // Convert HarfBuzz units (1/64th of a pixel) to pixels
+                XPosition + (Character->Bearing.x + glyph_pos.x_offset / 64.0f) * Scale,
+                YPosition - (Character->Bearing.y - glyph_pos.y_offset / 64.0f) * Scale,
+                Character->Size.x * Scale,
+                Character->Size.y * Scale,
+            },
+            .UVBound = { Character->UVPosition.x, Character->UVPosition.y, Character->UVSize.x, Character->UVSize.y }
+        };
+
+        MaxYOutOfBound = std::max(MaxYOutOfBound, -VertexArchetype.TextBound.y);
+        MaxHeight = std::max(MaxHeight, VertexArchetype.TextBound.y + VertexArchetype.TextBound.w);
+
+        // Convert HarfBuzz units (1/64th of a pixel) to pixels
+        XPosition += (glyph_pos.x_advance / 64.0f + 5) * Scale;
+        YPosition += (glyph_pos.y_advance / 64.0f) * Scale;
+    }
+
+    hb_buffer_destroy(hb_buffer);
+
+    /// Offset back for max bearing so all text start at the desired Y position
+    if ((MaxYOutOfBound = std::max(0.0f, MaxYOutOfBound)) > std::numeric_limits<float>::epsilon())
+        for (int i = 0; i < GlyphsCount; i++)
+            reinterpret_cast<STextVertexArchetype*>(VertexArchetypeMemory + Stride * i)->TextBound.y += MaxYOutOfBound;
+}

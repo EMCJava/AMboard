@@ -133,84 +133,48 @@ void CTextRenderSystem::PushVertexBuffer(STextGroupHandle& TextGroupHandle)
 {
     RefreshBuffer(TextGroupHandle);
 
-    hb_buffer_t* hb_buffer = hb_buffer_create();
-    hb_buffer_add_utf8(hb_buffer, TextGroupHandle.Text.c_str(), -1, 0, -1);
-    hb_buffer_guess_segment_properties(hb_buffer);
+    unsigned int GlyphsCount = 0;
+    m_Font->BuildVertex(TextGroupHandle.Text, TextGroupHandle.Scale, [&](const size_t GlyphsToAllocate) {
+        GlyphsCount = GlyphsToAllocate;
 
-    hb_shape(*m_Font, hb_buffer, nullptr, 0);
+        CHECK(TextGroupHandle.VertexSpan.second == 0)
+        for (auto it = m_TextVertexBufferFreeList.begin(); it != m_TextVertexBufferFreeList.end(); ++it) {
+            if (it->second >= GlyphsToAllocate) {
+                TextGroupHandle.VertexSpan = *it;
+                m_TextVertexBufferFreeList.erase(it);
+                break;
+            }
+        }
 
-    unsigned int GlyphsCount;
-    const hb_glyph_info_t* GlyphInfos = hb_buffer_get_glyph_infos(hb_buffer, &GlyphsCount);
-    const hb_glyph_position_t* GlyphPositions = hb_buffer_get_glyph_positions(hb_buffer, &GlyphsCount);
+        /// Reallocate is needed
+        if (TextGroupHandle.VertexSpan.second == 0) {
+            const auto OldVertexCount = m_TextVertexBuffer->GetBufferSize();
+            m_TextVertexBuffer->Resize(OldVertexCount + GlyphsToAllocate);
+            TextGroupHandle.VertexSpan = { OldVertexCount, GlyphsToAllocate };
+        }
 
-    /// No text push empty draw command
+        if (TextGroupHandle.VertexSpan.second > GlyphsToAllocate) {
+            m_TextVertexBufferFreeList.emplace_back(TextGroupHandle.VertexSpan.first + GlyphsToAllocate, GlyphsToAllocate - TextGroupHandle.VertexSpan.second);
+            TextGroupHandle.VertexSpan.second = GlyphsToAllocate;
+        }
+
+        VERIFY(TextGroupHandle.VertexSpan.second == GlyphsToAllocate)
+
+        AddVertexRange(TextGroupHandle.VertexSpan.first, TextGroupHandle.VertexSpan.second);
+
+        static constexpr size_t ArchetypeByteOffset = 0;
+        static_assert(offsetof(STextVertexArchetype, TextBound) == offsetof(STextRenderVertexMeta, TextBound) + ArchetypeByteOffset);
+        static_assert(offsetof(STextVertexArchetype, UVBound) == offsetof(STextRenderVertexMeta, UVBound) + ArchetypeByteOffset);
+
+        return reinterpret_cast<STextVertexArchetype*>(reinterpret_cast<std::byte*>(m_TextVertexBuffer->Begin<STextRenderVertexMeta>() + TextGroupHandle.VertexSpan.first) + ArchetypeByteOffset); }, sizeof(STextRenderVertexMeta));
+
     if (GlyphsCount == 0) {
         return;
     }
 
-    CHECK(TextGroupHandle.VertexSpan.second == 0)
-    for (auto it = m_TextVertexBufferFreeList.begin(); it != m_TextVertexBufferFreeList.end(); ++it) {
-        if (it->second >= GlyphsCount) {
-            TextGroupHandle.VertexSpan = *it;
-            m_TextVertexBufferFreeList.erase(it);
-            break;
-        }
-    }
-
-    /// Reallocate is needed
-    if (TextGroupHandle.VertexSpan.second == 0) {
-        const auto OldVertexCount = m_TextVertexBuffer->GetBufferSize();
-        m_TextVertexBuffer->Resize(OldVertexCount + GlyphsCount);
-        TextGroupHandle.VertexSpan = { OldVertexCount, GlyphsCount };
-    }
-
-    if (TextGroupHandle.VertexSpan.second > GlyphsCount) {
-        m_TextVertexBufferFreeList.emplace_back(TextGroupHandle.VertexSpan.first + GlyphsCount, GlyphsCount - TextGroupHandle.VertexSpan.second);
-        TextGroupHandle.VertexSpan.second = GlyphsCount;
-    }
-
-    VERIFY(TextGroupHandle.VertexSpan.second == GlyphsCount)
-
-    AddVertexRange(TextGroupHandle.VertexSpan.first, TextGroupHandle.VertexSpan.second);
     const auto GlyphsSubspan = m_TextVertexBuffer->GetView<STextRenderVertexMeta>().subspan(TextGroupHandle.VertexSpan.first, GlyphsCount);
-
-    auto XPosition = 0, YPosition = 0;
-    float MaxHeight = 0;
-    float MaxYOutOfBound = 0;
-
-    for (unsigned int i = 0; i < GlyphsCount; i++) {
-        const SCharacter* Character = m_Font->LoadCharacter(GlyphInfos[i].codepoint);
-        if (Character == nullptr)
-            continue;
-
-        const auto& glyph_pos = GlyphPositions[i];
-
-        GlyphsSubspan[i] = {
-            .TextBound = {
-                // Convert HarfBuzz units (1/64th of a pixel) to pixels
-                XPosition + (Character->Bearing.x + glyph_pos.x_offset / 64.0f) * TextGroupHandle.Scale,
-                YPosition - (Character->Bearing.y - glyph_pos.y_offset / 64.0f) * TextGroupHandle.Scale,
-                Character->Size.x * TextGroupHandle.Scale,
-                Character->Size.y * TextGroupHandle.Scale,
-            },
-            .UVBound = { Character->UVPosition.x, Character->UVPosition.y, Character->UVSize.x, Character->UVSize.y },
-            .TextGroupIndex = TextGroupHandle.GroupId
-        };
-
-        MaxYOutOfBound = std::max(MaxYOutOfBound, -GlyphsSubspan[i].TextBound.y);
-        MaxHeight = std::max(MaxHeight, GlyphsSubspan[i].TextBound.y + GlyphsSubspan[i].TextBound.w);
-
-        // Convert HarfBuzz units (1/64th of a pixel) to pixels
-        XPosition += (glyph_pos.x_advance / 64.0f + 5) * TextGroupHandle.Scale;
-        YPosition += (glyph_pos.y_advance / 64.0f) * TextGroupHandle.Scale;
-    }
-
-    hb_buffer_destroy(hb_buffer);
-
-    /// Offset back for max bearing so all text start at the desired Y position
-    if ((MaxYOutOfBound = std::max(0.0f, MaxYOutOfBound)) > std::numeric_limits<float>::epsilon())
-        for (int i = 0; i < GlyphsCount; i++)
-            GlyphsSubspan[i].TextBound.y += MaxYOutOfBound;
+    for (unsigned int i = 0; i < GlyphsCount; i++)
+        GlyphsSubspan[i].TextGroupIndex = TextGroupHandle.GroupId;
 
     (void)m_TextVertexBuffer->Upload(GlyphsSubspan);
 }

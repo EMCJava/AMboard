@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 #include <glm/vec2.hpp>
+#include <glm/vec4.hpp>
 
 #include <dawn/webgpu_cpp.h>
 
@@ -22,11 +23,18 @@ struct SCharacter {
     glm::vec2 UVSize;
 };
 
+struct STextVertexArchetype {
+    glm::vec4 TextBound;
+    glm::vec4 UVBound;
+};
+
 class CFont {
 public:
     CFont(const class CWindowBase* Window, const std::filesystem::path& FontPath);
 
     SCharacter* LoadCharacter(uint32_t Codepoint);
+
+    void BuildVertex(const std::string& Text, float Scale, const std::function<STextVertexArchetype*(size_t)>& Allocator, size_t Stride = sizeof(STextVertexArchetype));
 
     operator hb_font_t*() const noexcept { return m_TextShaper.get(); }
     operator const wgpu::TextureView&() const noexcept { return m_TextureView; }
