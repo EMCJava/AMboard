@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <queue>
 #include <memory>
+#include <queue>
 
 #include <glm/vec2.hpp>
 
@@ -196,6 +196,9 @@ protected:
 
     SButtonSet MouseButtons { MaxMouseCode };
 
+    // Current(FIXME) window content scale
+    glm::vec2 ContentScale { 1 };
+
     // Most recent cursor position
     glm::ivec2 CursorPos;
 
@@ -268,6 +271,13 @@ public:
     glm::ivec2 GetCursorPosition() const noexcept;
 
 public:
+    /**
+     * Update the current content scale to adjust the mouse position
+     *
+     * @param Scale New window content scale
+     */
+    void SetContentScale(const glm::vec2& Scale) noexcept;
+
     /**
      * Should be called for every GLFW cursor callback
      *

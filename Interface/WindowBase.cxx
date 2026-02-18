@@ -203,6 +203,10 @@ void CWindowBase::RecreateSurface()
         return;
     }
 
+    glm::vec2 ContentScale;
+    glfwGetWindowContentScale(m_Window.get(), &ContentScale.x, &ContentScale.y);
+    m_InputManager->SetContentScale(ContentScale);
+
     glfwGetFramebufferSize(m_Window.get(), &m_WindowSize.x, &m_WindowSize.y);
     m_SurfaceConfig.width = static_cast<uint32_t>(m_WindowSize.x);
     m_SurfaceConfig.height = static_cast<uint32_t>(m_WindowSize.y);

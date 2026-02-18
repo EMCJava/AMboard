@@ -12,6 +12,7 @@
 #include <Interface/Font/TextRenderSystemHandle.hxx>
 
 #include <stack>
+#include <list>
 
 struct SNodeTextPerGroupMeta {
     uint32_t Color { };
