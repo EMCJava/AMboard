@@ -21,12 +21,15 @@ struct SCommonNodeSSBO {
     uint8_t Padding[4];
 };
 
-struct SNodeTextHandle {
+struct SNodeAdditionalSourceHandle {
     static constexpr glm::vec2 TitleOffset = { 10, 10 };
 
     std::optional<std::list<STextGroupHandle>::iterator> TitleText;
 
-    void UnRegisterText(class CNodeTextRenderPipline* Pipline);
+    std::vector<size_t> InputPins;
+    std::vector<size_t> OutputPins;
+
+    void UnRegister(const CNodeRenderer* Renderer);
 };
 
 class CDynamicGPUBuffer;
@@ -60,11 +63,14 @@ protected:
 
     size_t m_IdCount = 0;
     CRangeManager m_ValidIdRange;
-    std::vector<SNodeTextHandle> m_NodeTextHandles;
+    std::vector<SNodeAdditionalSourceHandle> m_NodeResourcesHandles;
 
     wgpu::BindGroup m_CommonNodeSSBOBindingGroup;
     std::unique_ptr<CDynamicGPUBuffer> m_CommonNodeSSBOBuffer;
 
     std::unique_ptr<class CNodeBackgroundPipline> m_NodeBackgroundPipline;
-    std::unique_ptr<CNodeTextRenderPipline> m_NodeTextPipline;
+    std::unique_ptr<class CNodeTextRenderPipline> m_NodeTextPipline;
+    std::unique_ptr<class CNodePinPipline> m_NodePinPipline;
+
+    friend SNodeAdditionalSourceHandle;
 };

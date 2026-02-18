@@ -4,6 +4,7 @@
 
 #include "NodeRenderer.hxx"
 #include "NodeBackgroundPipline.hxx"
+#include "NodePinPipline.hxx"
 #include "NodeTextRenderPipline.hxx"
 
 #include <Util/Assertions.hxx>
@@ -14,11 +15,17 @@
 
 #include <Interface/Font/Font.hxx>
 
-void SNodeTextHandle::UnRegisterText(CNodeTextRenderPipline* Pipline)
+void SNodeAdditionalSourceHandle::UnRegister(const CNodeRenderer* Renderer)
 {
     if (TitleText.has_value()) {
-        Pipline->UnregisterTextGroup(*TitleText);
+        Renderer->m_NodeTextPipline->UnregisterTextGroup(*TitleText);
+        TitleText.reset();
     }
+
+    for (const auto PinIndex : InputPins) {
+        Renderer->m_NodePinPipline->RemovePin(PinIndex);
+    }
+    InputPins.clear();
 }
 
 void CNodeRenderer::CreateCommonBindingGroup()
@@ -48,6 +55,9 @@ CNodeRenderer::CNodeRenderer(const CWindowBase* Window)
     m_NodeTextPipline = std::make_unique<CNodeTextRenderPipline>(Window, std::make_shared<CFont>(Window, "Res/Cubic_11.ttf"));
     m_NodeTextPipline->CreatePipeline(*Window);
 
+    m_NodePinPipline = std::make_unique<CNodePinPipline>(Window);
+    m_NodePinPipline->CreatePipeline(*Window);
+
     m_CommonNodeSSBOBuffer = CDynamicGPUBuffer::Create<SCommonNodeSSBO>(Window, wgpu::BufferUsage::Storage);
 }
 
@@ -65,12 +75,15 @@ void CNodeRenderer::WriteToNode(const size_t Id, const std::string& Title, const
     BackgroundInstanceBuffer.HeaderColor = HeaderColor;
     BackgroundInstanceBuffer.Size = Size;
 
-    if (!m_NodeTextHandles[Id].TitleText.has_value()) {
-        m_NodeTextHandles[Id].TitleText = m_NodeTextPipline->RegisterTextGroup(Id, Title, 0.4, { .Color = 0xFFFFFFFF });
+    if (!m_NodeResourcesHandles[Id].TitleText.has_value()) {
+        m_NodeResourcesHandles[Id].TitleText = m_NodeTextPipline->RegisterTextGroup(Id, Title, 0.4, { .Color = 0xFFFFFFFF });
     } else {
-        (*m_NodeTextHandles[Id].TitleText)->Text = Title;
-        m_NodeTextPipline->UpdateTextGroup(*m_NodeTextHandles[Id].TitleText);
+        (*m_NodeResourcesHandles[Id].TitleText)->Text = Title;
+        m_NodeTextPipline->UpdateTextGroup(*m_NodeResourcesHandles[Id].TitleText);
     }
+
+    m_NodeResourcesHandles[Id].InputPins.emplace_back(m_NodePinPipline->NewPin(Id, { 20, 30 + 10 }, 10, 0xFFFFFFFF, true, false));
+    m_NodeResourcesHandles[Id].InputPins.emplace_back(m_NodePinPipline->NewPin(Id, { 18, 60 + 10 }, 6, 0x00FF00FF, false, false));
 
     m_NodeBackgroundPipline->GetVertexBuffer().Upload(Id);
     m_CommonNodeSSBOBuffer->Upload(Id);
@@ -116,7 +129,7 @@ size_t CNodeRenderer::CreateNode(const std::string& Title, const glm::vec2& Posi
         /// Common buffer resized, need to recreate the binding group
         CreateCommonBindingGroup();
 
-        m_NodeTextHandles.emplace_back();
+        m_NodeResourcesHandles.emplace_back();
 
         m_NodeBackgroundPipline->GetVertexBuffer().PushUninitialized();
     }
@@ -130,7 +143,7 @@ size_t CNodeRenderer::CreateNode(const std::string& Title, const glm::vec2& Posi
 void CNodeRenderer::RemoveNode(const size_t Id)
 {
     m_ValidIdRange.RemoveSlot(Id);
-    m_NodeTextHandles[Id].UnRegisterText(m_NodeTextPipline.get());
+    m_NodeResourcesHandles[Id].UnRegister(this);
 }
 
 bool CNodeRenderer::InBound(const size_t Id, const glm::vec2& Position) const noexcept
@@ -162,6 +175,14 @@ void CNodeRenderer::Render(const SRenderContext& RenderContext)
         RenderContext.RenderPassEncoder.SetVertexBuffer(0, m_NodeTextPipline->GetVertexBuffer());
         RenderContext.RenderPassEncoder.SetPipeline(*m_NodeTextPipline);
         for (auto const& [Left, Right] : m_NodeTextPipline->GetDrawCommands()) {
+            RenderContext.RenderPassEncoder.Draw(4, Right - Left + 1, 0, Left);
+        }
+    }
+
+    {
+        RenderContext.RenderPassEncoder.SetVertexBuffer(0, m_NodePinPipline->GetVertexBuffer());
+        RenderContext.RenderPassEncoder.SetPipeline(*m_NodePinPipline);
+        for (auto const& [Left, Right] : m_NodePinPipline->GetDrawCommands()) {
             RenderContext.RenderPassEncoder.Draw(4, Right - Left + 1, 0, Left);
         }
     }
