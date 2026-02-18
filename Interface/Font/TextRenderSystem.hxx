@@ -10,8 +10,9 @@
 #include <Interface/Pipline/TextRenderMeta.hxx>
 
 #include <filesystem>
-#include <map>
 #include <stack>
+#include <list>
+#include <map>
 
 #include <dawn/webgpu_cpp.h>
 

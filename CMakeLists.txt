@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 4.1)
-project(AMboard)
+project(AMB)
 
 set(CMAKE_CXX_STANDARD 23)
 
@@ -14,10 +14,10 @@ add_subdirectory(AMBoard)
 add_compile_definitions(GLM_ENABLE_EXPERIMENTAL GLM_FORCE_DEPTH_ZERO_TO_ONE GLM_FORCE_LEFT_HANDED)
 
 
-add_executable(AMboard main.cpp)
+add_executable(AMB main.cpp)
 
 target_link_libraries(
-        AMboard
+        AMB
         ExecuteNode.lib
         BaseNode.lib
         DataPin.lib

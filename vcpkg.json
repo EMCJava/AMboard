@@ -14,7 +14,17 @@
         "d3d12",
         "tint"
       ],
-      "default-features": false
+      "default-features": false,
+      "platform": "windows"
+    },
+    {
+      "name": "dawn",
+      "features": [
+        "metal",
+        "tint"
+      ],
+      "default-features": false,
+      "platform": "osx"
     }
   ]
 }
