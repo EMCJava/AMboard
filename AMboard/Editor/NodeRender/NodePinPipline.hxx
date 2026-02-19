@@ -14,6 +14,12 @@ struct SNodePinInstanceBuffer {
     uint32_t Color;
     uint32_t Flag;
     uint32_t NodeId;
+
+    enum {
+        EExecutionFlag = 0b1,
+        ConnectedFlag = 0b10,
+        HoveringFlag = 0b100,
+    };
 };
 
 class CNodePinPipline final : public CRenderPipeline {

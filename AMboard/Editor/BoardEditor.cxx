@@ -9,6 +9,7 @@
 #include "NodeRender/NodeRenderer.hxx"
 
 #include <Interface/Font/TextRenderSystem.hxx>
+#include <iostream>
 
 #include <AMboard/Macro/BaseNode.hxx>
 #include <GLFW/glfw3.h>
@@ -73,6 +74,30 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
     const auto MouseCurrentPos = GetInputManager().GetCursorPosition();
     const auto MouseDeltaPos = GetInputManager().GetDeltaCursor();
+    const glm::vec2 MouseWorldPos = ScreenToWorld(MouseCurrentPos);
+
+    std::optional<std::size_t> CursorHoveringNode;
+    std::optional<std::size_t> CursorHoveringPin;
+
+    for (const auto& [Left, Right] : m_NodeRenderer->GetValidRange()) {
+        for (auto i = Left; i <= Right; ++i) {
+            if (m_NodeRenderer->InBound(i, MouseWorldPos)) [[unlikely]] {
+                CursorHoveringNode = i;
+
+                CursorHoveringPin = m_NodeRenderer->GetHoveringPin(i, MouseWorldPos);
+
+                if (m_LastHoveringPin != CursorHoveringPin) {
+                    if (m_LastHoveringPin.has_value()) /// Deselect
+                        m_NodeRenderer->ToggleSelectPin(*m_LastHoveringPin);
+                    if (CursorHoveringPin.has_value()) /// Select
+                        m_NodeRenderer->SelectPin(*CursorHoveringPin);
+                }
+
+                m_LastHoveringPin = CursorHoveringPin;
+                break;
+            }
+        }
+    }
 
     /// Drag canvas
     if (GetInputManager().GetMouseButtons().ConsumeHoldEvent(this, GLFW_MOUSE_BUTTON_MIDDLE)) {
@@ -86,7 +111,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
         const float NewZoom = glm::clamp(m_CameraZoom * ZoomFactor, 0.1f, 5.0f);
 
         // Zoom towards mouse position
-        const glm::vec2 WorldPosBefore = ScreenToWorld(MouseCurrentPos);
+        const glm::vec2 WorldPosBefore = MouseWorldPos;
         m_CameraZoom = NewZoom;
         const glm::vec2 WorldPosAfter = ScreenToWorld(MouseCurrentPos);
         m_CameraOffset += (WorldPosBefore - WorldPosAfter);
@@ -104,36 +129,25 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
     /// Create Node
     if (GetInputManager().GetMouseButtons().ConsumeEvent(GLFW_MOUSE_BUTTON_RIGHT)) {
-        m_NodeRenderer->CreateNode("User Node    U", ScreenToWorld(MouseCurrentPos), ((rand() << 16) ^ rand()) & 0xFFFFFF00 | 0x88);
+        m_NodeRenderer->CreateNode("User Node    U", MouseWorldPos, ((rand() << 16) ^ rand()) & 0xFFFFFF00 | 0x88);
     }
 
     /// Select Node
     if (GetInputManager().GetMouseButtons().ConsumeEvent({ GLFW_MOUSE_BUTTON_LEFT, GLFW_RELEASE })) {
 
         if (glm::length2(glm::vec2 { MouseCurrentPos - *MouseStartClickPos }) < 3 * 3) {
-            const glm::vec2 ClickPosition = ScreenToWorld(MouseCurrentPos);
 
-            for (auto [Left, Right] : m_NodeRenderer->GetValidRange()) {
-                for (int i = Left; i <= Right; ++i) {
+            if (CursorHoveringNode.has_value()) [[unlikely]] {
 
-                    if (m_NodeRenderer->InBound(i, ClickPosition)) [[unlikely]] {
+                if (m_SelectedNode.has_value()) {
+                    m_NodeRenderer->ToggleSelect(*m_SelectedNode);
+                }
 
-                        if (m_SelectedNode.has_value()) { /// Deselect
-
-                            if (*m_SelectedNode == i) {
-                                m_NodeRenderer->ToggleSelect(i);
-                                m_SelectedNode.reset();
-                                break;
-                            }
-
-                            m_NodeRenderer->ToggleSelect(*m_SelectedNode);
-                        }
-
-                        m_SelectedNode = i;
-                        m_NodeRenderer->Select(i);
-
-                        break;
-                    }
+                if (m_SelectedNode.has_value() && *m_SelectedNode == *CursorHoveringNode) { /// Deselect
+                    m_SelectedNode.reset();
+                } else {
+                    m_SelectedNode = *CursorHoveringNode;
+                    m_NodeRenderer->Select(*CursorHoveringNode);
                 }
             }
         }
@@ -145,7 +159,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
     if (GetInputManager().GetMouseButtons().ConsumeHoldEvent(this, GLFW_MOUSE_BUTTON_LEFT)) {
 
         const auto CurrentMousePosition = MouseCurrentPos;
-        const auto WorldMousePosition = ScreenToWorld(CurrentMousePosition);
+        const auto WorldMousePosition = MouseWorldPos;
 
         if (!MouseStartClickPos.has_value()) {
             MouseStartClickPos = MouseCurrentPos;

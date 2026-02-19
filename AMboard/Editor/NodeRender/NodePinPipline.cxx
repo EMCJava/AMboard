@@ -50,10 +50,18 @@ const HOLLOW_WIDTH: f32 = 2.0; // Thickness of the ring when disconnected
 fn vs_main(input: VertexInput) -> VertexOutput {
     var output: VertexOutput;
 
+    let is_hovering = (input.flags & 4u) != 0u;
+
+    var final_radius: f32;
+
     // Generate Quad (Triangle Strip)
     // We expand the radius slightly to account for AA and borders
     let expansion_factor = 1.5;
-    let size = input.radius * expansion_factor;
+    if (is_hovering) {
+        final_radius = 1.2 * input.radius * expansion_factor;
+    } else {
+        final_radius = input.radius * expansion_factor;
+    }
 
     let idx = input.vertex_index % 4u;
     var local_pos: vec2<f32>;
@@ -67,13 +75,13 @@ fn vs_main(input: VertexInput) -> VertexOutput {
     }
 
     // Calculate world position
-    let world_pos = input.position + local_pos * size + node_commons[input.node_id].offset;
+    let world_pos = input.position + local_pos * final_radius + node_commons[input.node_id].offset;
 
     output.position = camera.projection * camera.view * vec4<f32>(world_pos, 0.0, 1.0);
     output.uv = local_pos; // UVs are -1 to 1
     output.color = unpack_color(input.color);
     output.flags = input.flags;
-    output.radius = input.radius;
+    output.radius = final_radius;
 
     return output;
 }

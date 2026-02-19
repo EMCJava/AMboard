@@ -46,6 +46,9 @@ public:
     void Select(size_t Id) const;
     void ToggleSelect(size_t Id) const;
 
+    void SelectPin(size_t Id) const;
+    void ToggleSelectPin(size_t Id) const;
+
     glm::vec2 MoveNode(size_t Id, const glm::vec2& Delta) const;
 
     size_t AddInputPin(size_t Id, bool IsExecutionPin);
@@ -54,7 +57,10 @@ public:
     size_t CreateNode(const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor);
     void RemoveNode(size_t Id);
 
-    [[nodiscard]] bool InBound(size_t Id, const glm::vec2& Position) const noexcept;
+    [[nodiscard]] bool InBound(size_t Id, const glm::vec2& Position) const;
+
+    /// Assuming the position is within bound of the node, find the hovering pin
+    [[nodiscard]] std::optional<std::size_t> GetHoveringPin(size_t HoveringNodeId, const glm::vec2& Position) const;
 
     template <typename Self>
     [[nodiscard]] decltype(auto) GetValidRange(this Self&& s) noexcept { return s.m_ValidIdRange; }

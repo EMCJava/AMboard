@@ -15,6 +15,8 @@
 
 #include <Interface/Font/Font.hxx>
 
+#include <glm/gtx/norm.hpp>
+
 void SNodeAdditionalSourceHandle::UnRegister(const CNodeRenderer* Renderer)
 {
     if (TitleText.has_value()) {
@@ -106,6 +108,22 @@ void CNodeRenderer::ToggleSelect(size_t Id) const
     m_CommonNodeSSBOBuffer->Upload(Id);
 }
 
+void CNodeRenderer::SelectPin(const size_t Id) const
+{
+    MAKE_SURE(Id < m_NodePinPipline->GetVertexBuffer().GetBufferSize())
+
+    m_NodePinPipline->GetVertexBuffer().At<SNodePinInstanceBuffer>(Id).Flag |= SNodePinInstanceBuffer::HoveringFlag;
+    m_NodePinPipline->GetVertexBuffer().Upload(Id);
+}
+
+void CNodeRenderer::ToggleSelectPin(const size_t Id) const
+{
+    MAKE_SURE(Id < m_NodePinPipline->GetVertexBuffer().GetBufferSize())
+
+    m_NodePinPipline->GetVertexBuffer().At<SNodePinInstanceBuffer>(Id).Flag ^= SNodePinInstanceBuffer::HoveringFlag;
+    m_NodePinPipline->GetVertexBuffer().Upload(Id);
+}
+
 glm::vec2 CNodeRenderer::MoveNode(size_t Id, const glm::vec2& Delta) const
 {
     MAKE_SURE(Id < m_IdCount)
@@ -128,7 +146,7 @@ size_t CNodeRenderer::AddInputPin(size_t Id, bool IsExecutionPin)
 
     if (m_NodeResourcesHandles[Id].InputPins.size() >= m_NodeResourcesHandles[Id].OutputPins.size()) {
         auto& NodeInstance = m_NodeBackgroundPipline->GetVertexBuffer().At<SNodeBackgroundInstanceBuffer>(Id);
-        NodeInstance.Size = glm::max(NodeInstance.Size, { 0, NodeOffset.y + NodeRadius  * 2 });
+        NodeInstance.Size = glm::max(NodeInstance.Size, { 0, NodeOffset.y + NodeRadius * 2 });
         m_NodeBackgroundPipline->GetVertexBuffer().Upload(Id);
     }
 
@@ -185,12 +203,31 @@ void CNodeRenderer::RemoveNode(const size_t Id)
     m_NodeResourcesHandles[Id].UnRegister(this);
 }
 
-bool CNodeRenderer::InBound(const size_t Id, const glm::vec2& Position) const noexcept
+bool CNodeRenderer::InBound(const size_t Id, const glm::vec2& Position) const
 {
+    MAKE_SURE(Id < m_IdCount)
+
     const auto& Offset = m_CommonNodeSSBOBuffer->At<SCommonNodeSSBO>(Id).Position;
     const auto& Size = m_NodeBackgroundPipline->GetVertexBuffer().At<SNodeBackgroundInstanceBuffer>(Id).Size;
 
     return Position.x >= Offset.x && Position.y >= Offset.y && Position.x <= Offset.x + Size.x && Position.y <= Offset.y + Size.y;
+}
+
+std::optional<std::size_t> CNodeRenderer::GetHoveringPin(const size_t HoveringNodeId, const glm::vec2& Position) const
+{
+    MAKE_SURE(HoveringNodeId < m_IdCount)
+
+    const auto& Offset = m_CommonNodeSSBOBuffer->At<SCommonNodeSSBO>(HoveringNodeId).Position;
+    const auto InNodeOffset = Position - Offset;
+
+    for (const auto PinId : std::views::join(std::array { std::views::all(m_NodeResourcesHandles[HoveringNodeId].InputPins), std::views::all(m_NodeResourcesHandles[HoveringNodeId].OutputPins) })) {
+        const auto& NodeMeta = m_NodePinPipline->GetVertexBuffer().At<SNodePinInstanceBuffer>(PinId);
+        if (glm::length2(InNodeOffset - NodeMeta.Offset) <= std::pow(NodeMeta.Radius + NodeRadius / 2, 2)) {
+            return PinId;
+        }
+    }
+
+    return std::nullopt;
 }
 
 void CNodeRenderer::Render(const SRenderContext& RenderContext)
