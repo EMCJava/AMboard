@@ -6,6 +6,10 @@
 #include "GridPipline.hxx"
 #include "NodeRender/NodeRenderer.hxx"
 
+#include <AMboard/Macro/DataPin.hxx>
+#include <AMboard/Macro/ExecuteNode.hxx>
+#include <AMboard/Macro/FlowPin.hxx>
+
 #include <Util/Assertions.hxx>
 
 #include <Interface/Font/TextRenderSystem.hxx>
@@ -18,11 +22,48 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/mat4x4.hpp>
 
-#include <iostream>
-
 glm::vec2 CBoardEditor::ScreenToWorld(const glm::vec2& ScreenPos) const noexcept
 {
     return ScreenPos / m_CameraZoom + m_CameraOffset;
+}
+
+template <typename NodeTy>
+size_t CBoardEditor::CreateNode(const std::string& Title, const glm::vec2& Position, const uint32_t HeaderColor)
+{
+    const auto NodeId = m_NodeRenderer->CreateNode(Title, Position, HeaderColor);
+    if (NodeId >= m_Nodes.size()) {
+        m_Nodes.resize(NodeId + 1);
+    }
+
+    m_Nodes[NodeId] = std::make_unique<NodeTy>();
+
+    return NodeId;
+}
+
+template <typename PinTy>
+PinTy* CBoardEditor::EmplacePin(size_t NodeId, const bool IsInput)
+{
+    if constexpr (std::is_same_v<PinTy, CFlowPin>) {
+        if (IsInput) {
+            m_NodeRenderer->AddInputPin(NodeId, true);
+        } else {
+            m_NodeRenderer->AddOutputPin(NodeId, true);
+        }
+    } else if constexpr (std::is_same_v<PinTy, CDataPin>) {
+        if (IsInput) {
+            m_NodeRenderer->AddInputPin(NodeId, false);
+        } else {
+            m_NodeRenderer->AddOutputPin(NodeId, false);
+        }
+    }
+
+    return m_Nodes[NodeId]->EmplacePin<PinTy>(IsInput);
+}
+
+void CBoardEditor::RemoveNode(size_t RemoveNode)
+{
+    m_NodeRenderer->RemoveNode(RemoveNode);
+    m_Nodes[RemoveNode].reset();
 }
 
 CBoardEditor::CBoardEditor()
@@ -55,27 +96,30 @@ CBoardEditor::CBoardEditor()
     m_NodeRenderer = std::make_unique<CNodeRenderer>(this);
 
     {
-        const auto NodeId = m_NodeRenderer->CreateNode("Node 1", { 100, 100 }, 0x668DAB88);
+        const auto NodeId = CreateNode<CExecuteNode>("Node 1", { 100, 100 }, 0x668DAB88);
+        EmplacePin<CFlowPin>(NodeId, true);
+        EmplacePin<CDataPin>(NodeId, true);
 
-        m_NodeRenderer->AddInputPin(NodeId, true);
-        m_NodeRenderer->AddInputPin(NodeId, false);
-        m_NodeRenderer->AddInputPin(NodeId, false);
-        m_NodeRenderer->AddInputPin(NodeId, false);
-        m_NodeRenderer->AddInputPin(NodeId, false);
-        m_NodeRenderer->AddOutputPin(NodeId, true);
-        m_NodeRenderer->AddOutputPin(NodeId, false);
+        EmplacePin<CFlowPin>(NodeId, false);
+        EmplacePin<CDataPin>(NodeId, false);
+        EmplacePin<CDataPin>(NodeId, false);
+        EmplacePin<CDataPin>(NodeId, false);
+        EmplacePin<CDataPin>(NodeId, false);
+        EmplacePin<CDataPin>(NodeId, false);
     }
 
     {
-        const auto NodeId = m_NodeRenderer->CreateNode("Node 2", { 300, 100 }, 0x668DAB88);
+        const auto NodeId = CreateNode<CExecuteNode>("Node 2", { 300, 100 }, 0x668DAB88);
 
-        m_NodeRenderer->AddOutputPin(NodeId, true);
-        m_NodeRenderer->AddOutputPin(NodeId, false);
-        m_NodeRenderer->AddOutputPin(NodeId, false);
-        m_NodeRenderer->AddOutputPin(NodeId, false);
-        m_NodeRenderer->AddOutputPin(NodeId, false);
-        m_NodeRenderer->AddInputPin(NodeId, true);
-        m_NodeRenderer->AddInputPin(NodeId, false);
+        EmplacePin<CFlowPin>(NodeId, true);
+        EmplacePin<CDataPin>(NodeId, true);
+        EmplacePin<CDataPin>(NodeId, true);
+        EmplacePin<CDataPin>(NodeId, true);
+        EmplacePin<CDataPin>(NodeId, true);
+        EmplacePin<CDataPin>(NodeId, true);
+
+        EmplacePin<CFlowPin>(NodeId, false);
+        EmplacePin<CDataPin>(NodeId, false);
     }
 }
 
@@ -151,7 +195,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
     /// Create Node
     if (GetInputManager().GetMouseButtons().ConsumeEvent(GLFW_MOUSE_BUTTON_RIGHT)) {
-        m_NodeRenderer->CreateNode("User Node", MouseWorldPos, ((rand() << 16) ^ rand()) & 0xFFFFFF00 | 0x88);
+        CreateNode<CExecuteNode>("User Node", MouseWorldPos, ((rand() << 16) ^ rand()) & 0xFFFFFF00 | 0x88);
     }
 
     /// Select Node

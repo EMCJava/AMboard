@@ -18,6 +18,13 @@ class CBoardEditor : public CWindowBase {
 
     [[nodiscard]] glm::vec2 ScreenToWorld(const glm::vec2& ScreenPos) const noexcept;
 
+    template <typename NodeTy>
+    size_t CreateNode(const std::string& Title, const glm::vec2& Position, const uint32_t HeaderColor);
+    void RemoveNode(size_t RemoveNode);
+
+    template <typename PinTy>
+    PinTy* EmplacePin(size_t NodeId, bool IsInput);
+
 public:
     CBoardEditor();
     ~CBoardEditor();
