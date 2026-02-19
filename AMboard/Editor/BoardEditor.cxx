@@ -181,7 +181,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
             /// Drag selected pin
             m_DraggingNode = false;
             if (m_SelectedNode.has_value()) {
-                if (m_SelectedNode == CursorHoveringNode) {
+                if (!m_SelectedPin.has_value() && m_SelectedNode == CursorHoveringNode) {
                     m_DraggingNode = true;
                     NodeDragThreshold = 3 * 3;
                 }
