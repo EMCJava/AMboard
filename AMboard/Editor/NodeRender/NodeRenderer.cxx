@@ -63,7 +63,9 @@ CNodeRenderer::CNodeRenderer(const CWindowBase* Window)
 
 CNodeRenderer::~CNodeRenderer() = default;
 
-void CNodeRenderer::WriteToNode(const size_t Id, const std::string& Title, const glm::vec2& Position, const glm::vec2& Size, const uint32_t HeaderColor)
+constexpr glm::vec2 MinimumNodeSize { 120, 100 };
+
+void CNodeRenderer::WriteToNode(const size_t Id, const std::string& Title, const glm::vec2& Position, const uint32_t HeaderColor)
 {
     MAKE_SURE(Id < m_IdCount)
 
@@ -73,7 +75,7 @@ void CNodeRenderer::WriteToNode(const size_t Id, const std::string& Title, const
 
     auto& BackgroundInstanceBuffer = m_NodeBackgroundPipline->GetVertexBuffer().At<SNodeBackgroundInstanceBuffer>(Id);
     BackgroundInstanceBuffer.HeaderColor = HeaderColor;
-    BackgroundInstanceBuffer.Size = Size;
+    BackgroundInstanceBuffer.Size = MinimumNodeSize;
 
     if (!m_NodeResourcesHandles[Id].TitleText.has_value()) {
         m_NodeResourcesHandles[Id].TitleText = m_NodeTextPipline->RegisterTextGroup(Id, Title, 0.4, { .Color = 0xFFFFFFFF });
@@ -81,6 +83,8 @@ void CNodeRenderer::WriteToNode(const size_t Id, const std::string& Title, const
         (*m_NodeResourcesHandles[Id].TitleText)->Text = Title;
         m_NodeTextPipline->UpdateTextGroup(*m_NodeResourcesHandles[Id].TitleText);
     }
+
+    BackgroundInstanceBuffer.Size = glm::max(BackgroundInstanceBuffer.Size, { (*m_NodeResourcesHandles[Id].TitleText)->TextWidth + 20, 0 });
 
     m_NodeBackgroundPipline->GetVertexBuffer().Upload(Id);
     m_CommonNodeSSBOBuffer->Upload(Id);
@@ -136,7 +140,7 @@ size_t CNodeRenderer::AddOutputPin(size_t Id, bool IsExecutionPin)
     return m_NodeResourcesHandles[Id].OutputPins.emplace_back(m_NodePinPipline->NewPin(Id, NodePinStartPosition + glm::vec2 { 0, NodeRadius * 2 } + NodeOffset, IsExecutionPin ? NodeRadius : NodeRadius * 0.6f, 0xFFFFFFFF, IsExecutionPin, false));
 }
 
-size_t CNodeRenderer::CreateNode(const std::string& Title, const glm::vec2& Position, const glm::vec2& Size, const uint32_t HeaderColor)
+size_t CNodeRenderer::CreateNode(const std::string& Title, const glm::vec2& Position, const uint32_t HeaderColor)
 {
     const auto FreeId = m_ValidIdRange.GetFirstFreeIndex();
 
@@ -158,7 +162,7 @@ size_t CNodeRenderer::CreateNode(const std::string& Title, const glm::vec2& Posi
 
     m_ValidIdRange.SetSlot(FreeId);
 
-    WriteToNode(FreeId, Title, Position, Size, HeaderColor);
+    WriteToNode(FreeId, Title, Position, HeaderColor);
     return FreeId;
 }
 

@@ -51,7 +51,7 @@ CBoardEditor::CBoardEditor()
 
     m_NodeRenderer = std::make_unique<CNodeRenderer>(this);
 
-    const auto NodeId = m_NodeRenderer->CreateNode("Node", { 100, 100 }, { 150, 100 }, 0x668DAB88);
+    const auto NodeId = m_NodeRenderer->CreateNode("Node", { 100, 100 }, 0x668DAB88);
 
     m_NodeRenderer->AddInputPin(NodeId, true);
     m_NodeRenderer->AddInputPin(NodeId, false);
@@ -98,7 +98,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
     /// Create Node
     if (GetInputManager().GetMouseButtons().ConsumeEvent(GLFW_MOUSE_BUTTON_RIGHT)) {
-        m_NodeRenderer->CreateNode("User Node", ScreenToWorld(GetInputManager().GetCursorPosition()), { 150 + rand() % 100, 100 + rand() % 20 }, ((rand() << 16) ^ rand()) & 0xFFFFFF00 | 0x88);
+        m_NodeRenderer->CreateNode("User Node    U", ScreenToWorld(GetInputManager().GetCursorPosition()), ((rand() << 16) ^ rand()) & 0xFFFFFF00 | 0x88);
     }
 
     /// Select Node

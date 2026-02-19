@@ -23,7 +23,7 @@ class CNodeTextRenderPipline : public CRenderPipeline {
     void CreateCommonBindingGroup();
     void RefreshBuffer(STextGroupHandle& TextGroupHandle);
 
-    void PushVertexBuffer(STextGroupHandle& TextGroupHandle);
+    float PushVertexBuffer(STextGroupHandle& TextGroupHandle);
     void PushPerGroupBuffer(STextGroupHandle& TextGroupHandle);
 
 public:

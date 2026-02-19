@@ -34,7 +34,7 @@ public:
 
     SCharacter* LoadCharacter(uint32_t Codepoint);
 
-    void BuildVertex(const std::string& Text, float Scale, const std::function<STextVertexArchetype*(size_t)>& Allocator, size_t Stride = sizeof(STextVertexArchetype));
+    float BuildVertex(const std::string& Text, float Scale, const std::function<STextVertexArchetype*(size_t)>& Allocator, size_t Stride = sizeof(STextVertexArchetype));
 
     operator hb_font_t*() const noexcept { return m_TextShaper.get(); }
     operator const wgpu::TextureView&() const noexcept { return m_TextureView; }

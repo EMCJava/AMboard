@@ -126,12 +126,12 @@ void CNodeTextRenderPipline::RefreshBuffer(STextGroupHandle& TextGroupHandle)
     }
 }
 
-void CNodeTextRenderPipline::PushVertexBuffer(STextGroupHandle& TextGroupHandle)
+float CNodeTextRenderPipline::PushVertexBuffer(STextGroupHandle& TextGroupHandle)
 {
     RefreshBuffer(TextGroupHandle);
 
     unsigned int GlyphsCount = 0;
-    m_Font->BuildVertex(TextGroupHandle.Text, TextGroupHandle.Scale, [&](const size_t GlyphsToAllocate) {
+    float TextWidth = m_Font->BuildVertex(TextGroupHandle.Text, TextGroupHandle.Scale, [&](const size_t GlyphsToAllocate) {
         GlyphsCount = GlyphsToAllocate;
 
         CHECK(TextGroupHandle.VertexSpan.second == 0)
@@ -154,7 +154,7 @@ void CNodeTextRenderPipline::PushVertexBuffer(STextGroupHandle& TextGroupHandle)
         return reinterpret_cast<STextVertexArchetype*>(reinterpret_cast<std::byte*>(m_TextVertexBuffer->Begin<STextRenderVertexMeta>() + TextGroupHandle.VertexSpan.first) + ArchetypeByteOffset); }, sizeof(STextRenderVertexMeta));
 
     if (GlyphsCount == 0) {
-        return;
+        return TextWidth;
     }
 
     const auto GlyphsSubspan = m_TextVertexBuffer->GetView<STextRenderVertexMeta>().subspan(TextGroupHandle.VertexSpan.first, GlyphsCount);
@@ -164,6 +164,7 @@ void CNodeTextRenderPipline::PushVertexBuffer(STextGroupHandle& TextGroupHandle)
     }
 
     (void)m_TextVertexBuffer->Upload(GlyphsSubspan);
+    return TextWidth;
 }
 
 void CNodeTextRenderPipline::PushPerGroupBuffer(STextGroupHandle& TextGroupHandle)
@@ -199,7 +200,7 @@ std::list<STextGroupHandle>::iterator CNodeTextRenderPipline::RegisterTextGroup(
 
 void CNodeTextRenderPipline::UpdateTextGroup(const std::list<STextGroupHandle>::iterator& Group)
 {
-    PushVertexBuffer(*Group);
+    Group->TextWidth = PushVertexBuffer(*Group);
     PushPerGroupBuffer(*Group);
 }
 

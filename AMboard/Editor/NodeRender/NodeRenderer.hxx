@@ -41,7 +41,7 @@ public:
     CNodeRenderer(const CWindowBase* Window);
     ~CNodeRenderer();
 
-    void WriteToNode(size_t Id, const std::string& Title, const glm::vec2& Position, const glm::vec2& Size, uint32_t HeaderColor);
+    void WriteToNode(size_t Id, const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor);
 
     void Select(size_t Id) const;
     void ToggleSelect(size_t Id) const;
@@ -51,7 +51,7 @@ public:
     size_t AddInputPin(size_t Id, bool IsExecutionPin);
     size_t AddOutputPin(size_t Id, bool IsExecutionPin);
 
-    size_t CreateNode(const std::string& Title, const glm::vec2& Position, const glm::vec2& Size, uint32_t HeaderColor);
+    size_t CreateNode(const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor);
     void RemoveNode(size_t Id);
 
     [[nodiscard]] bool InBound(size_t Id, const glm::vec2& Position) const noexcept;
