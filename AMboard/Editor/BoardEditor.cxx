@@ -71,9 +71,12 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
         return EventStage;
     }
 
+    const auto MouseCurrentPos = GetInputManager().GetCursorPosition();
+    const auto MouseDeltaPos = GetInputManager().GetDeltaCursor();
+
     /// Drag canvas
     if (GetInputManager().GetMouseButtons().ConsumeHoldEvent(this, GLFW_MOUSE_BUTTON_MIDDLE)) {
-        m_CameraOffset -= glm::vec2 { GetInputManager().GetDeltaCursor() } / m_CameraZoom;
+        m_CameraOffset -= glm::vec2 { MouseDeltaPos } / m_CameraZoom;
         m_ScreenUniformDirty = true;
     }
 
@@ -83,9 +86,9 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
         const float NewZoom = glm::clamp(m_CameraZoom * ZoomFactor, 0.1f, 5.0f);
 
         // Zoom towards mouse position
-        const glm::vec2 WorldPosBefore = ScreenToWorld(GetInputManager().GetCursorPosition());
+        const glm::vec2 WorldPosBefore = ScreenToWorld(MouseCurrentPos);
         m_CameraZoom = NewZoom;
-        const glm::vec2 WorldPosAfter = ScreenToWorld(GetInputManager().GetCursorPosition());
+        const glm::vec2 WorldPosAfter = ScreenToWorld(MouseCurrentPos);
         m_CameraOffset += (WorldPosBefore - WorldPosAfter);
 
         m_ScreenUniformDirty = true;
@@ -101,15 +104,14 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
     /// Create Node
     if (GetInputManager().GetMouseButtons().ConsumeEvent(GLFW_MOUSE_BUTTON_RIGHT)) {
-        m_NodeRenderer->CreateNode("User Node    U", ScreenToWorld(GetInputManager().GetCursorPosition()), ((rand() << 16) ^ rand()) & 0xFFFFFF00 | 0x88);
+        m_NodeRenderer->CreateNode("User Node    U", ScreenToWorld(MouseCurrentPos), ((rand() << 16) ^ rand()) & 0xFFFFFF00 | 0x88);
     }
 
     /// Select Node
     if (GetInputManager().GetMouseButtons().ConsumeEvent({ GLFW_MOUSE_BUTTON_LEFT, GLFW_RELEASE })) {
 
-        const auto MouseReleasePos = GetInputManager().GetCursorPosition();
-        if (glm::length2(glm::vec2 { MouseReleasePos - *MouseStartClickPos }) < 3 * 3) {
-            const glm::vec2 ClickPosition = ScreenToWorld(MouseReleasePos);
+        if (glm::length2(glm::vec2 { MouseCurrentPos - *MouseStartClickPos }) < 3 * 3) {
+            const glm::vec2 ClickPosition = ScreenToWorld(MouseCurrentPos);
 
             for (auto [Left, Right] : m_NodeRenderer->GetValidRange()) {
                 for (int i = Left; i <= Right; ++i) {
@@ -142,11 +144,11 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
     /// Click
     if (GetInputManager().GetMouseButtons().ConsumeHoldEvent(this, GLFW_MOUSE_BUTTON_LEFT)) {
 
-        const auto CurrentMousePosition = GetInputManager().GetCursorPosition();
+        const auto CurrentMousePosition = MouseCurrentPos;
         const auto WorldMousePosition = ScreenToWorld(CurrentMousePosition);
 
         if (!MouseStartClickPos.has_value()) {
-            MouseStartClickPos = GetInputManager().GetCursorPosition();
+            MouseStartClickPos = MouseCurrentPos;
 
             m_DraggingNode = false;
             if (m_SelectedNode.has_value()) {
@@ -165,8 +167,8 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
             }
 
             if (!NodeDragThreshold.has_value()) {
-                if (const auto DeltaCursor = GetInputManager().GetDeltaCursor(); DeltaCursor.x || DeltaCursor.y) {
-                    m_NodeRenderer->MoveNode(*m_SelectedNode, glm::vec2 { GetInputManager().GetDeltaCursor() } / m_CameraZoom);
+                if (MouseDeltaPos.x || MouseDeltaPos.y) {
+                    m_NodeRenderer->MoveNode(*m_SelectedNode, glm::vec2 { MouseDeltaPos } / m_CameraZoom);
                 }
             }
         }
