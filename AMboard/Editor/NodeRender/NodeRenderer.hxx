@@ -12,8 +12,8 @@
 
 #include <dawn/webgpu_cpp.h>
 
-#include <optional>
 #include <memory>
+#include <optional>
 
 struct SCommonNodeSSBO {
     glm::vec2 Position;
@@ -37,11 +37,13 @@ class CNodeRenderer {
 
     void CreateCommonBindingGroup();
 
+    size_t NextFreeNode();
+
 public:
     CNodeRenderer(const CWindowBase* Window);
     ~CNodeRenderer();
 
-    void WriteToNode(size_t Id, const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor);
+    void WriteToNode(size_t Id, const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor, std::optional<glm::vec2> NodeSize = std::nullopt);
 
     void Select(size_t Id) const;
     void ToggleSelect(size_t Id) const;
@@ -52,11 +54,17 @@ public:
     void HoverPin(size_t Id) const;
     void ToggleHoverPin(size_t Id) const;
 
+    void SetNodePosition(size_t Id, const glm::vec2& Position) const;
     glm::vec2 MoveNode(size_t Id, const glm::vec2& Delta) const;
 
     size_t AddInputPin(size_t Id, bool IsExecutionPin);
     size_t AddOutputPin(size_t Id, bool IsExecutionPin);
 
+    size_t LinkVirtualPin(size_t Id1, size_t NodeId);
+    size_t LinkPin(size_t Id1, size_t Id2);
+    void UnlinkPin(size_t Id) noexcept;
+
+    size_t CreateVirtualNode(const glm::vec2& Position);
     size_t CreateNode(const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor);
     void RemoveNode(size_t Id);
 
@@ -83,6 +91,7 @@ protected:
     std::unique_ptr<class CNodeBackgroundPipline> m_NodeBackgroundPipline;
     std::unique_ptr<class CNodeTextRenderPipline> m_NodeTextPipline;
     std::unique_ptr<class CNodePinPipline> m_NodePinPipline;
+    std::unique_ptr<class CNodeConnectionPipline> m_NodeConnectionPipline;
 
     friend SNodeAdditionalSourceHandle;
 };

@@ -54,15 +54,29 @@ CBoardEditor::CBoardEditor()
 
     m_NodeRenderer = std::make_unique<CNodeRenderer>(this);
 
-    const auto NodeId = m_NodeRenderer->CreateNode("Node", { 100, 100 }, 0x668DAB88);
+    {
+        const auto NodeId = m_NodeRenderer->CreateNode("Node 1", { 100, 100 }, 0x668DAB88);
 
-    m_NodeRenderer->AddInputPin(NodeId, true);
-    m_NodeRenderer->AddInputPin(NodeId, false);
-    m_NodeRenderer->AddInputPin(NodeId, false);
-    m_NodeRenderer->AddInputPin(NodeId, false);
-    m_NodeRenderer->AddInputPin(NodeId, false);
-    m_NodeRenderer->AddOutputPin(NodeId, true);
-    m_NodeRenderer->AddOutputPin(NodeId, false);
+        m_NodeRenderer->AddInputPin(NodeId, true);
+        m_NodeRenderer->AddInputPin(NodeId, false);
+        m_NodeRenderer->AddInputPin(NodeId, false);
+        m_NodeRenderer->AddInputPin(NodeId, false);
+        m_NodeRenderer->AddInputPin(NodeId, false);
+        m_NodeRenderer->AddOutputPin(NodeId, true);
+        m_NodeRenderer->AddOutputPin(NodeId, false);
+    }
+
+    {
+        const auto NodeId = m_NodeRenderer->CreateNode("Node 2", { 300, 100 }, 0x668DAB88);
+
+        m_NodeRenderer->AddOutputPin(NodeId, true);
+        m_NodeRenderer->AddOutputPin(NodeId, false);
+        m_NodeRenderer->AddOutputPin(NodeId, false);
+        m_NodeRenderer->AddOutputPin(NodeId, false);
+        m_NodeRenderer->AddOutputPin(NodeId, false);
+        m_NodeRenderer->AddInputPin(NodeId, true);
+        m_NodeRenderer->AddInputPin(NodeId, false);
+    }
 }
 
 CBoardEditor::~CBoardEditor() = default;
@@ -102,6 +116,11 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
         }
     }
 
+    /// Draging virtual node
+    if (m_SelectedPin.has_value()) {
+        m_NodeRenderer->SetNodePosition(m_VirtualNodeForPinDrag, MouseWorldPos);
+    }
+
     /// Drag canvas
     if (GetInputManager().GetMouseButtons().ConsumeHoldEvent(this, GLFW_MOUSE_BUTTON_MIDDLE)) {
         m_CameraOffset -= glm::vec2 { MouseDeltaPos } / m_CameraZoom;
@@ -132,7 +151,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
     /// Create Node
     if (GetInputManager().GetMouseButtons().ConsumeEvent(GLFW_MOUSE_BUTTON_RIGHT)) {
-        m_NodeRenderer->CreateNode("User Node    U", MouseWorldPos, ((rand() << 16) ^ rand()) & 0xFFFFFF00 | 0x88);
+        m_NodeRenderer->CreateNode("User Node", MouseWorldPos, ((rand() << 16) ^ rand()) & 0xFFFFFF00 | 0x88);
     }
 
     /// Select Node
@@ -156,10 +175,16 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
             }
         }
 
+        if (m_SelectedPin.has_value() && CursorHoveringPin.has_value() && *m_SelectedPin != *CursorHoveringPin) {
+            m_NodeRenderer->LinkPin(*m_SelectedPin, *CursorHoveringPin);
+        }
+
         /// Clear pin selection
         if (m_SelectedPin.has_value()) {
             m_NodeRenderer->ToggleConnectPin(*m_SelectedPin);
             m_SelectedPin.reset();
+            m_NodeRenderer->RemoveNode(m_VirtualNodeForPinDrag);
+            m_NodeRenderer->UnlinkPin(m_VirtualConnectionForPinDrag);
         }
 
         MouseStartClickPos.reset();
@@ -176,6 +201,9 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
                 m_SelectedPin = CursorHoveringPin;
                 m_NodeRenderer->ConnectPin(*CursorHoveringPin);
+
+                m_VirtualNodeForPinDrag = m_NodeRenderer->CreateVirtualNode(MouseWorldPos);
+                m_VirtualConnectionForPinDrag = m_NodeRenderer->LinkVirtualPin(*m_SelectedPin, m_VirtualNodeForPinDrag);
             }
 
             /// Drag selected pin

@@ -4,6 +4,7 @@
 
 #include "NodeRenderer.hxx"
 #include "NodeBackgroundPipline.hxx"
+#include "NodeConnectionPipline.hxx"
 #include "NodePinPipline.hxx"
 #include "NodeTextRenderPipline.hxx"
 
@@ -24,10 +25,13 @@ void SNodeAdditionalSourceHandle::UnRegister(const CNodeRenderer* Renderer)
         TitleText.reset();
     }
 
-    for (const auto PinIndex : InputPins) {
+    for (const auto PinIndex :
+        std::views::join(std::array {
+            std::views::all(InputPins),
+            std::views::all(OutputPins) }))
         Renderer->m_NodePinPipline->RemovePin(PinIndex);
-    }
     InputPins.clear();
+    OutputPins.clear();
 }
 
 void CNodeRenderer::CreateCommonBindingGroup()
@@ -48,6 +52,30 @@ void CNodeRenderer::CreateCommonBindingGroup()
     m_CommonNodeSSBOBindingGroup = m_Window->GetDevice().CreateBindGroup(&bindGroupDesc);
 }
 
+size_t CNodeRenderer::NextFreeNode()
+{
+    const auto FreeId = m_ValidIdRange.GetFirstFreeIndex();
+
+    /// Need to create new Id
+    if (FreeId >= m_IdCount) {
+
+        MAKE_SURE(m_IdCount == FreeId)
+        ++m_IdCount;
+
+        CHECK(FreeId == m_CommonNodeSSBOBuffer->GetBufferSize());
+        m_CommonNodeSSBOBuffer->PushUninitialized();
+        /// Common buffer resized, need to recreate the binding group
+        CreateCommonBindingGroup();
+
+        m_NodeResourcesHandles.emplace_back();
+
+        m_NodeBackgroundPipline->GetVertexBuffer().PushUninitialized();
+    }
+
+    m_ValidIdRange.SetSlot(FreeId);
+    return FreeId;
+}
+
 CNodeRenderer::CNodeRenderer(const CWindowBase* Window)
     : m_Window(Window)
 {
@@ -60,6 +88,9 @@ CNodeRenderer::CNodeRenderer(const CWindowBase* Window)
     m_NodePinPipline = std::make_unique<CNodePinPipline>(Window);
     m_NodePinPipline->CreatePipeline(*Window);
 
+    m_NodeConnectionPipline = std::make_unique<CNodeConnectionPipline>(Window);
+    m_NodeConnectionPipline->CreatePipeline(*Window);
+
     m_CommonNodeSSBOBuffer = CDynamicGPUBuffer::Create<SCommonNodeSSBO>(Window, wgpu::BufferUsage::Storage);
 }
 
@@ -67,7 +98,7 @@ CNodeRenderer::~CNodeRenderer() = default;
 
 constexpr glm::vec2 MinimumNodeSize { 150, 100 };
 
-void CNodeRenderer::WriteToNode(const size_t Id, const std::string& Title, const glm::vec2& Position, const uint32_t HeaderColor)
+void CNodeRenderer::WriteToNode(const size_t Id, const std::string& Title, const glm::vec2& Position, const uint32_t HeaderColor, std::optional<glm::vec2> NodeSize)
 {
     MAKE_SURE(Id < m_IdCount)
 
@@ -77,7 +108,7 @@ void CNodeRenderer::WriteToNode(const size_t Id, const std::string& Title, const
 
     auto& BackgroundInstanceBuffer = m_NodeBackgroundPipline->GetVertexBuffer().At<SNodeBackgroundInstanceBuffer>(Id);
     BackgroundInstanceBuffer.HeaderColor = HeaderColor;
-    BackgroundInstanceBuffer.Size = MinimumNodeSize;
+    BackgroundInstanceBuffer.Size = NodeSize.value_or(MinimumNodeSize);
 
     if (!m_NodeResourcesHandles[Id].TitleText.has_value()) {
         m_NodeResourcesHandles[Id].TitleText = m_NodeTextPipline->RegisterTextGroup(Id, Title, 0.4, { .Color = 0xFFFFFFFF });
@@ -86,7 +117,9 @@ void CNodeRenderer::WriteToNode(const size_t Id, const std::string& Title, const
         m_NodeTextPipline->UpdateTextGroup(*m_NodeResourcesHandles[Id].TitleText);
     }
 
-    BackgroundInstanceBuffer.Size = glm::max(BackgroundInstanceBuffer.Size, { (*m_NodeResourcesHandles[Id].TitleText)->TextWidth + 20, 0 });
+    if (!Title.empty() && !NodeSize.has_value()) {
+        BackgroundInstanceBuffer.Size = glm::max(BackgroundInstanceBuffer.Size, { (*m_NodeResourcesHandles[Id].TitleText)->TextWidth + 20, 0 });
+    }
 
     m_NodeBackgroundPipline->GetVertexBuffer().Upload(Id);
     m_CommonNodeSSBOBuffer->Upload(Id);
@@ -140,6 +173,14 @@ void CNodeRenderer::ToggleHoverPin(const size_t Id) const
     m_NodePinPipline->GetVertexBuffer().Upload(Id);
 }
 
+void CNodeRenderer::SetNodePosition(size_t Id, const glm::vec2& Position) const
+{
+    MAKE_SURE(Id < m_IdCount)
+
+    const auto NewPosition = m_CommonNodeSSBOBuffer->At<SCommonNodeSSBO>(Id).Position = Position;
+    m_CommonNodeSSBOBuffer->Upload(Id);
+}
+
 glm::vec2 CNodeRenderer::MoveNode(size_t Id, const glm::vec2& Delta) const
 {
     MAKE_SURE(Id < m_IdCount)
@@ -187,28 +228,39 @@ size_t CNodeRenderer::AddOutputPin(size_t Id, bool IsExecutionPin)
     return m_NodeResourcesHandles[Id].OutputPins.emplace_back(m_NodePinPipline->NewPin(Id, NodeOffset, IsExecutionPin ? NodeRadius : NodeRadius * 0.6f, 0xFFFFFFFF, IsExecutionPin, false));
 }
 
+size_t CNodeRenderer::LinkVirtualPin(size_t Id1, size_t NodeId)
+{
+    return m_NodeConnectionPipline->AddConnection(
+        { .StartInnerOffset = m_NodePinPipline->GetRenderMetas()[Id1].Offset,
+            .EndInnerOffset = { },
+            .StartNodeId = m_NodePinPipline->GetRenderMetas()[Id1].NodeId,
+            .EndNodeId = static_cast<uint32_t>(NodeId) });
+}
+
+size_t CNodeRenderer::LinkPin(size_t Id1, size_t Id2)
+{
+    return m_NodeConnectionPipline->AddConnection(
+        { .StartInnerOffset = m_NodePinPipline->GetRenderMetas()[Id1].Offset,
+            .EndInnerOffset = m_NodePinPipline->GetRenderMetas()[Id2].Offset,
+            .StartNodeId = m_NodePinPipline->GetRenderMetas()[Id1].NodeId,
+            .EndNodeId = m_NodePinPipline->GetRenderMetas()[Id2].NodeId });
+}
+
+void CNodeRenderer::UnlinkPin(const size_t Id) noexcept
+{
+    m_NodeConnectionPipline->RemoveConnection(Id);
+}
+
+size_t CNodeRenderer::CreateVirtualNode(const glm::vec2& Position)
+{
+    const auto FreeId = NextFreeNode();
+    WriteToNode(FreeId, "", Position, 0, glm::vec2 { 0 });
+    return FreeId;
+}
+
 size_t CNodeRenderer::CreateNode(const std::string& Title, const glm::vec2& Position, const uint32_t HeaderColor)
 {
-    const auto FreeId = m_ValidIdRange.GetFirstFreeIndex();
-
-    /// Need to create new Id
-    if (FreeId >= m_IdCount) {
-
-        MAKE_SURE(m_IdCount == FreeId)
-        ++m_IdCount;
-
-        CHECK(FreeId == m_CommonNodeSSBOBuffer->GetBufferSize());
-        m_CommonNodeSSBOBuffer->PushUninitialized();
-        /// Common buffer resized, need to recreate the binding group
-        CreateCommonBindingGroup();
-
-        m_NodeResourcesHandles.emplace_back();
-
-        m_NodeBackgroundPipline->GetVertexBuffer().PushUninitialized();
-    }
-
-    m_ValidIdRange.SetSlot(FreeId);
-
+    const auto FreeId = NextFreeNode();
     WriteToNode(FreeId, Title, Position, HeaderColor);
     return FreeId;
 }
@@ -276,6 +328,14 @@ void CNodeRenderer::Render(const SRenderContext& RenderContext)
         RenderContext.RenderPassEncoder.SetPipeline(*m_NodePinPipline);
         for (auto const& [Left, Right] : m_NodePinPipline->GetDrawCommands()) {
             RenderContext.RenderPassEncoder.Draw(4, Right - Left + 1, 0, Left);
+        }
+    }
+
+    {
+        RenderContext.RenderPassEncoder.SetVertexBuffer(0, m_NodeConnectionPipline->GetVertexBuffer());
+        RenderContext.RenderPassEncoder.SetPipeline(*m_NodeConnectionPipline);
+        for (auto const& [Left, Right] : m_NodeConnectionPipline->GetDrawCommands()) {
+            RenderContext.RenderPassEncoder.Draw((64 + 1) * 2, Right - Left + 1, 0, Left);
         }
     }
 }

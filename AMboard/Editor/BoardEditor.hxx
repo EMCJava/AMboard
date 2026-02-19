@@ -40,8 +40,12 @@ protected:
 
     bool m_DraggingNode = false;
     std::optional<std::size_t> m_SelectedNode;
+
+    std::size_t m_VirtualNodeForPinDrag;
+    std::size_t m_VirtualConnectionForPinDrag;
     std::optional<std::size_t> m_SelectedPin;
     std::optional<std::size_t> m_LastHoveringPin;
+
     std::vector<std::unique_ptr<class CBaseNode>> m_Nodes;
 
     glm::vec2 m_CameraOffset { };
