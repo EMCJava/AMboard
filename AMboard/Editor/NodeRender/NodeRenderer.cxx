@@ -108,7 +108,23 @@ void CNodeRenderer::ToggleSelect(size_t Id) const
     m_CommonNodeSSBOBuffer->Upload(Id);
 }
 
-void CNodeRenderer::SelectPin(const size_t Id) const
+void CNodeRenderer::ConnectPin(size_t Id) const
+{
+    MAKE_SURE(Id < m_NodePinPipline->GetVertexBuffer().GetBufferSize())
+
+    m_NodePinPipline->GetVertexBuffer().At<SNodePinInstanceBuffer>(Id).Flag |= SNodePinInstanceBuffer::ConnectedFlag;
+    m_NodePinPipline->GetVertexBuffer().Upload(Id);
+}
+
+void CNodeRenderer::ToggleConnectPin(size_t Id) const
+{
+    MAKE_SURE(Id < m_NodePinPipline->GetVertexBuffer().GetBufferSize())
+
+    m_NodePinPipline->GetVertexBuffer().At<SNodePinInstanceBuffer>(Id).Flag ^= SNodePinInstanceBuffer::ConnectedFlag;
+    m_NodePinPipline->GetVertexBuffer().Upload(Id);
+}
+
+void CNodeRenderer::HoverPin(const size_t Id) const
 {
     MAKE_SURE(Id < m_NodePinPipline->GetVertexBuffer().GetBufferSize())
 
@@ -116,7 +132,7 @@ void CNodeRenderer::SelectPin(const size_t Id) const
     m_NodePinPipline->GetVertexBuffer().Upload(Id);
 }
 
-void CNodeRenderer::ToggleSelectPin(const size_t Id) const
+void CNodeRenderer::ToggleHoverPin(const size_t Id) const
 {
     MAKE_SURE(Id < m_NodePinPipline->GetVertexBuffer().GetBufferSize())
 

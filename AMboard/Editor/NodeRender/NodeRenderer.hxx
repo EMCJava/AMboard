@@ -46,8 +46,11 @@ public:
     void Select(size_t Id) const;
     void ToggleSelect(size_t Id) const;
 
-    void SelectPin(size_t Id) const;
-    void ToggleSelectPin(size_t Id) const;
+    void ConnectPin(size_t Id) const;
+    void ToggleConnectPin(size_t Id) const;
+
+    void HoverPin(size_t Id) const;
+    void ToggleHoverPin(size_t Id) const;
 
     glm::vec2 MoveNode(size_t Id, const glm::vec2& Delta) const;
 

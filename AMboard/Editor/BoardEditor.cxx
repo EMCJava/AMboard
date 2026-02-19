@@ -3,20 +3,22 @@
 //
 
 #include "BoardEditor.hxx"
-
 #include "GridPipline.hxx"
-
 #include "NodeRender/NodeRenderer.hxx"
 
+#include <Util/Assertions.hxx>
+
 #include <Interface/Font/TextRenderSystem.hxx>
-#include <iostream>
 
 #include <AMboard/Macro/BaseNode.hxx>
+
 #include <GLFW/glfw3.h>
 
 #include <glm/gtx/norm.hpp>
 #include <glm/gtx/transform.hpp>
 #include <glm/mat4x4.hpp>
+
+#include <iostream>
 
 glm::vec2 CBoardEditor::ScreenToWorld(const glm::vec2& ScreenPos) const noexcept
 {
@@ -89,9 +91,9 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
                 if (m_LastHoveringPin != CursorHoveringPin) {
                     if (m_LastHoveringPin.has_value()) /// Deselect
-                        m_NodeRenderer->ToggleSelectPin(*m_LastHoveringPin);
+                        m_NodeRenderer->ToggleHoverPin(*m_LastHoveringPin);
                     if (CursorHoveringPin.has_value()) /// Select
-                        m_NodeRenderer->SelectPin(*CursorHoveringPin);
+                        m_NodeRenderer->HoverPin(*CursorHoveringPin);
                 }
 
                 m_LastHoveringPin = CursorHoveringPin;
@@ -136,9 +138,10 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
     /// Select Node
     if (GetInputManager().GetMouseButtons().ConsumeEvent({ GLFW_MOUSE_BUTTON_LEFT, GLFW_RELEASE })) {
 
+        /// Click not drag
         if (glm::length2(glm::vec2 { MouseCurrentPos - *MouseStartClickPos }) < 3 * 3) {
 
-            if (CursorHoveringNode.has_value()) [[unlikely]] {
+            if (!m_SelectedPin.has_value() && CursorHoveringNode.has_value()) [[unlikely]] {
 
                 if (m_SelectedNode.has_value()) {
                     m_NodeRenderer->ToggleSelect(*m_SelectedNode);
@@ -153,18 +156,29 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
             }
         }
 
+        /// Clear pin selection
+        if (m_SelectedPin.has_value()) {
+            m_NodeRenderer->ToggleConnectPin(*m_SelectedPin);
+            m_SelectedPin.reset();
+        }
+
         MouseStartClickPos.reset();
     }
 
     /// Click
     if (GetInputManager().GetMouseButtons().ConsumeHoldEvent(this, GLFW_MOUSE_BUTTON_LEFT)) {
-
-        const auto CurrentMousePosition = MouseCurrentPos;
-        const auto WorldMousePosition = MouseWorldPos;
-
         if (!MouseStartClickPos.has_value()) {
             MouseStartClickPos = MouseCurrentPos;
 
+            /// Pin selecting takes priority
+            if (CursorHoveringPin.has_value()) {
+                CHECK(!m_SelectedPin.has_value())
+
+                m_SelectedPin = CursorHoveringPin;
+                m_NodeRenderer->ConnectPin(*CursorHoveringPin);
+            }
+
+            /// Drag selected pin
             m_DraggingNode = false;
             if (m_SelectedNode.has_value()) {
                 if (m_SelectedNode == CursorHoveringNode) {
@@ -176,7 +190,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
         } else if (m_DraggingNode) {
 
             if (NodeDragThreshold.has_value()) {
-                if (glm::length2(glm::vec2 { CurrentMousePosition - *MouseStartClickPos }) > *NodeDragThreshold) {
+                if (glm::length2(glm::vec2 { MouseCurrentPos - *MouseStartClickPos }) > *NodeDragThreshold) {
                     NodeDragThreshold.reset();
                 }
             }
