@@ -79,6 +79,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
     std::optional<std::size_t> CursorHoveringNode;
     std::optional<std::size_t> CursorHoveringPin;
 
+    /// Node interaction pre-compute
     for (const auto& [Left, Right] : m_NodeRenderer->GetValidRange()) {
         for (auto i = Left; i <= Right; ++i) {
             if (m_NodeRenderer->InBound(i, MouseWorldPos)) [[unlikely]] {
@@ -166,7 +167,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
             m_DraggingNode = false;
             if (m_SelectedNode.has_value()) {
-                if (m_NodeRenderer->InBound(*m_SelectedNode, WorldMousePosition)) {
+                if (m_SelectedNode == CursorHoveringNode) {
                     m_DraggingNode = true;
                     NodeDragThreshold = 3 * 3;
                 }
