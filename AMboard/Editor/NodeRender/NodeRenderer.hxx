@@ -48,6 +48,9 @@ public:
 
     glm::vec2 MoveNode(size_t Id, const glm::vec2& Delta) const;
 
+    size_t AddInputPin(size_t Id, bool IsExecutionPin);
+    size_t AddOutputPin(size_t Id, bool IsExecutionPin);
+
     size_t CreateNode(const std::string& Title, const glm::vec2& Position, const glm::vec2& Size, uint32_t HeaderColor);
     void RemoveNode(size_t Id);
 

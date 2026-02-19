@@ -51,8 +51,12 @@ CBoardEditor::CBoardEditor()
 
     m_NodeRenderer = std::make_unique<CNodeRenderer>(this);
 
-    m_NodeRenderer->CreateNode("Node", { 100, 100 }, { 150, 100 }, 0x668DAB88);
-    m_NodeRenderer->CreateNode("Node", { 250, 50 }, { 450, 150 }, 0x668DAB88);
+    const auto NodeId = m_NodeRenderer->CreateNode("Node", { 100, 100 }, { 150, 100 }, 0x668DAB88);
+
+    m_NodeRenderer->AddInputPin(NodeId, true);
+    m_NodeRenderer->AddInputPin(NodeId, false);
+    m_NodeRenderer->AddOutputPin(NodeId, true);
+    m_NodeRenderer->AddOutputPin(NodeId, false);
 }
 
 CBoardEditor::~CBoardEditor() = default;

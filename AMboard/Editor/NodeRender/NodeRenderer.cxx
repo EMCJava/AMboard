@@ -82,9 +82,6 @@ void CNodeRenderer::WriteToNode(const size_t Id, const std::string& Title, const
         m_NodeTextPipline->UpdateTextGroup(*m_NodeResourcesHandles[Id].TitleText);
     }
 
-    m_NodeResourcesHandles[Id].InputPins.emplace_back(m_NodePinPipline->NewPin(Id, { 20, 30 + 10 }, 10, 0xFFFFFFFF, true, false));
-    m_NodeResourcesHandles[Id].InputPins.emplace_back(m_NodePinPipline->NewPin(Id, { 18, 60 + 10 }, 6, 0x00FF00FF, false, false));
-
     m_NodeBackgroundPipline->GetVertexBuffer().Upload(Id);
     m_CommonNodeSSBOBuffer->Upload(Id);
 }
@@ -112,6 +109,31 @@ glm::vec2 CNodeRenderer::MoveNode(size_t Id, const glm::vec2& Delta) const
     const auto NewPosition = m_CommonNodeSSBOBuffer->At<SCommonNodeSSBO>(Id).Position += Delta;
     m_CommonNodeSSBOBuffer->Upload(Id);
     return NewPosition;
+}
+
+static constexpr glm::vec2 NodePinStartPosition { 10.0f, 30.0f };
+static constexpr float NodeRadius { 8.0f };
+
+size_t CNodeRenderer::AddInputPin(size_t Id, bool IsExecutionPin)
+{
+    MAKE_SURE(Id < m_IdCount)
+
+    const auto PinCount = m_NodeResourcesHandles[Id].InputPins.size();
+    const glm::vec2 NodeOffset = { NodeRadius, PinCount * 3 * NodeRadius };
+
+    return m_NodeResourcesHandles[Id].InputPins.emplace_back(m_NodePinPipline->NewPin(Id, NodePinStartPosition + glm::vec2 { 0, NodeRadius * 2 } + NodeOffset, IsExecutionPin ? NodeRadius : NodeRadius * 0.6f, 0xFFFFFFFF, IsExecutionPin, false));
+}
+
+size_t CNodeRenderer::AddOutputPin(size_t Id, bool IsExecutionPin)
+{
+    MAKE_SURE(Id < m_IdCount)
+
+    const auto PinCount = m_NodeResourcesHandles[Id].OutputPins.size();
+    auto& NodeInstance = m_NodeBackgroundPipline->GetVertexBuffer().At<SNodeBackgroundInstanceBuffer>(Id);
+
+    const glm::vec2 NodeOffset = { NodeInstance.Size.x - NodeRadius * 3.5f, PinCount * 3 * NodeRadius };
+
+    return m_NodeResourcesHandles[Id].OutputPins.emplace_back(m_NodePinPipline->NewPin(Id, NodePinStartPosition + glm::vec2 { 0, NodeRadius * 2 } + NodeOffset, IsExecutionPin ? NodeRadius : NodeRadius * 0.6f, 0xFFFFFFFF, IsExecutionPin, false));
 }
 
 size_t CNodeRenderer::CreateNode(const std::string& Title, const glm::vec2& Position, const glm::vec2& Size, const uint32_t HeaderColor)

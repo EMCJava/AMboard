@@ -41,7 +41,8 @@ struct NodeCommon {
 @group(1) @binding(0) var<storage, read> node_commons: array<NodeCommon>;
 
 // Constants
-const HOLLOW_THICKNESS_WORLD: f32 = 3.0;
+const ARROW_HOLLOW_THICKNESS: f32 = 3.0;
+const CIRCLE_HOLLOW_THICKNESS: f32 = 1.0;
 const BORDER_WIDTH: f32 = 2.0; // Thickness of the black outline
 const HOLLOW_WIDTH: f32 = 2.0; // Thickness of the ring when disconnected
 
@@ -137,7 +138,12 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let uv_to_world_scale = input.radius * 1.5;
 
     // 2. Convert target World Thickness to UV Thickness
-    let thickness_uv = HOLLOW_THICKNESS_WORLD / uv_to_world_scale;
+    var thickness_uv: f32;
+    if (is_exec) {
+        thickness_uv = ARROW_HOLLOW_THICKNESS / uv_to_world_scale;
+    } else {
+        thickness_uv = CIRCLE_HOLLOW_THICKNESS / uv_to_world_scale;
+    }
 
     // 3. Anti-Aliasing (Pixel based for sharpness)
     // We still use fwidth for AA so edges don't look blurry when zoomed in
