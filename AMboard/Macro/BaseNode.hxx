@@ -20,14 +20,14 @@ public:
     virtual ~CBaseNode();
 
     template <typename PinTy>
-    auto* EmplacePin(const bool IsInput)
+    PinTy* EmplacePin(const bool IsInput)
     {
         if (IsInput) {
-            auto Result = m_InputPins.emplace_back(std::make_unique<PinTy>(this)).get();
+            auto* Result = static_cast<PinTy*>(m_InputPins.emplace_back(std::make_unique<PinTy>(this)).get());
             OnPinModified();
             return Result;
         } else { // NOLINT
-            auto Result = m_OutputPins.emplace_back(std::make_unique<PinTy>(this)).get();
+            auto* Result = static_cast<PinTy*>(m_OutputPins.emplace_back(std::make_unique<PinTy>(this)).get());
             OnPinModified();
             return Result;
         }
