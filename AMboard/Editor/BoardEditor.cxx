@@ -55,6 +55,9 @@ CBoardEditor::CBoardEditor()
 
     m_NodeRenderer->AddInputPin(NodeId, true);
     m_NodeRenderer->AddInputPin(NodeId, false);
+    m_NodeRenderer->AddInputPin(NodeId, false);
+    m_NodeRenderer->AddInputPin(NodeId, false);
+    m_NodeRenderer->AddInputPin(NodeId, false);
     m_NodeRenderer->AddOutputPin(NodeId, true);
     m_NodeRenderer->AddOutputPin(NodeId, false);
 }

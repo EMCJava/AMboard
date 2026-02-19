@@ -63,7 +63,7 @@ CNodeRenderer::CNodeRenderer(const CWindowBase* Window)
 
 CNodeRenderer::~CNodeRenderer() = default;
 
-constexpr glm::vec2 MinimumNodeSize { 120, 100 };
+constexpr glm::vec2 MinimumNodeSize { 150, 100 };
 
 void CNodeRenderer::WriteToNode(const size_t Id, const std::string& Title, const glm::vec2& Position, const uint32_t HeaderColor)
 {
@@ -123,9 +123,16 @@ size_t CNodeRenderer::AddInputPin(size_t Id, bool IsExecutionPin)
     MAKE_SURE(Id < m_IdCount)
 
     const auto PinCount = m_NodeResourcesHandles[Id].InputPins.size();
-    const glm::vec2 NodeOffset = { NodeRadius, PinCount * 3 * NodeRadius };
+    const glm::vec2 InternalNodeOffset = { NodeRadius, PinCount * 3 * NodeRadius };
+    const glm::vec2 NodeOffset = NodePinStartPosition + glm::vec2 { 0, NodeRadius * 2 } + InternalNodeOffset;
 
-    return m_NodeResourcesHandles[Id].InputPins.emplace_back(m_NodePinPipline->NewPin(Id, NodePinStartPosition + glm::vec2 { 0, NodeRadius * 2 } + NodeOffset, IsExecutionPin ? NodeRadius : NodeRadius * 0.6f, 0xFFFFFFFF, IsExecutionPin, false));
+    if (m_NodeResourcesHandles[Id].InputPins.size() >= m_NodeResourcesHandles[Id].OutputPins.size()) {
+        auto& NodeInstance = m_NodeBackgroundPipline->GetVertexBuffer().At<SNodeBackgroundInstanceBuffer>(Id);
+        NodeInstance.Size = glm::max(NodeInstance.Size, { 0, NodeOffset.y + NodeRadius  * 2 });
+        m_NodeBackgroundPipline->GetVertexBuffer().Upload(Id);
+    }
+
+    return m_NodeResourcesHandles[Id].InputPins.emplace_back(m_NodePinPipline->NewPin(Id, NodeOffset, IsExecutionPin ? NodeRadius : NodeRadius * 0.6f, 0xFFFFFFFF, IsExecutionPin, false));
 }
 
 size_t CNodeRenderer::AddOutputPin(size_t Id, bool IsExecutionPin)
@@ -135,9 +142,15 @@ size_t CNodeRenderer::AddOutputPin(size_t Id, bool IsExecutionPin)
     const auto PinCount = m_NodeResourcesHandles[Id].OutputPins.size();
     auto& NodeInstance = m_NodeBackgroundPipline->GetVertexBuffer().At<SNodeBackgroundInstanceBuffer>(Id);
 
-    const glm::vec2 NodeOffset = { NodeInstance.Size.x - NodeRadius * 3.5f, PinCount * 3 * NodeRadius };
+    const glm::vec2 InternalNodeOffset = { NodeInstance.Size.x - NodeRadius * 3.5f, PinCount * 3 * NodeRadius };
+    const glm::vec2 NodeOffset = NodePinStartPosition + glm::vec2 { 0, NodeRadius * 2 } + InternalNodeOffset;
 
-    return m_NodeResourcesHandles[Id].OutputPins.emplace_back(m_NodePinPipline->NewPin(Id, NodePinStartPosition + glm::vec2 { 0, NodeRadius * 2 } + NodeOffset, IsExecutionPin ? NodeRadius : NodeRadius * 0.6f, 0xFFFFFFFF, IsExecutionPin, false));
+    if (m_NodeResourcesHandles[Id].OutputPins.size() >= m_NodeResourcesHandles[Id].InputPins.size()) {
+        NodeInstance.Size = glm::max(NodeInstance.Size, { 0, NodeOffset.y + NodeRadius * 2 });
+        m_NodeBackgroundPipline->GetVertexBuffer().Upload(Id);
+    }
+
+    return m_NodeResourcesHandles[Id].OutputPins.emplace_back(m_NodePinPipline->NewPin(Id, NodeOffset, IsExecutionPin ? NodeRadius : NodeRadius * 0.6f, 0xFFFFFFFF, IsExecutionPin, false));
 }
 
 size_t CNodeRenderer::CreateNode(const std::string& Title, const glm::vec2& Position, const uint32_t HeaderColor)
