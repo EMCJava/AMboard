@@ -25,6 +25,8 @@ class CBoardEditor : public CWindowBase {
     template <typename PinTy>
     PinTy* EmplacePin(size_t NodeId, bool IsInput);
 
+    void MoveCanvas(const glm::vec2& Delta) noexcept;
+
 public:
     CBoardEditor();
     ~CBoardEditor();
@@ -45,12 +47,14 @@ protected:
     std::optional<glm::ivec2> MouseStartClickPos;
     std::optional<int> NodeDragThreshold;
 
+    bool m_ControlDraggingCanvas = false;
+
     bool m_DraggingNode = false;
     std::optional<std::size_t> m_SelectedNode;
 
     std::size_t m_VirtualNodeForPinDrag;
     std::size_t m_VirtualConnectionForPinDrag;
-    std::optional<std::size_t> m_SelectedPin;
+    std::optional<std::size_t> m_DraggingPin;
     std::optional<std::size_t> m_LastHoveringPin;
 
     std::vector<std::unique_ptr<class CBaseNode>> m_Nodes;

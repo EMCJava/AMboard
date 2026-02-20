@@ -66,6 +66,12 @@ void CBoardEditor::RemoveNode(size_t RemoveNode)
     m_Nodes[RemoveNode].reset();
 }
 
+void CBoardEditor::MoveCanvas(const glm::vec2& Delta) noexcept
+{
+    m_CameraOffset += Delta;
+    m_ScreenUniformDirty = true;
+}
+
 CBoardEditor::CBoardEditor()
 {
     m_GridPipline = std::make_unique<CGridPipline>();
@@ -161,14 +167,13 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
     }
 
     /// Draging virtual node
-    if (m_SelectedPin.has_value()) {
+    if (m_DraggingPin.has_value()) {
         m_NodeRenderer->SetNodePosition(m_VirtualNodeForPinDrag, MouseWorldPos);
     }
 
     /// Drag canvas
     if (GetInputManager().GetMouseButtons().ConsumeHoldEvent(this, GLFW_MOUSE_BUTTON_MIDDLE)) {
-        m_CameraOffset -= glm::vec2 { MouseDeltaPos } / m_CameraZoom;
-        m_ScreenUniformDirty = true;
+        MoveCanvas(-glm::vec2 { MouseDeltaPos } / m_CameraZoom);
     }
 
     /// Zoom canvas
@@ -198,13 +203,13 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
         CreateNode<CExecuteNode>("User Node", MouseWorldPos, ((rand() << 16) ^ rand()) & 0xFFFFFF00 | 0x88);
     }
 
-    /// Select Node
+    /// Select Node (release mouse)
     if (GetInputManager().GetMouseButtons().ConsumeEvent({ GLFW_MOUSE_BUTTON_LEFT, GLFW_RELEASE })) {
 
-        /// Click not drag
+        /// Click, not drag
         if (glm::length2(glm::vec2 { MouseCurrentPos - *MouseStartClickPos }) < 3 * 3) {
 
-            if (!m_SelectedPin.has_value() && CursorHoveringNode.has_value()) [[unlikely]] {
+            if (!m_DraggingPin.has_value() && CursorHoveringNode.has_value()) [[unlikely]] {
 
                 if (m_SelectedNode.has_value()) {
                     m_NodeRenderer->ToggleSelect(*m_SelectedNode);
@@ -219,46 +224,64 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
             }
         }
 
-        if (m_SelectedPin.has_value() && CursorHoveringPin.has_value() && *m_SelectedPin != *CursorHoveringPin) {
-            m_NodeRenderer->LinkPin(*m_SelectedPin, *CursorHoveringPin);
+        /// End of drag pin
+        if (m_DraggingPin.has_value() && CursorHoveringPin.has_value() && *m_DraggingPin != *CursorHoveringPin) {
+            m_NodeRenderer->LinkPin(*m_DraggingPin, *CursorHoveringPin);
         }
 
         /// Clear pin selection
-        if (m_SelectedPin.has_value()) {
-            m_NodeRenderer->ToggleConnectPin(*m_SelectedPin);
-            m_SelectedPin.reset();
-            m_NodeRenderer->RemoveNode(m_VirtualNodeForPinDrag);
+        if (m_DraggingPin.has_value()) {
+            m_NodeRenderer->ToggleConnectPin(*m_DraggingPin);
+            m_DraggingPin.reset();
+
+            /// Remove virtual node for drag visualization
             m_NodeRenderer->UnlinkPin(m_VirtualConnectionForPinDrag);
+            m_NodeRenderer->RemoveNode(m_VirtualNodeForPinDrag);
         }
 
         MouseStartClickPos.reset();
     }
 
-    /// Click
+    /// Hold primary mouse
     if (GetInputManager().GetMouseButtons().ConsumeHoldEvent(this, GLFW_MOUSE_BUTTON_LEFT)) {
+
+        /// First frame clicking
         if (!MouseStartClickPos.has_value()) {
             MouseStartClickPos = MouseCurrentPos;
 
-            /// Pin selecting takes priority
-            if (CursorHoveringPin.has_value()) {
-                CHECK(!m_SelectedPin.has_value())
+            bool FirstClickHasUsed = false;
 
-                m_SelectedPin = CursorHoveringPin;
+            /// Dragging takes priority
+            m_ControlDraggingCanvas = false;
+            if (GetInputManager().GetKeyboardButtons().IsKeyDown(GLFW_KEY_LEFT_CONTROL)) [[unlikely]] {
+                m_ControlDraggingCanvas = true;
+                FirstClickHasUsed = true;
+            }
+
+            /// Pin selecting takes priority
+            if (!FirstClickHasUsed && CursorHoveringPin.has_value()) {
+                CHECK(!m_DraggingPin.has_value())
+
+                m_DraggingPin = CursorHoveringPin;
                 m_NodeRenderer->ConnectPin(*CursorHoveringPin);
 
                 m_VirtualNodeForPinDrag = m_NodeRenderer->CreateVirtualNode(MouseWorldPos);
-                m_VirtualConnectionForPinDrag = m_NodeRenderer->LinkVirtualPin(*m_SelectedPin, m_VirtualNodeForPinDrag);
+                m_VirtualConnectionForPinDrag = m_NodeRenderer->LinkVirtualPin(*m_DraggingPin, m_VirtualNodeForPinDrag);
+
+                FirstClickHasUsed = true;
             }
 
             /// Drag selected pin
             m_DraggingNode = false;
-            if (m_SelectedNode.has_value()) {
-                if (!m_SelectedPin.has_value() && m_SelectedNode == CursorHoveringNode) {
+            if (!FirstClickHasUsed && m_SelectedNode.has_value()) {
+                if (m_SelectedNode == CursorHoveringNode) {
                     m_DraggingNode = true;
                     NodeDragThreshold = 3 * 3;
                 }
             }
 
+        } else if (m_ControlDraggingCanvas) {
+            MoveCanvas(-glm::vec2 { MouseDeltaPos } / m_CameraZoom);
         } else if (m_DraggingNode) {
 
             if (NodeDragThreshold.has_value()) {
