@@ -17,7 +17,7 @@ void CExecuteNode::ExecuteNode()
     Execute();
 
     if (m_DesiredOutputPin < m_OutFlowingPin.size() && *m_OutFlowingPin[m_DesiredOutputPin])
-        static_cast<CExecuteNode*>(m_OutFlowingPin[m_DesiredOutputPin]->GetConnectedOwner())->ExecuteNode();
+        static_cast<CExecuteNode*>(m_OutFlowingPin[m_DesiredOutputPin]->GetTheOnlyPin()->GetOwner())->ExecuteNode();
 }
 
 void CExecuteNode::AddInputOutputFlowPin()

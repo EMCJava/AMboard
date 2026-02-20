@@ -149,6 +149,14 @@ void CNodeRenderer::ConnectPin(size_t Id) const
     m_NodePinPipline->GetVertexBuffer().Upload(Id);
 }
 
+void CNodeRenderer::DisconnectPin(const size_t Id) const
+{
+    MAKE_SURE(Id < m_NodePinPipline->GetVertexBuffer().GetBufferSize())
+
+    m_NodePinPipline->GetVertexBuffer().At<SNodePinInstanceBuffer>(Id).Flag &= ~SNodePinInstanceBuffer::ConnectedFlag;
+    m_NodePinPipline->GetVertexBuffer().Upload(Id);
+}
+
 void CNodeRenderer::ToggleConnectPin(size_t Id) const
 {
     MAKE_SURE(Id < m_NodePinPipline->GetVertexBuffer().GetBufferSize())

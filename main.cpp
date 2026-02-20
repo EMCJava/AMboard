@@ -61,7 +61,7 @@ public:
     {
         for (const auto* Pin : GetFlowOutputPins())
             if (*Pin)
-                Pin->GetConnectedOwner()->As<CExecuteNode>()->ExecuteNode();
+                Pin->GetTheOnlyPin()->GetOwner()->As<CExecuteNode>()->ExecuteNode();
     }
 };
 

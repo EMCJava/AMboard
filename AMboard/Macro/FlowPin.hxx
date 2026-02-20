@@ -6,13 +6,11 @@
 
 #include "Pin.hxx"
 
-class CFlowPin : public CPin {
 
-    CPin* SetPin(CPin* NewPin) noexcept override;
+class CFlowPin : public CPin {
+protected:
+    void PreConnectPin(CPin* NewPin) noexcept override;
 
 public:
-    ~CFlowPin();
-    void BreakPin() override;
-
-    CFlowPin(CBaseNode* Owner);
+    CFlowPin(CBaseNode* Owner, bool IsInputPin) noexcept;
 };

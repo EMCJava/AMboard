@@ -11,7 +11,7 @@
 class CDataPin : public CPin {
 
 public:
-    CDataPin(CBaseNode* Owner);
+    CDataPin(CBaseNode* Owner, bool IsInputPin) noexcept;
 
     template <typename Ty>
     Ty TryGet() noexcept

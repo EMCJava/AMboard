@@ -7,26 +7,18 @@
 #include "BaseNode.hxx"
 #include "Pin.hxx"
 
-CPin* CFlowPin::SetPin(CPin* NewPin) noexcept
+void CFlowPin::PreConnectPin(CPin* NewPin) noexcept
 {
-    auto* Result = CPin::SetPin(NewPin);
-    GetOwner()->OnPinModified();
-    return Result;
+    CPin::PreConnectPin(NewPin);
+
+    /// Output pin can only connect to one input pin
+    if (!m_IsInputPin && !m_ConnectedPins.empty()) {
+        DisconnectPin(*m_ConnectedPins.begin());
+    }
 }
 
-CFlowPin::~CFlowPin()
-{
-    CFlowPin::BreakPin();
-}
-
-void CFlowPin::BreakPin()
-{
-    /// Release is enough, it can be a 1 to n connection
-    ReleasePin();
-}
-
-CFlowPin::CFlowPin(CBaseNode* Owner)
-    : CPin(Owner)
+CFlowPin::CFlowPin(CBaseNode* Owner, const bool IsInputPin) noexcept
+    : CPin(Owner, IsInputPin)
 {
     m_PinType = EPinType::Flow;
 }

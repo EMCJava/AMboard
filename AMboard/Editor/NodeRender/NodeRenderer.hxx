@@ -49,6 +49,7 @@ public:
     void ToggleSelect(size_t Id) const;
 
     void ConnectPin(size_t Id) const;
+    void DisconnectPin(size_t Id) const;
     void ToggleConnectPin(size_t Id) const;
 
     void HoverPin(size_t Id) const;

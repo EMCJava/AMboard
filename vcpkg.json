@@ -8,6 +8,7 @@
     "cpptrace",
     "harfbuzz",
     "freetype",
+    "boost-bimap",
     {
       "name": "dawn",
       "features": [

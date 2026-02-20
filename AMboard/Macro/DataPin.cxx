@@ -4,8 +4,8 @@
 
 #include "DataPin.hxx"
 
-CDataPin::CDataPin(CBaseNode* Owner)
-    : CPin(Owner)
+CDataPin::CDataPin(CBaseNode* Owner, const bool IsInputPin) noexcept
+    : CPin(Owner, IsInputPin)
 {
     m_PinType = EPinType::Data;
 }

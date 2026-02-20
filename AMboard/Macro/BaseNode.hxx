@@ -22,15 +22,9 @@ public:
     template <typename PinTy>
     PinTy* EmplacePin(const bool IsInput)
     {
-        if (IsInput) {
-            auto* Result = static_cast<PinTy*>(m_InputPins.emplace_back(std::make_unique<PinTy>(this)).get());
-            OnPinModified();
-            return Result;
-        } else { // NOLINT
-            auto* Result = static_cast<PinTy*>(m_OutputPins.emplace_back(std::make_unique<PinTy>(this)).get());
-            OnPinModified();
-            return Result;
-        }
+        auto* Result = static_cast<PinTy*>((IsInput ? m_InputPins : m_OutputPins).emplace_back(std::make_unique<PinTy>(this, IsInput)).get());
+        OnPinModified();
+        return Result;
     }
 
     const auto& GetInputPins() const noexcept { return m_InputPins; }

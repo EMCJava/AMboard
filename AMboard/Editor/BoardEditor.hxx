@@ -9,14 +9,18 @@
 #include <Interface/Font/TextRenderSystemHandle.hxx>
 #include <Interface/WindowBase.hxx>
 
+#include <boost/bimap.hpp>
 #include <memory>
 #include <vector>
 
 #include <glm/vec2.hpp>
 
+class CPin;
 class CBoardEditor : public CWindowBase {
 
     [[nodiscard]] glm::vec2 ScreenToWorld(const glm::vec2& ScreenPos) const noexcept;
+
+    std::optional<size_t> TryRegisterConnection(CPin* OutputPin, CPin* InputPin);
 
     size_t RegisterNode(std::unique_ptr<class CBaseNode> Node, const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor);
     void UnregisterNode(size_t NodeId);
@@ -57,6 +61,12 @@ protected:
     std::size_t m_VirtualConnectionForPinDrag;
     std::optional<std::size_t> m_DraggingPin;
     std::optional<std::size_t> m_LastHoveringPin;
+
+    struct PinPtrConnectionHash {
+        std::size_t operator()(const std::pair<void*, void*>& p) const noexcept;
+    };
+    std::unordered_map<std::pair<CPin*, CPin*>, size_t, PinPtrConnectionHash> m_ConnectionIdMapping;
+    boost::bimap<CPin*, size_t> m_PinIdMapping;
 
     std::vector<std::unique_ptr<class CBaseNode>> m_Nodes;
 

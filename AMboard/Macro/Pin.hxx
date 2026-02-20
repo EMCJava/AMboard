@@ -3,7 +3,12 @@
 //
 
 #pragma once
+
+#include <functional>
+#include <list>
 #include <type_traits>
+
+#include <unordered_set>
 
 enum class EPinType {
     None,
@@ -15,23 +20,29 @@ class CBaseNode;
 class CPin {
 
 protected:
-    CPin* ReleasePin() noexcept;
-
-    virtual CPin* SetPin(CPin* NewPin) noexcept;
+    virtual void AddPin(CPin* NewPin) noexcept;
+    virtual void PreConnectPin(CPin* NewPin) noexcept { }
 
 public:
-    CPin(CBaseNode* Owner);
+    CPin(CBaseNode* Owner, bool IsInputPin) noexcept;
     virtual ~CPin();
 
-    virtual void BreakPin();
-    bool ConnectPin(CPin* NewPin) noexcept;
+    virtual bool ConnectPin(CPin* NewPin) noexcept;
+    virtual bool DisconnectPin(CPin* TargetPin) noexcept;
+
+    [[nodiscard]] CPin* GetTheOnlyPin() const;
 
     [[nodiscard]] virtual bool Compatible(CPin* NewPin) noexcept;
 
+    [[nodiscard]] bool IsInputPin() const noexcept { return m_IsInputPin; }
     [[nodiscard]] CBaseNode* GetOwner() const noexcept { return m_Owner; }
-    [[nodiscard]] CBaseNode* GetConnectedOwner() const;
-    [[nodiscard]] operator bool() const noexcept { return m_ConnectedPin != nullptr; } // NOLINT
+    [[nodiscard]] operator bool() const noexcept { return !m_ConnectedPins.empty(); } // NOLINT
     [[nodiscard]] operator EPinType() const noexcept { return m_PinType; } // NOLINT
+
+    auto AddOnConnectionChanges(auto&& Func)
+    {
+        return m_OnConnectionChanges.emplace_back(Func);
+    }
 
     template <typename PinTy>
         requires std::is_base_of_v<CPin, PinTy>
@@ -41,8 +52,12 @@ public:
     }
 
 protected:
+    bool m_IsInputPin;
     EPinType m_PinType = EPinType::None;
 
     CBaseNode* m_Owner = nullptr;
-    CPin* m_ConnectedPin = nullptr;
+
+    std::unordered_set<CPin*> m_ConnectedPins;
+
+    std::list<std::function<void(CPin* This, CPin* Other, bool IsConnect)>> m_OnConnectionChanges;
 };

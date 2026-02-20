@@ -28,6 +28,17 @@ glm::vec2 CBoardEditor::ScreenToWorld(const glm::vec2& ScreenPos) const noexcept
 {
     return ScreenPos / m_CameraZoom + m_CameraOffset;
 }
+std::optional<size_t> CBoardEditor::TryRegisterConnection(CPin* OutputPin, CPin* InputPin)
+{
+    CHECK(OutputPin != nullptr && InputPin != nullptr)
+
+    if (!OutputPin->ConnectPin(InputPin)) [[unlikely]] {
+        return std::nullopt;
+    }
+
+    return m_ConnectionIdMapping.at({ OutputPin, InputPin });
+
+}
 
 size_t CBoardEditor::RegisterNode(std::unique_ptr<CBaseNode> Node, const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor)
 {
@@ -36,10 +47,55 @@ size_t CBoardEditor::RegisterNode(std::unique_ptr<CBaseNode> Node, const std::st
         m_Nodes.resize(NodeId + 1);
     m_Nodes[NodeId] = std::move(Node);
 
-    for (const auto& Pin : m_Nodes[NodeId]->GetInputPins())
-        m_NodeRenderer->AddInputPin(NodeId, *Pin == EPinType::Flow);
-    for (const auto& Pin : m_Nodes[NodeId]->GetOutputPins())
-        m_NodeRenderer->AddOutputPin(NodeId, *Pin == EPinType::Flow);
+    for (const auto& Pin : m_Nodes[NodeId]->GetInputPins()) {
+        const auto PinId = m_NodeRenderer->AddInputPin(NodeId, *Pin == EPinType::Flow);
+        Pin->AddOnConnectionChanges([this, PinId](CPin* This, CPin* Other, const bool IsConnect) {
+            if (IsConnect) {
+                const auto Key = This->IsInputPin() ? std::pair { Other, This } : std::pair { This, Other };
+                if (const auto It = m_ConnectionIdMapping.find(Key); It == m_ConnectionIdMapping.end()) {
+                    m_ConnectionIdMapping
+                        .insert(It, { Key, m_NodeRenderer->LinkPin(m_PinIdMapping.left.at(Key.first), m_PinIdMapping.left.at(Key.second)) });
+                }
+
+                m_NodeRenderer->ConnectPin(PinId);
+            } else {
+                const auto Key = This->IsInputPin() ? std::pair { Other, This } : std::pair { This, Other };
+                if (const auto It = m_ConnectionIdMapping.find(Key); It != m_ConnectionIdMapping.end()) {
+                    m_NodeRenderer->UnlinkPin(It->second);
+                }
+
+                if (!*This) {
+                    m_NodeRenderer->DisconnectPin(PinId);
+                }
+            }
+        });
+        MAKE_SURE(m_PinIdMapping.insert({ Pin.get(), PinId }).second);
+    }
+    for (const auto& Pin : m_Nodes[NodeId]->GetOutputPins()) {
+        const auto PinId = m_NodeRenderer->AddOutputPin(NodeId, *Pin == EPinType::Flow);
+        Pin->AddOnConnectionChanges([this, PinId](CPin* This, CPin* Other, const bool IsConnect) {
+            if (IsConnect) {
+                const auto Key = This->IsInputPin() ? std::pair { Other, This } : std::pair { This, Other };
+                if (const auto It = m_ConnectionIdMapping.find(Key); It == m_ConnectionIdMapping.end()) {
+                    m_ConnectionIdMapping
+                        .insert(It, { Key, m_NodeRenderer->LinkPin(m_PinIdMapping.left.at(Key.first), m_PinIdMapping.left.at(Key.second)) });
+                }
+
+                m_NodeRenderer->ConnectPin(PinId);
+            } else {
+                const auto Key = This->IsInputPin() ? std::pair { Other, This } : std::pair { This, Other };
+                if (const auto It = m_ConnectionIdMapping.find(Key); It != m_ConnectionIdMapping.end()) {
+                    m_NodeRenderer->UnlinkPin(It->second);
+                    m_ConnectionIdMapping.erase(It);
+                }
+
+                if (!*This) {
+                    m_NodeRenderer->DisconnectPin(PinId);
+                }
+            }
+        });
+        MAKE_SURE(m_PinIdMapping.insert({ Pin.get(), PinId }).second);
+    }
 
     return NodeId;
 }
@@ -212,12 +268,17 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
         /// End of drag pin
         if (m_DraggingPin.has_value() && CursorHoveringPin.has_value() && *m_DraggingPin != *CursorHoveringPin) {
-            m_NodeRenderer->LinkPin(*m_DraggingPin, *CursorHoveringPin);
+            std::pair Pins = { m_PinIdMapping.right.at(*m_DraggingPin), m_PinIdMapping.right.at(*CursorHoveringPin) };
+            if (Pins.first->IsInputPin())
+                std::swap(*Pins.first, *Pins.second);
+            TryRegisterConnection(Pins.first, Pins.second);
         }
 
         /// Clear pin selection
         if (m_DraggingPin.has_value()) {
-            m_NodeRenderer->ToggleConnectPin(*m_DraggingPin);
+            if (!*m_PinIdMapping.right.at(*m_DraggingPin))
+                m_NodeRenderer->DisconnectPin(*m_DraggingPin);
+
             m_DraggingPin.reset();
 
             /// Remove virtual node for drag visualization
@@ -302,4 +363,14 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
     RenderContext.RenderPassEncoder.Draw(4);
 
     m_NodeRenderer->Render(RenderContext);
+}
+
+std::size_t CBoardEditor::PinPtrConnectionHash::operator()(const std::pair<void*, void*>& p) const noexcept
+{
+    const auto h1 = std::hash<void*> { }(p.first);
+    const auto h2 = std::hash<void*> { }(p.second);
+
+    // The "Magic Number" 0x9e3779b9 is the golden ratio,
+    // which spreads bits randomly to avoid collisions.
+    return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
 }
