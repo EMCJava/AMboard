@@ -1,8 +1,10 @@
+create_library(WebGPUAPI DEPS dawn::webgpu_dawn P_DEPS glfw)
+
 if (APPLE)
     set_source_files_properties(WebGPUAPI.cxx PROPERTIES COMPILE_FLAGS "-x objective-c++")
     set(OS_LIBRARIES "-framework CoreFoundation -framework QuartzCore -framework Metal -framework MetalKit -framework Cocoa")
-endif (APPLE)
-
-create_library(WebGPUAPI DEPS dawn::webgpu_dawn P_DEPS glfw)
-target_compile_definitions(WebGPUAPI.lib PRIVATE _GLFW_COCOA)
-target_link_libraries(WebGPUAPI.lib PRIVATE ${OS_LIBRARIES})
+    target_compile_definitions(WebGPUAPI.lib PRIVATE _GLFW_COCOA)
+    target_link_libraries(WebGPUAPI.lib PRIVATE ${OS_LIBRARIES})
+elseif (WIN32)
+    target_compile_definitions(WebGPUAPI.lib PRIVATE _GLFW_WIN32)
+endif (WIN32)
