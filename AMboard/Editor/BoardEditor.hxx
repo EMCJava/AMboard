@@ -18,8 +18,9 @@ class CBoardEditor : public CWindowBase {
 
     [[nodiscard]] glm::vec2 ScreenToWorld(const glm::vec2& ScreenPos) const noexcept;
 
-    template <typename NodeTy>
-    size_t CreateNode(const std::string& Title, const glm::vec2& Position, const uint32_t HeaderColor);
+    size_t RegisterNode(std::unique_ptr<class CBaseNode> Node, const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor);
+    void UnregisterNode(size_t NodeId);
+
     void RemoveNode(size_t RemoveNode);
 
     template <typename PinTy>

@@ -22,48 +22,32 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/mat4x4.hpp>
 
+#include <random>
+
 glm::vec2 CBoardEditor::ScreenToWorld(const glm::vec2& ScreenPos) const noexcept
 {
     return ScreenPos / m_CameraZoom + m_CameraOffset;
 }
 
-template <typename NodeTy>
-size_t CBoardEditor::CreateNode(const std::string& Title, const glm::vec2& Position, const uint32_t HeaderColor)
+size_t CBoardEditor::RegisterNode(std::unique_ptr<CBaseNode> Node, const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor)
 {
     const auto NodeId = m_NodeRenderer->CreateNode(Title, Position, HeaderColor);
-    if (NodeId >= m_Nodes.size()) {
+    if (NodeId >= m_Nodes.size())
         m_Nodes.resize(NodeId + 1);
-    }
+    m_Nodes[NodeId] = std::move(Node);
 
-    m_Nodes[NodeId] = std::make_unique<NodeTy>();
+    for (const auto& Pin : m_Nodes[NodeId]->GetInputPins())
+        m_NodeRenderer->AddInputPin(NodeId, *Pin == EPinType::Flow);
+    for (const auto& Pin : m_Nodes[NodeId]->GetOutputPins())
+        m_NodeRenderer->AddOutputPin(NodeId, *Pin == EPinType::Flow);
 
     return NodeId;
 }
 
-template <typename PinTy>
-PinTy* CBoardEditor::EmplacePin(size_t NodeId, const bool IsInput)
+void CBoardEditor::UnregisterNode(const size_t NodeId)
 {
-    if constexpr (std::is_same_v<PinTy, CFlowPin>) {
-        if (IsInput) {
-            m_NodeRenderer->AddInputPin(NodeId, true);
-        } else {
-            m_NodeRenderer->AddOutputPin(NodeId, true);
-        }
-    } else if constexpr (std::is_same_v<PinTy, CDataPin>) {
-        if (IsInput) {
-            m_NodeRenderer->AddInputPin(NodeId, false);
-        } else {
-            m_NodeRenderer->AddOutputPin(NodeId, false);
-        }
-    }
-
-    return m_Nodes[NodeId]->EmplacePin<PinTy>(IsInput);
-}
-
-void CBoardEditor::RemoveNode(size_t RemoveNode)
-{
-    m_NodeRenderer->RemoveNode(RemoveNode);
-    m_Nodes[RemoveNode].reset();
+    m_NodeRenderer->RemoveNode(NodeId);
+    m_Nodes[NodeId].reset();
 }
 
 void CBoardEditor::MoveCanvas(const glm::vec2& Delta) noexcept
@@ -102,30 +86,22 @@ CBoardEditor::CBoardEditor()
     m_NodeRenderer = std::make_unique<CNodeRenderer>(this);
 
     {
-        const auto NodeId = CreateNode<CExecuteNode>("Node 1", { 100, 100 }, 0x668DAB88);
-        EmplacePin<CFlowPin>(NodeId, true);
-        EmplacePin<CDataPin>(NodeId, true);
+        auto Node = std::make_unique<CExecuteNode>();
+        Node->EmplacePin<CFlowPin>(true);
+        Node->EmplacePin<CFlowPin>(false);
+        Node->EmplacePin<CDataPin>(true);
+        Node->EmplacePin<CFlowPin>(false);
 
-        EmplacePin<CFlowPin>(NodeId, false);
-        EmplacePin<CDataPin>(NodeId, false);
-        EmplacePin<CDataPin>(NodeId, false);
-        EmplacePin<CDataPin>(NodeId, false);
-        EmplacePin<CDataPin>(NodeId, false);
-        EmplacePin<CDataPin>(NodeId, false);
+        RegisterNode(std::move(Node), "Branching", { 100, 100 }, 0x668DAB88);
     }
 
     {
-        const auto NodeId = CreateNode<CExecuteNode>("Node 2", { 300, 100 }, 0x668DAB88);
+        auto Node = std::make_unique<CExecuteNode>();
+        Node->EmplacePin<CFlowPin>(true);
+        Node->EmplacePin<CFlowPin>(false);
+        Node->EmplacePin<CDataPin>(true);
 
-        EmplacePin<CFlowPin>(NodeId, true);
-        EmplacePin<CDataPin>(NodeId, true);
-        EmplacePin<CDataPin>(NodeId, true);
-        EmplacePin<CDataPin>(NodeId, true);
-        EmplacePin<CDataPin>(NodeId, true);
-        EmplacePin<CDataPin>(NodeId, true);
-
-        EmplacePin<CFlowPin>(NodeId, false);
-        EmplacePin<CDataPin>(NodeId, false);
+        RegisterNode(std::move(Node), "Printing", { 300, 100 }, 0x668DAB88);
     }
 }
 
@@ -200,7 +176,17 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
     /// Create Node
     if (GetInputManager().GetMouseButtons().ConsumeEvent(GLFW_MOUSE_BUTTON_RIGHT)) {
-        CreateNode<CExecuteNode>("User Node", MouseWorldPos, ((rand() << 16) ^ rand()) & 0xFFFFFF00 | 0x88);
+        auto Node = std::make_unique<CExecuteNode>();
+        Node->EmplacePin<CFlowPin>(true);
+        Node->EmplacePin<CFlowPin>(false);
+        Node->EmplacePin<CDataPin>(true);
+        Node->EmplacePin<CDataPin>(false);
+
+        static std::random_device rd;
+        static std::mt19937 gen(rd());
+        static std::uniform_int_distribution<uint32_t> distrib(0, 0xFFFFFF);
+
+        RegisterNode(std::move(Node), "Identity", MouseWorldPos, distrib(gen) << 16 | 0x88);
     }
 
     /// Select Node (release mouse)
