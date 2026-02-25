@@ -62,10 +62,10 @@ protected:
     std::optional<std::size_t> m_DraggingPin;
     std::optional<std::size_t> m_LastHoveringPin;
 
-    struct PinPtrConnectionHash {
+    struct PinPtrPairHash {
         std::size_t operator()(const std::pair<void*, void*>& p) const noexcept;
     };
-    std::unordered_map<std::pair<CPin*, CPin*>, size_t, PinPtrConnectionHash> m_ConnectionIdMapping;
+    std::unordered_map<std::pair<CPin*, CPin*>, size_t, PinPtrPairHash> m_ConnectionIdMapping;
     boost::bimap<CPin*, size_t> m_PinIdMapping;
 
     std::vector<std::unique_ptr<class CBaseNode>> m_Nodes;

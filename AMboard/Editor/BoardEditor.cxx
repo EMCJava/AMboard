@@ -365,7 +365,7 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
     m_NodeRenderer->Render(RenderContext);
 }
 
-std::size_t CBoardEditor::PinPtrConnectionHash::operator()(const std::pair<void*, void*>& p) const noexcept
+std::size_t CBoardEditor::PinPtrPairHash::operator()(const std::pair<void*, void*>& p) const noexcept
 {
     const auto h1 = std::hash<void*> { }(p.first);
     const auto h2 = std::hash<void*> { }(p.second);
