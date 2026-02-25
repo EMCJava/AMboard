@@ -55,7 +55,7 @@ bool CPin::DisconnectPin(CPin* TargetPin) noexcept
 {
     if (const auto It = m_ConnectedPins.find(TargetPin); It != m_ConnectedPins.end()) {
         m_ConnectedPins.erase(It);
-        TargetPin->DisconnectPin(this); /// Make sure to do it second to avoid infinite loopoing
+        TargetPin->DisconnectPin(this); /// Make sure to do it second to avoid infinite looping
 
         for (const auto& Func : m_OnConnectionChanges)
             Func(this, TargetPin, false);
@@ -74,7 +74,12 @@ CPin* CPin::GetTheOnlyPin() const
     return *m_ConnectedPins.begin();
 }
 
+bool CPin::IsConnected(CPin* TargetPin) const noexcept
+{
+    return m_ConnectedPins.contains(TargetPin);
+}
+
 bool CPin::Compatible(CPin* NewPin) noexcept
 {
-    return NewPin != nullptr && NewPin->m_PinType == m_PinType && NewPin->m_IsInputPin != m_IsInputPin && !m_ConnectedPins.contains(NewPin);
+    return NewPin != nullptr && NewPin->m_PinType == m_PinType && NewPin->m_IsInputPin != m_IsInputPin && !IsConnected(NewPin);
 }

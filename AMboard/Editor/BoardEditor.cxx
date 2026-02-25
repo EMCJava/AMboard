@@ -28,16 +28,18 @@ glm::vec2 CBoardEditor::ScreenToWorld(const glm::vec2& ScreenPos) const noexcept
 {
     return ScreenPos / m_CameraZoom + m_CameraOffset;
 }
+
 std::optional<size_t> CBoardEditor::TryRegisterConnection(CPin* OutputPin, CPin* InputPin)
 {
     CHECK(OutputPin != nullptr && InputPin != nullptr)
 
-    if (!OutputPin->ConnectPin(InputPin)) [[unlikely]] {
-        return std::nullopt;
+    if (!OutputPin->IsConnected(InputPin)) [[unlikely]] {
+        if (!OutputPin->ConnectPin(InputPin)) [[unlikely]] {
+            return std::nullopt;
+        }
     }
 
     return m_ConnectionIdMapping.at({ OutputPin, InputPin });
-
 }
 
 size_t CBoardEditor::RegisterNode(std::unique_ptr<CBaseNode> Node, const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor)
@@ -49,7 +51,9 @@ size_t CBoardEditor::RegisterNode(std::unique_ptr<CBaseNode> Node, const std::st
 
     for (const auto& Pin : m_Nodes[NodeId]->GetInputPins()) {
         const auto PinId = m_NodeRenderer->AddInputPin(NodeId, *Pin == EPinType::Flow);
-        Pin->AddOnConnectionChanges([this, PinId](CPin* This, CPin* Other, const bool IsConnect) {
+        MAKE_SURE(m_PinIdMapping.insert({ Pin.get(), PinId }).second);
+
+        Pin->AddOnConnectionChanges([this](CPin* This, CPin* Other, const bool IsConnect) {
             if (IsConnect) {
                 const auto Key = This->IsInputPin() ? std::pair { Other, This } : std::pair { This, Other };
                 if (const auto It = m_ConnectionIdMapping.find(Key); It == m_ConnectionIdMapping.end()) {
@@ -57,7 +61,7 @@ size_t CBoardEditor::RegisterNode(std::unique_ptr<CBaseNode> Node, const std::st
                         .insert(It, { Key, m_NodeRenderer->LinkPin(m_PinIdMapping.left.at(Key.first), m_PinIdMapping.left.at(Key.second)) });
                 }
 
-                m_NodeRenderer->ConnectPin(PinId);
+                m_NodeRenderer->ConnectPin(m_PinIdMapping.left.at(This));
             } else {
                 const auto Key = This->IsInputPin() ? std::pair { Other, This } : std::pair { This, Other };
                 if (const auto It = m_ConnectionIdMapping.find(Key); It != m_ConnectionIdMapping.end()) {
@@ -65,15 +69,16 @@ size_t CBoardEditor::RegisterNode(std::unique_ptr<CBaseNode> Node, const std::st
                 }
 
                 if (!*This) {
-                    m_NodeRenderer->DisconnectPin(PinId);
+                    m_NodeRenderer->DisconnectPin(m_PinIdMapping.left.at(This));
                 }
             }
         });
-        MAKE_SURE(m_PinIdMapping.insert({ Pin.get(), PinId }).second);
     }
     for (const auto& Pin : m_Nodes[NodeId]->GetOutputPins()) {
         const auto PinId = m_NodeRenderer->AddOutputPin(NodeId, *Pin == EPinType::Flow);
-        Pin->AddOnConnectionChanges([this, PinId](CPin* This, CPin* Other, const bool IsConnect) {
+        MAKE_SURE(m_PinIdMapping.insert({ Pin.get(), PinId }).second);
+
+        Pin->AddOnConnectionChanges([this](CPin* This, CPin* Other, const bool IsConnect) {
             if (IsConnect) {
                 const auto Key = This->IsInputPin() ? std::pair { Other, This } : std::pair { This, Other };
                 if (const auto It = m_ConnectionIdMapping.find(Key); It == m_ConnectionIdMapping.end()) {
@@ -81,7 +86,7 @@ size_t CBoardEditor::RegisterNode(std::unique_ptr<CBaseNode> Node, const std::st
                         .insert(It, { Key, m_NodeRenderer->LinkPin(m_PinIdMapping.left.at(Key.first), m_PinIdMapping.left.at(Key.second)) });
                 }
 
-                m_NodeRenderer->ConnectPin(PinId);
+                m_NodeRenderer->ConnectPin(m_PinIdMapping.left.at(This));
             } else {
                 const auto Key = This->IsInputPin() ? std::pair { Other, This } : std::pair { This, Other };
                 if (const auto It = m_ConnectionIdMapping.find(Key); It != m_ConnectionIdMapping.end()) {
@@ -90,11 +95,10 @@ size_t CBoardEditor::RegisterNode(std::unique_ptr<CBaseNode> Node, const std::st
                 }
 
                 if (!*This) {
-                    m_NodeRenderer->DisconnectPin(PinId);
+                    m_NodeRenderer->DisconnectPin(m_PinIdMapping.left.at(This));
                 }
             }
         });
-        MAKE_SURE(m_PinIdMapping.insert({ Pin.get(), PinId }).second);
     }
 
     return NodeId;
@@ -266,24 +270,28 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
             }
         }
 
-        /// End of drag pin
-        if (m_DraggingPin.has_value() && CursorHoveringPin.has_value() && *m_DraggingPin != *CursorHoveringPin) {
-            std::pair Pins = { m_PinIdMapping.right.at(*m_DraggingPin), m_PinIdMapping.right.at(*CursorHoveringPin) };
-            if (Pins.first->IsInputPin())
-                std::swap(*Pins.first, *Pins.second);
-            TryRegisterConnection(Pins.first, Pins.second);
-        }
+        {
+            bool IsPinConnected = false;
 
-        /// Clear pin selection
-        if (m_DraggingPin.has_value()) {
-            if (!*m_PinIdMapping.right.at(*m_DraggingPin))
-                m_NodeRenderer->DisconnectPin(*m_DraggingPin);
+            /// End of drag pin
+            if (m_DraggingPin.has_value() && CursorHoveringPin.has_value() && *m_DraggingPin != *CursorHoveringPin) {
+                std::pair Pins = { m_PinIdMapping.right.at(*m_DraggingPin), m_PinIdMapping.right.at(*CursorHoveringPin) };
+                if (Pins.first->IsInputPin())
+                    std::swap(*Pins.first, *Pins.second);
+                IsPinConnected = TryRegisterConnection(Pins.first, Pins.second).has_value();
+            }
 
-            m_DraggingPin.reset();
+            /// Clear pin selection
+            if (m_DraggingPin.has_value()) {
+                if (!IsPinConnected)
+                    m_NodeRenderer->DisconnectPin(*m_DraggingPin);
 
-            /// Remove virtual node for drag visualization
-            m_NodeRenderer->UnlinkPin(m_VirtualConnectionForPinDrag);
-            m_NodeRenderer->RemoveNode(m_VirtualNodeForPinDrag);
+                m_DraggingPin.reset();
+
+                /// Remove virtual node for drag visualization
+                m_NodeRenderer->UnlinkPin(m_VirtualConnectionForPinDrag);
+                m_NodeRenderer->RemoveNode(m_VirtualNodeForPinDrag);
+            }
         }
 
         MouseStartClickPos.reset();

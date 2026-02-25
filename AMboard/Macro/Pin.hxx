@@ -32,6 +32,7 @@ public:
 
     [[nodiscard]] CPin* GetTheOnlyPin() const;
 
+    [[nodiscard]] bool IsConnected(CPin* TargetPin) const noexcept;
     [[nodiscard]] virtual bool Compatible(CPin* NewPin) noexcept;
 
     [[nodiscard]] bool IsInputPin() const noexcept { return m_IsInputPin; }
