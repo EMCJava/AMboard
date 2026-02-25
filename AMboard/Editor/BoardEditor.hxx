@@ -25,11 +25,6 @@ class CBoardEditor : public CWindowBase {
     size_t RegisterNode(std::unique_ptr<class CBaseNode> Node, const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor);
     void UnregisterNode(size_t NodeId);
 
-    void RemoveNode(size_t RemoveNode);
-
-    template <typename PinTy>
-    PinTy* EmplacePin(size_t NodeId, bool IsInput);
-
     void MoveCanvas(const glm::vec2& Delta) noexcept;
 
 public:
