@@ -8,6 +8,7 @@
 #include <ranges>
 #include <vector>
 
+#include "MacroDefines.hxx"
 #include "Pin.hxx"
 
 enum class ENodeType {
@@ -15,8 +16,15 @@ enum class ENodeType {
     Execution
 };
 
-class CBaseNode {
+class MACRO_API CBaseNode {
 public:
+    CBaseNode() = default;
+
+    CBaseNode(const CBaseNode&) = delete;
+    CBaseNode(CBaseNode&&) = delete;
+    CBaseNode& operator=(const CBaseNode&) = delete;
+    CBaseNode& operator=(CBaseNode&&) = delete;
+
     virtual ~CBaseNode();
 
     template <typename PinTy>

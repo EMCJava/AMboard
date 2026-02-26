@@ -12,7 +12,7 @@
 static constexpr auto FlowPinFilter = std::views::filter([](const auto& Pin) static { return *Pin == EPinType::Flow; });
 static constexpr auto FlowPinTransform = std::views::transform([](const auto& Pin) static { return static_cast<CFlowPin*>(Pin.get()); });
 
-class CExecuteNode : public CBaseNode {
+class MACRO_API CExecuteNode : public CBaseNode {
 
 public:
     CExecuteNode();

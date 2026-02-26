@@ -6,8 +6,7 @@
 
 #include "Pin.hxx"
 
-
-class CFlowPin : public CPin {
+class MACRO_API CFlowPin : public CPin {
 protected:
     void PreConnectPin(CPin* NewPin) noexcept override;
 

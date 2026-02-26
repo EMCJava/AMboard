@@ -48,9 +48,9 @@ endfunction()
 function(create_library NAME)
     cmake_parse_arguments(
             PARSED_ARGS
-            "INTERFACE" # list of names of the boolean arguments (only defined ones will be true)
+            "INTERFACE;SHARED" # list of names of the boolean arguments (only defined ones will be true)
             "" # list of names of mono-valued arguments
-            "SRCS;DEPS;P_DEPS;INCLUDES;P_INCLUDES" # list of names of multi-valued arguments (output variables are lists)
+            "RSRCS;SRCS;DEPS;P_DEPS;INCLUDES;P_INCLUDES" # list of names of multi-valued arguments (output variables are lists)
             ${ARGN}
     )
 
@@ -66,6 +66,10 @@ function(create_library NAME)
         endif ()
     endif ()
 
+    if (PARSED_ARGS_RSRCS)
+        file(GLOB_RECURSE PARSED_ARGS_SRCS CONFIGURE_DEPENDS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" ${PARSED_ARGS_RSRCS})
+    endif ()
+
     resolve_target_dependencies(PARSED_ARGS_DEPS)
     resolve_target_dependencies(PARSED_ARGS_P_DEPS)
 
@@ -77,25 +81,32 @@ function(create_library NAME)
         message(STATUS "with ${PARSED_ARGS_SRCS}")
         list(POP_BACK CMAKE_MESSAGE_INDENT)
 
-        target_link_libraries(${NAME}.lib INTERFACE ${PARSED_ARGS_DEPS})
-        target_link_libraries(${NAME}.lib INTERFACE ${PARSED_ARGS_P_DEPS})
+        set(NAME ${NAME}.lib)
+        target_link_libraries(${NAME} INTERFACE ${PARSED_ARGS_DEPS})
+        target_link_libraries(${NAME} INTERFACE ${PARSED_ARGS_P_DEPS})
 
     else ()
-        add_library(${NAME}.lib STATIC ${PARSED_ARGS_SRCS})
-        message(STATUS "Creating STATIC library ${NAME}")
+        if(PARSED_ARGS_SHARED)
+            add_library(${NAME} SHARED ${PARSED_ARGS_SRCS})
+            message(STATUS "Creating SHARED library ${NAME}")
+        else()
+            add_library(${NAME}.lib STATIC ${PARSED_ARGS_SRCS})
+            message(STATUS "Creating STATIC library ${NAME}")
+            set(NAME ${NAME}.lib)
+        endif()
 
         list(APPEND CMAKE_MESSAGE_INDENT "  ")
         message(STATUS "with ${PARSED_ARGS_SRCS}")
         list(POP_BACK CMAKE_MESSAGE_INDENT)
 
-        target_link_libraries(${NAME}.lib PUBLIC ${PARSED_ARGS_DEPS})
-        target_link_libraries(${NAME}.lib PRIVATE ${PARSED_ARGS_P_DEPS})
+        target_link_libraries(${NAME} PUBLIC ${PARSED_ARGS_DEPS})
+        target_link_libraries(${NAME} PRIVATE ${PARSED_ARGS_P_DEPS})
 
     endif (PARSED_ARGS_INTERFACE)
 
-    target_include_directories(${NAME}.lib PUBLIC ${PARSED_ARGS_INCLUDES})
-    target_include_directories(${NAME}.lib PRIVATE ${PARSED_ARGS_P_INCLUDES})
+    target_include_directories(${NAME} PUBLIC ${PARSED_ARGS_INCLUDES})
+    target_include_directories(${NAME} PRIVATE ${PARSED_ARGS_P_INCLUDES})
 
-    set_target_properties(${NAME}.lib PROPERTIES LINKER_LANGUAGE CXX)
+    set_target_properties(${NAME} PROPERTIES LINKER_LANGUAGE CXX)
 
 endfunction()

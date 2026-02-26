@@ -10,6 +10,8 @@
 
 #include <unordered_set>
 
+#include "MacroDefines.hxx"
+
 enum class EPinType {
     None,
     Data,
@@ -17,7 +19,7 @@ enum class EPinType {
 };
 
 class CBaseNode;
-class CPin {
+class MACRO_API CPin {
 
 protected:
     virtual void AddPin(CPin* NewPin) noexcept;

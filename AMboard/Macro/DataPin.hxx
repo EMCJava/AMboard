@@ -4,11 +4,12 @@
 
 #pragma once
 
+#include "MacroDefines.hxx"
 #include "Pin.hxx"
 
 #include <typeindex>
 
-class CDataPin : public CPin {
+class MACRO_API CDataPin : public CPin {
 
 public:
     CDataPin(CBaseNode* Owner, bool IsInputPin) noexcept;
