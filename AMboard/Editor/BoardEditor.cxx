@@ -283,8 +283,14 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
             /// Clear pin selection
             if (m_DraggingPin.has_value()) {
-                if (!IsPinConnected)
-                    m_NodeRenderer->DisconnectPin(*m_DraggingPin);
+
+                /// No new connection is created, maybe there exist an old one?
+                if (!IsPinConnected) {
+                    /// Not connected
+                    if (!*m_PinIdMapping.right.at(*m_DraggingPin)) {
+                        m_NodeRenderer->DisconnectPin(*m_DraggingPin);
+                    }
+                }
 
                 m_DraggingPin.reset();
 
