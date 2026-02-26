@@ -15,8 +15,11 @@
 
 #include <glm/vec2.hpp>
 
+using NodeStorage = std::unique_ptr<class CBaseNode, void (*)(CBaseNode*)>;
+void NodeDefaultDeleter(CBaseNode* Node);
+
 struct SEditorNodeContext {
-    std::unique_ptr<class CBaseNode> Node;
+    NodeStorage Node = { nullptr, nullptr };
     glm::vec2 LogicalPosition; // This is used for node snapping
 
     /// Mode the logical position and return the display position
@@ -31,7 +34,8 @@ class CBoardEditor : public CWindowBase {
 
     std::optional<size_t> TryRegisterConnection(CPin* OutputPin, CPin* InputPin);
 
-    size_t RegisterNode(std::unique_ptr<CBaseNode> Node, const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor);
+    size_t CreateNode(const std::string& NodeExtName, const glm::vec2& Position, uint32_t HeaderColor);
+    size_t RegisterNode(NodeStorage Node, const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor);
     void UnregisterNode(size_t NodeId);
 
     void MoveCanvas(const glm::vec2& Delta) noexcept;
@@ -73,6 +77,8 @@ protected:
     boost::bimap<CPin*, size_t> m_PinIdMapping;
 
     std::vector<SEditorNodeContext> m_Nodes;
+
+    std::unique_ptr<class CCustomNodeLoader> m_CustomNodeLoader;
 
     glm::vec2 m_CameraOffset { };
     float m_CameraZoom = 1;

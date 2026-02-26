@@ -6,6 +6,7 @@
 #include "GridPipline.hxx"
 #include "NodeRender/NodeRenderer.hxx"
 
+#include <AMboard/CustomNodes/CustomNodeManager.hxx>
 #include <AMboard/Macro/DataPin.hxx>
 #include <AMboard/Macro/ExecuteNode.hxx>
 #include <AMboard/Macro/FlowPin.hxx>
@@ -23,6 +24,13 @@
 #include <glm/mat4x4.hpp>
 
 #include <random>
+
+void NodeDefaultDeleter(CBaseNode* Node)
+{
+    if (Node != nullptr) {
+        delete Node;
+    }
+}
 
 glm::vec2 SEditorNodeContext::MoveLogicalPosition(const glm::vec2& Delta, const float SnapValue) noexcept
 {
@@ -53,8 +61,16 @@ std::optional<size_t> CBoardEditor::TryRegisterConnection(CPin* OutputPin, CPin*
     return m_ConnectionIdMapping.at({ OutputPin, InputPin });
 }
 
-size_t CBoardEditor::RegisterNode(std::unique_ptr<CBaseNode> Node, const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor)
+size_t CBoardEditor::CreateNode(const std::string& NodeExtName, const glm::vec2& Position, const uint32_t HeaderColor)
 {
+    return RegisterNode(m_CustomNodeLoader->CreateNodeExt(NodeExtName), NodeExtName, Position, HeaderColor);
+}
+
+size_t CBoardEditor::RegisterNode(NodeStorage Node, const std::string& Title, const glm::vec2& Position, const uint32_t HeaderColor)
+{
+    if (!Node)
+        return -1;
+
     const auto NodeId = m_NodeRenderer->CreateNode(Title, Position, HeaderColor);
     if (NodeId >= m_Nodes.size())
         m_Nodes.resize(NodeId + 1);
@@ -118,7 +134,7 @@ size_t CBoardEditor::RegisterNode(std::unique_ptr<CBaseNode> Node, const std::st
 void CBoardEditor::UnregisterNode(const size_t NodeId)
 {
     m_NodeRenderer->RemoveNode(NodeId);
-    m_Nodes[NodeId] = { };
+    m_Nodes[NodeId] = { { nullptr, NodeDefaultDeleter } };
 }
 
 void CBoardEditor::MoveCanvas(const glm::vec2& Delta) noexcept
@@ -156,24 +172,8 @@ CBoardEditor::CBoardEditor()
 
     m_NodeRenderer = std::make_unique<CNodeRenderer>(this);
 
-    {
-        auto Node = std::make_unique<CExecuteNode>();
-        Node->EmplacePin<CFlowPin>(true);
-        Node->EmplacePin<CFlowPin>(false);
-        Node->EmplacePin<CDataPin>(true);
-        Node->EmplacePin<CFlowPin>(false);
-
-        RegisterNode(std::move(Node), "Branching", { 100, 100 }, 0x668DAB88);
-    }
-
-    {
-        auto Node = std::make_unique<CExecuteNode>();
-        Node->EmplacePin<CFlowPin>(true);
-        Node->EmplacePin<CFlowPin>(false);
-        Node->EmplacePin<CDataPin>(true);
-
-        RegisterNode(std::move(Node), "Printing", { 300, 100 }, 0x668DAB88);
-    }
+    m_CustomNodeLoader = std::make_unique<CCustomNodeLoader>("NodeExts");
+    CreateNode("Branching", { 100, 100 }, 0x668DAB88);
 }
 
 CBoardEditor::~CBoardEditor() = default;
@@ -247,7 +247,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
     /// Create Node
     if (GetInputManager().GetMouseButtons().ConsumeEvent(GLFW_MOUSE_BUTTON_RIGHT)) {
-        auto Node = std::make_unique<CExecuteNode>();
+        auto Node = NodeStorage { new CExecuteNode, NodeDefaultDeleter };
         Node->EmplacePin<CFlowPin>(true);
         Node->EmplacePin<CFlowPin>(false);
         Node->EmplacePin<CDataPin>(true);

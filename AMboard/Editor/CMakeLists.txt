@@ -15,6 +15,7 @@ create_library(
 
         P_DEPS
         Assertions
+        CustomNodeManager
 
         glm::glm
 
