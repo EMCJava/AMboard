@@ -47,9 +47,9 @@ size_t CBoardEditor::RegisterNode(std::unique_ptr<CBaseNode> Node, const std::st
     const auto NodeId = m_NodeRenderer->CreateNode(Title, Position, HeaderColor);
     if (NodeId >= m_Nodes.size())
         m_Nodes.resize(NodeId + 1);
-    m_Nodes[NodeId] = std::move(Node);
+    m_Nodes[NodeId] = { .Node = std::move(Node) };
 
-    for (const auto& Pin : m_Nodes[NodeId]->GetInputPins()) {
+    for (const auto& Pin : m_Nodes[NodeId].Node->GetInputPins()) {
         const auto PinId = m_NodeRenderer->AddInputPin(NodeId, *Pin == EPinType::Flow);
         MAKE_SURE(m_PinIdMapping.insert({ Pin.get(), PinId }).second);
 
@@ -74,7 +74,7 @@ size_t CBoardEditor::RegisterNode(std::unique_ptr<CBaseNode> Node, const std::st
             }
         });
     }
-    for (const auto& Pin : m_Nodes[NodeId]->GetOutputPins()) {
+    for (const auto& Pin : m_Nodes[NodeId].Node->GetOutputPins()) {
         const auto PinId = m_NodeRenderer->AddOutputPin(NodeId, *Pin == EPinType::Flow);
         MAKE_SURE(m_PinIdMapping.insert({ Pin.get(), PinId }).second);
 
@@ -107,7 +107,7 @@ size_t CBoardEditor::RegisterNode(std::unique_ptr<CBaseNode> Node, const std::st
 void CBoardEditor::UnregisterNode(const size_t NodeId)
 {
     m_NodeRenderer->RemoveNode(NodeId);
-    m_Nodes[NodeId].reset();
+    m_Nodes[NodeId] = { };
 }
 
 void CBoardEditor::MoveCanvas(const glm::vec2& Delta) noexcept

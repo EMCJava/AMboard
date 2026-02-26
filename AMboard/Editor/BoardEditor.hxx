@@ -15,6 +15,10 @@
 
 #include <glm/vec2.hpp>
 
+struct SEditorNodeContext {
+    std::unique_ptr<class CBaseNode> Node;
+};
+
 class CPin;
 class CBoardEditor : public CWindowBase {
 
@@ -22,7 +26,7 @@ class CBoardEditor : public CWindowBase {
 
     std::optional<size_t> TryRegisterConnection(CPin* OutputPin, CPin* InputPin);
 
-    size_t RegisterNode(std::unique_ptr<class CBaseNode> Node, const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor);
+    size_t RegisterNode(std::unique_ptr<CBaseNode> Node, const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor);
     void UnregisterNode(size_t NodeId);
 
     void MoveCanvas(const glm::vec2& Delta) noexcept;
@@ -63,7 +67,7 @@ protected:
     std::unordered_map<std::pair<CPin*, CPin*>, size_t, PinPtrPairHash> m_ConnectionIdMapping;
     boost::bimap<CPin*, size_t> m_PinIdMapping;
 
-    std::vector<std::unique_ptr<class CBaseNode>> m_Nodes;
+    std::vector<SEditorNodeContext> m_Nodes;
 
     glm::vec2 m_CameraOffset { };
     float m_CameraZoom = 1;
