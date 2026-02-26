@@ -11,6 +11,9 @@
 
 class MACRO_API CDataPin : public CPin {
 
+protected:
+    void PreConnectPin(CPin* NewPin) noexcept override;
+
 public:
     CDataPin(CBaseNode* Owner, bool IsInputPin) noexcept;
 
