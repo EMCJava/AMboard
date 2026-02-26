@@ -27,6 +27,12 @@ protected:
 
 public:
     CPin(CBaseNode* Owner, bool IsInputPin) noexcept;
+
+    CPin(const CPin&) = delete;
+    CPin(CPin&&) = delete;
+    CPin& operator=(const CPin&) = delete;
+    CPin& operator=(CPin&&) = delete;
+
     virtual ~CPin();
 
     virtual bool ConnectPin(CPin* NewPin) noexcept;

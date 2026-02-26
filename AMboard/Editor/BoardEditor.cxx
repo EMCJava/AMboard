@@ -62,8 +62,7 @@ size_t CBoardEditor::RegisterNode(std::unique_ptr<CBaseNode> Node, const std::st
     m_NodeRenderer->SetNodePosition(NodeId, m_Nodes[NodeId].GetDisplayPosition(m_NodeSnapValue));
 
     for (const auto& Pin : m_Nodes[NodeId].Node->GetInputPins()) {
-        const auto PinId = m_NodeRenderer->AddInputPin(NodeId, *Pin == EPinType::Flow);
-        MAKE_SURE(m_PinIdMapping.insert({ Pin.get(), PinId }).second);
+        MAKE_SURE(m_PinIdMapping.insert({ Pin.get(), m_NodeRenderer->AddInputPin(NodeId, *Pin == EPinType::Flow) }).second);
 
         Pin->AddOnConnectionChanges([this](CPin* This, CPin* Other, const bool IsConnect) {
             if (IsConnect) {
@@ -78,6 +77,7 @@ size_t CBoardEditor::RegisterNode(std::unique_ptr<CBaseNode> Node, const std::st
                 const auto Key = This->IsInputPin() ? std::pair { Other, This } : std::pair { This, Other };
                 if (const auto It = m_ConnectionIdMapping.find(Key); It != m_ConnectionIdMapping.end()) {
                     m_NodeRenderer->UnlinkPin(It->second);
+                    m_ConnectionIdMapping.erase(It);
                 }
 
                 if (!*This) {
@@ -87,8 +87,7 @@ size_t CBoardEditor::RegisterNode(std::unique_ptr<CBaseNode> Node, const std::st
         });
     }
     for (const auto& Pin : m_Nodes[NodeId].Node->GetOutputPins()) {
-        const auto PinId = m_NodeRenderer->AddOutputPin(NodeId, *Pin == EPinType::Flow);
-        MAKE_SURE(m_PinIdMapping.insert({ Pin.get(), PinId }).second);
+        MAKE_SURE(m_PinIdMapping.insert({ Pin.get(), m_NodeRenderer->AddOutputPin(NodeId, *Pin == EPinType::Flow) }).second);
 
         Pin->AddOnConnectionChanges([this](CPin* This, CPin* Other, const bool IsConnect) {
             if (IsConnect) {
@@ -290,7 +289,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
             if (CursorHoveringPin.has_value() && *m_DraggingPin != *CursorHoveringPin) {
                 std::pair Pins = { m_PinIdMapping.right.at(*m_DraggingPin), m_PinIdMapping.right.at(*CursorHoveringPin) };
                 if (Pins.first->IsInputPin())
-                    std::swap(*Pins.first, *Pins.second);
+                    std::swap(Pins.first, Pins.second);
                 IsPinConnected = TryRegisterConnection(Pins.first, Pins.second).has_value();
             }
 
