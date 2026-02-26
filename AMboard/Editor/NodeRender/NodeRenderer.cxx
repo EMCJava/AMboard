@@ -185,7 +185,7 @@ void CNodeRenderer::SetNodePosition(size_t Id, const glm::vec2& Position) const
 {
     MAKE_SURE(Id < m_IdCount)
 
-    const auto NewPosition = m_CommonNodeSSBOBuffer->At<SCommonNodeSSBO>(Id).Position = Position;
+    m_CommonNodeSSBOBuffer->At<SCommonNodeSSBO>(Id).Position = Position;
     m_CommonNodeSSBOBuffer->Upload(Id);
 }
 

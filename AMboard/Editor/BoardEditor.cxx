@@ -24,6 +24,17 @@
 
 #include <random>
 
+glm::vec2 SEditorNodeContext::MoveLogicalPosition(const glm::vec2& Delta, const float SnapValue) noexcept
+{
+    LogicalPosition += Delta;
+    return GetDisplayPosition(SnapValue);
+}
+
+glm::vec2 SEditorNodeContext::GetDisplayPosition(const float SnapValue) const noexcept
+{
+    return round(LogicalPosition / SnapValue) * SnapValue;
+}
+
 glm::vec2 CBoardEditor::ScreenToWorld(const glm::vec2& ScreenPos) const noexcept
 {
     return ScreenPos / m_CameraZoom + m_CameraOffset;
@@ -47,7 +58,8 @@ size_t CBoardEditor::RegisterNode(std::unique_ptr<CBaseNode> Node, const std::st
     const auto NodeId = m_NodeRenderer->CreateNode(Title, Position, HeaderColor);
     if (NodeId >= m_Nodes.size())
         m_Nodes.resize(NodeId + 1);
-    m_Nodes[NodeId] = { .Node = std::move(Node) };
+    m_Nodes[NodeId] = { .Node = std::move(Node), .LogicalPosition = Position };
+    m_NodeRenderer->SetNodePosition(NodeId, m_Nodes[NodeId].GetDisplayPosition(m_NodeSnapValue));
 
     for (const auto& Pin : m_Nodes[NodeId].Node->GetInputPins()) {
         const auto PinId = m_NodeRenderer->AddInputPin(NodeId, *Pin == EPinType::Flow);
@@ -270,34 +282,32 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
             }
         }
 
-        {
+        /// End of pin drag
+        if (m_DraggingPin.has_value()) {
             bool IsPinConnected = false;
 
             /// End of drag pin
-            if (m_DraggingPin.has_value() && CursorHoveringPin.has_value() && *m_DraggingPin != *CursorHoveringPin) {
+            if (CursorHoveringPin.has_value() && *m_DraggingPin != *CursorHoveringPin) {
                 std::pair Pins = { m_PinIdMapping.right.at(*m_DraggingPin), m_PinIdMapping.right.at(*CursorHoveringPin) };
                 if (Pins.first->IsInputPin())
                     std::swap(*Pins.first, *Pins.second);
                 IsPinConnected = TryRegisterConnection(Pins.first, Pins.second).has_value();
             }
 
-            /// Clear pin selection
-            if (m_DraggingPin.has_value()) {
-
-                /// No new connection is created, maybe there exist an old one?
-                if (!IsPinConnected) {
-                    /// Not connected
-                    if (!*m_PinIdMapping.right.at(*m_DraggingPin)) {
-                        m_NodeRenderer->DisconnectPin(*m_DraggingPin);
-                    }
+            /// No new connection is created, maybe there exist an old one?
+            if (!IsPinConnected) {
+                /// Not connected
+                if (!*m_PinIdMapping.right.at(*m_DraggingPin)) {
+                    m_NodeRenderer->DisconnectPin(*m_DraggingPin);
                 }
-
-                m_DraggingPin.reset();
-
-                /// Remove virtual node for drag visualization
-                m_NodeRenderer->UnlinkPin(m_VirtualConnectionForPinDrag);
-                m_NodeRenderer->RemoveNode(m_VirtualNodeForPinDrag);
             }
+
+            /// Clear pin selection
+            m_DraggingPin.reset();
+
+            /// Remove virtual node for drag visualization
+            m_NodeRenderer->UnlinkPin(m_VirtualConnectionForPinDrag);
+            m_NodeRenderer->RemoveNode(m_VirtualNodeForPinDrag);
         }
 
         MouseStartClickPos.reset();
@@ -353,7 +363,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
             if (!NodeDragThreshold.has_value()) {
                 if (MouseDeltaPos.x || MouseDeltaPos.y) {
-                    m_NodeRenderer->MoveNode(*m_SelectedNode, glm::vec2 { MouseDeltaPos } / m_CameraZoom);
+                    m_NodeRenderer->SetNodePosition(*m_SelectedNode, m_Nodes[*m_SelectedNode].MoveLogicalPosition(glm::vec2 { MouseDeltaPos } / m_CameraZoom, m_NodeSnapValue));
                 }
             }
         }

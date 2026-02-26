@@ -17,6 +17,11 @@
 
 struct SEditorNodeContext {
     std::unique_ptr<class CBaseNode> Node;
+    glm::vec2 LogicalPosition; // This is used for node snapping
+
+    /// Mode the logical position and return the display position
+    glm::vec2 MoveLogicalPosition(const glm::vec2& Delta, float SnapValue) noexcept;
+    glm::vec2 GetDisplayPosition(float SnapValue) const noexcept;
 };
 
 class CPin;
@@ -71,4 +76,5 @@ protected:
 
     glm::vec2 m_CameraOffset { };
     float m_CameraZoom = 1;
+    float m_NodeSnapValue = 5;
 };
