@@ -8,8 +8,10 @@
 #ifdef _WIN32
     #ifdef MACRO_API_EXPORTS
         #define MACRO_API __declspec(dllexport)
-    #else
+    #elifdef MACRO_API_IMPORTS
         #define MACRO_API __declspec(dllimport)
+    #else
+        #define MACRO_API
     #endif
     #define NODE_EXT_EXPORT extern "C" __declspec(dllexport)
 #else
