@@ -31,7 +31,8 @@ public:
     PinTy* EmplacePin(const bool IsInput)
     {
         auto* Result = static_cast<PinTy*>((IsInput ? m_InputPins : m_OutputPins).emplace_back(std::make_unique<PinTy>(this, IsInput)).get());
-        OnPinModified();
+        for (const auto& Func : m_OnPinChanges)
+            Func(Result, true);
         return Result;
     }
 
@@ -50,7 +51,10 @@ public:
         return m_OutputPins | std::views::filter([](const auto& Pin) static { return *Pin == PinTy; });
     }
 
-    virtual void OnPinModified() noexcept { }
+    auto AddOnPinChanges(auto&& Func)
+    {
+        return m_OnPinChanges.emplace_back(Func);
+    }
 
     [[nodiscard]] operator ENodeType() const noexcept { return m_NodeType; } // NOLINT
 
@@ -66,6 +70,8 @@ protected:
 
     std::vector<std::unique_ptr<CPin>> m_InputPins;
     std::vector<std::unique_ptr<CPin>> m_OutputPins;
+
+    std::list<std::function<void(CPin* TargetPin, bool NewPin)>> m_OnPinChanges;
 
     bool m_IsDestructing = false;
 };

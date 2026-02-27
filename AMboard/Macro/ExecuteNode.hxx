@@ -25,9 +25,7 @@ public:
 protected:
     void AddInputOutputFlowPin();
 
-    void OnPinModified() noexcept override;
-
-    virtual void Execute();
+    virtual void Execute(){}
 
     std::vector<CPin*> m_InFlowingPin;
     size_t m_DesiredOutputPin = 0;

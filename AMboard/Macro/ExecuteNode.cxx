@@ -9,6 +9,16 @@
 CExecuteNode::CExecuteNode()
 {
     m_NodeType = ENodeType::Execution;
+
+    AddOnPinChanges([this](CPin*, bool) {
+        if (m_IsDestructing)
+            return;
+
+        m_InFlowingPin.clear();
+        std::ranges::copy(GetInputPins() | FlowPinFilter | FlowPinTransform, std::back_inserter(m_InFlowingPin));
+        m_OutFlowingPin.clear();
+        std::ranges::copy(GetOutputPins() | FlowPinFilter | FlowPinTransform, std::back_inserter(m_OutFlowingPin));
+    });
 }
 
 void CExecuteNode::ExecuteNode()
@@ -24,21 +34,4 @@ void CExecuteNode::AddInputOutputFlowPin()
 {
     EmplacePin<CFlowPin>(true);
     EmplacePin<CFlowPin>(false);
-}
-
-void CExecuteNode::Execute()
-{
-}
-
-void CExecuteNode::OnPinModified() noexcept
-{
-    CBaseNode::OnPinModified();
-
-    if (m_IsDestructing)
-        return;
-
-    m_InFlowingPin.clear();
-    std::ranges::copy(GetInputPins() | FlowPinFilter | FlowPinTransform, std::back_inserter(m_InFlowingPin));
-    m_OutFlowingPin.clear();
-    std::ranges::copy(GetOutputPins() | FlowPinFilter | FlowPinTransform, std::back_inserter(m_OutFlowingPin));
 }
