@@ -383,6 +383,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
     /// Remove Node
     if (GetInputManager().GetKeyboardButtons().ConsumeEvent(GLFW_KEY_DELETE)) {
         if (m_SelectedNode.has_value()) {
+            m_Nodes[*m_SelectedNode].Node.reset();
             m_NodeRenderer->RemoveNode(*m_SelectedNode);
             m_SelectedNode.reset();
         }
