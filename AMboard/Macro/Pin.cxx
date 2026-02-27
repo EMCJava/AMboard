@@ -26,10 +26,7 @@ CPin::CPin(CBaseNode* Owner, const bool IsInputPin) noexcept
 
 CPin::~CPin()
 {
-    /// FIXME: This is O(n log n), not good
-    while (!m_ConnectedPins.empty()) {
-        CPin::DisconnectPin(*m_ConnectedPins.begin());
-    }
+    DisconnectPins();
 }
 
 bool CPin::ConnectPin(CPin* NewPin) noexcept
@@ -66,6 +63,14 @@ bool CPin::DisconnectPin(CPin* TargetPin) noexcept
     }
 
     return false;
+}
+
+void CPin::DisconnectPins() noexcept
+{
+    /// FIXME: This is O(n log n), not good
+    while (!m_ConnectedPins.empty()) {
+        CPin::DisconnectPin(*m_ConnectedPins.begin());
+    }
 }
 
 CPin* CPin::GetTheOnlyPin() const

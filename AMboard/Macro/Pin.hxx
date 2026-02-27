@@ -37,6 +37,7 @@ public:
 
     virtual bool ConnectPin(CPin* NewPin) noexcept;
     virtual bool DisconnectPin(CPin* TargetPin) noexcept;
+    void DisconnectPins() noexcept;
 
     [[nodiscard]] CPin* GetTheOnlyPin() const;
 

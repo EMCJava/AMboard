@@ -470,6 +470,12 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
         MouseStartClickPos.reset();
     }
 
+    if (GetInputManager().GetMouseButtons().IsKeyDoubleClick(GLFW_MOUSE_BUTTON_LEFT)) {
+        if (CursorHoveringPin.has_value()) {
+            m_PinIdMapping.right.at(*CursorHoveringPin)->DisconnectPins();
+        }
+    }
+
     /// Hold primary mouse
     if (GetInputManager().GetMouseButtons().ConsumeHoldEvent(this, GLFW_MOUSE_BUTTON_LEFT)) {
 
