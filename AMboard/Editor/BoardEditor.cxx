@@ -274,6 +274,10 @@ CBoardEditor::CBoardEditor()
 
             const auto NodeId = CreateNode(Name, Position, HeaderColor);
 
+            if (Name == "Entrance Node") [[unlikely]] {
+                m_EntranceNode = NodeId;
+            }
+
             std::mt19937 rng(Node["salt"].as<uint64_t>());
             std::uniform_int_distribution<uint64_t> dist;
 
@@ -380,11 +384,21 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
         m_ScreenUniformDirty = true;
     }
 
+    /// Execute Node
+    if (m_EntranceNode.has_value() && GetInputManager().GetKeyboardButtons().ConsumeEvent(GLFW_KEY_R)) {
+        if (auto* ENode = dynamic_cast<CExecuteNode*>(m_Nodes[*m_EntranceNode].Node.get())) {
+            ENode->ExecuteNode();
+        }
+    }
+
     /// Remove Node
     if (GetInputManager().GetKeyboardButtons().ConsumeEvent(GLFW_KEY_DELETE)) {
         if (m_SelectedNode.has_value()) {
             m_Nodes[*m_SelectedNode].Node.reset();
             m_NodeRenderer->RemoveNode(*m_SelectedNode);
+            if (m_SelectedNode == m_EntranceNode) [[unlikely]] {
+                m_EntranceNode.reset();
+            }
             m_SelectedNode.reset();
         }
     }

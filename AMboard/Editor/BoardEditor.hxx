@@ -69,6 +69,7 @@ protected:
 
     bool m_DraggingNode = false;
     std::optional<std::size_t> m_SelectedNode;
+    std::optional<std::size_t> m_EntranceNode;
 
     std::size_t m_VirtualNodeForPinDrag;
     std::size_t m_VirtualConnectionForPinDrag;
