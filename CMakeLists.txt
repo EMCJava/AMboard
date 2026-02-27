@@ -10,9 +10,7 @@ include_directories(.)
 add_subdirectory(Util)
 add_subdirectory(Interface)
 add_subdirectory(AMBoard)
-
 add_compile_definitions(GLM_ENABLE_EXPERIMENTAL GLM_FORCE_DEPTH_ZERO_TO_ONE GLM_FORCE_LEFT_HANDED)
-
 
 add_executable(AMB main.cpp)
 

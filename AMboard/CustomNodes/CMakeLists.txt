@@ -1,6 +1,10 @@
 find_package(spdlog CONFIG REQUIRED)
 create_library(CustomNodeManager P_DEPS spdlog::spdlog)
 
-add_library(Branching SHARED BranchingNode.cxx)
-target_compile_definitions(Branching PRIVATE MACRO_API_IMPORTS)
-target_link_libraries(Branching PRIVATE MacroSharedLib)
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    add_compile_options(/Zc:preprocessor)
+endif()
+
+add_library(CommonNode SHARED CommonNode.cxx)
+target_compile_definitions(CommonNode PRIVATE MACRO_API_IMPORTS)
+target_link_libraries(CommonNode PRIVATE MacroSharedLib)

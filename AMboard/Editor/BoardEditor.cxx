@@ -173,7 +173,39 @@ CBoardEditor::CBoardEditor()
     m_NodeRenderer = std::make_unique<CNodeRenderer>(this);
 
     m_CustomNodeLoader = std::make_unique<CCustomNodeLoader>("NodeExts");
-    CreateNode("Branching", { 100, 100 }, 0x668DAB88);
+
+    {
+        auto BranchingNode = m_CustomNodeLoader->CreateNodeExt("Branching Node");
+        auto Node1 = m_CustomNodeLoader->CreateNodeExt("Printing Node");
+        auto Node2 = m_CustomNodeLoader->CreateNodeExt("Printing Node");
+        auto SequenceNode = m_CustomNodeLoader->CreateNodeExt("Sequence Node");
+
+        for (int i = 0; i < 10; ++i)
+            SequenceNode->EmplacePin<CFlowPin>(false);
+
+        CExecuteNode* BranchingNodePtr = static_cast<CExecuteNode*>(BranchingNode.get());
+        CExecuteNode* Node1Ptr = static_cast<CExecuteNode*>(Node1.get());
+        CExecuteNode* Node2Ptr = static_cast<CExecuteNode*>(Node2.get());
+        CExecuteNode* SequenceNodePtr = static_cast<CExecuteNode*>(SequenceNode.get());
+
+        RegisterNode(std::move(BranchingNode), "Branching Node", { 100, 100 }, 0x668DAB88);
+        RegisterNode(std::move(Node1), "Printing Node", { 100, 100 }, 0x669FAB66);
+        RegisterNode(std::move(Node2), "Printing Node", { 100, 100 }, 0x669FAB66);
+        RegisterNode(std::move(SequenceNode), "Sequence Node", { 100, 100 }, 0xAAAAAA88);
+
+        if (auto DataPins = BranchingNodePtr->GetInputPinsWith<EPinType::Data>(); !DataPins.empty())
+            DataPins.front()->As<CDataPin>()->Set(true);
+
+        for (const auto& Pin : SequenceNodePtr->GetOutputPinsWith<EPinType::Flow>()) {
+            Pin->ConnectPin(Node1Ptr->GetFlowInputPins().front());
+        }
+
+        auto& OutputPins = BranchingNodePtr->GetFlowOutputPins();
+        OutputPins[0]->ConnectPin(SequenceNodePtr->GetFlowInputPins().front());
+        OutputPins[1]->ConnectPin(Node2Ptr->GetFlowInputPins().front());
+
+        BranchingNodePtr->ExecuteNode();
+    }
 }
 
 CBoardEditor::~CBoardEditor() = default;

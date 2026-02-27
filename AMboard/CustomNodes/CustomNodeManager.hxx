@@ -5,14 +5,15 @@
 #pragma once
 
 #include <filesystem>
+#include <functional>
 #include <ranges>
 #include <unordered_map>
 
 class CBaseNode;
-class CCustomNodeHandle {
+using CreateExtFunc = CBaseNode* (*)();
+using DestroyExtFunc = void (*)(CBaseNode*);
 
-    using CreateFunc = CBaseNode* (*)();
-    using DestroyFunc = void (*)(CBaseNode*);
+class CCustomNodeHandle {
 
 public:
     CCustomNodeHandle(const std::filesystem::path& Path);
@@ -23,15 +24,14 @@ public:
     CCustomNodeHandle(CCustomNodeHandle&&) noexcept;
     CCustomNodeHandle& operator=(CCustomNodeHandle&&) noexcept;
 
-    std::unique_ptr<CBaseNode, DestroyFunc> Create() const noexcept;
-
 private:
     std::string m_Name;
 
     void* m_LibHandle = nullptr;
 
-    CreateFunc m_CreateFunc = nullptr;
-    DestroyFunc m_DestroyFunc = nullptr;
+    std::vector<std::pair<std::string, std::function<std::unique_ptr<CBaseNode, DestroyExtFunc>()>>> m_Allocator;
+
+    friend class CCustomNodeLoader;
 };
 
 class CCustomNodeLoader {
@@ -40,16 +40,18 @@ public:
     explicit CCustomNodeLoader(const std::filesystem::path& NodeExtDir);
 
     /// Returns all successfully loaded plugins.
-    decltype(auto) GetNodeExts() const noexcept { return std::views::keys(m_NodeExts); }
-    auto CreateNodeExt(auto&& Str) const noexcept -> decltype(static_cast<CCustomNodeHandle*>(nullptr)->Create())
+    [[nodiscard]] decltype(auto) GetNodeExts() const noexcept { return std::views::keys(m_NodeExts); }
+    [[nodiscard]] std::unique_ptr<CBaseNode, DestroyExtFunc> CreateNodeExt(auto&& Str) const noexcept
     {
         if (const auto It = m_NodeExts.find(Str); It != m_NodeExts.end()) {
-            return It->second.Create();
+            return It->second();
         }
 
         return { nullptr, nullptr };
     }
 
 private:
-    std::unordered_map<std::string, CCustomNodeHandle> m_NodeExts;
+    std::vector<std::pair<std::string, CCustomNodeHandle>> m_Handles;
+    std::unordered_map<std::string, std::function<std::unique_ptr<CBaseNode, DestroyExtFunc>()>> m_NodeExts;
+
 };

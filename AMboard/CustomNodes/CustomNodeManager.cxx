@@ -76,14 +76,42 @@ CCustomNodeHandle::CCustomNodeHandle(const std::filesystem::path& Path)
             "Failed to load " + Path.string() + ": " + lib_error());
     }
 
-    m_CreateFunc = reinterpret_cast<CreateFunc>(lib_sym(m_LibHandle, "create_node_ext"));
-    m_DestroyFunc = reinterpret_cast<DestroyFunc>(lib_sym(m_LibHandle, "destroy_node_ext"));
-
-    if (!m_CreateFunc || !m_DestroyFunc) {
+    auto NamesFunc = reinterpret_cast<const char** (*)()>(lib_sym(m_LibHandle, "get_macro_names"));
+    if (!NamesFunc) {
         lib_close(m_LibHandle);
         m_LibHandle = nullptr;
         throw std::runtime_error(
-            "Plugin " + Path.string() + " missing create_node_ext/destroy_node_ext");
+            "Plugin " + Path.string() + " missing get_macro_names");
+    }
+
+    for (const char** name = NamesFunc(); *name; ++name) {
+        std::string createSym = std::string("create_") + *name;
+        std::string destroySym = std::string("destroy_") + *name;
+
+        const auto create = reinterpret_cast<CreateExtFunc>(lib_sym(m_LibHandle, createSym.c_str()));
+        const auto destroy = reinterpret_cast<DestroyExtFunc>(lib_sym(m_LibHandle, destroySym.c_str()));
+
+        if (!create || !destroy) {
+            spdlog::error("Missing: {}/{}", createSym, destroySym);
+            continue;
+        }
+
+        m_Allocator.emplace_back(std::string_view(*name)
+                // Split into chunks. Keep grouping as long as the right character 'b' is NOT uppercase.
+                | std::views::chunk_by([](char, const char b) { return !std::isupper(b); })
+                // Drop class prefix
+                | std::views::drop_while([](auto chunk) {
+                      return std::ranges::distance(chunk) == 1 && *chunk.begin() == 'C';
+                  })
+                // Join the resulting chunks with a space
+                | std::views::join_with(' ')
+                // Convert the resulting view back into a std::string (C++23 feature)
+                | std::ranges::to<std::string>(),
+            [=] {
+                return std::unique_ptr<CBaseNode, DestroyExtFunc>(create(), destroy);
+            });
+
+        spdlog::info("Loaded: {}", *name);
     }
 
     m_Name = Path.stem().string();
@@ -103,12 +131,9 @@ CCustomNodeHandle::~CCustomNodeHandle()
 CCustomNodeHandle::CCustomNodeHandle(CCustomNodeHandle&& other) noexcept
     : m_Name(std::move(other.m_Name))
     , m_LibHandle(other.m_LibHandle)
-    , m_CreateFunc(other.m_CreateFunc)
-    , m_DestroyFunc(other.m_DestroyFunc)
+    , m_Allocator(std::move(other.m_Allocator))
 {
     other.m_LibHandle = nullptr;
-    other.m_CreateFunc = nullptr;
-    other.m_DestroyFunc = nullptr;
 }
 
 CCustomNodeHandle& CCustomNodeHandle::operator=(CCustomNodeHandle&& other) noexcept
@@ -119,19 +144,11 @@ CCustomNodeHandle& CCustomNodeHandle::operator=(CCustomNodeHandle&& other) noexc
             lib_close(m_LibHandle);
 
         m_LibHandle = other.m_LibHandle;
-        m_CreateFunc = other.m_CreateFunc;
-        m_DestroyFunc = other.m_DestroyFunc;
+        m_Allocator = std::move(other.m_Allocator);
 
         other.m_LibHandle = nullptr;
-        other.m_CreateFunc = nullptr;
-        other.m_DestroyFunc = nullptr;
     }
     return *this;
-}
-
-std::unique_ptr<CBaseNode, CCustomNodeHandle::DestroyFunc> CCustomNodeHandle::Create() const noexcept
-{
-    return std::unique_ptr<CBaseNode, DestroyFunc>(m_CreateFunc(), m_DestroyFunc);
 }
 
 // ─── CCustomNodeLoader ───────────────────────────────────────────────────────────
@@ -139,12 +156,12 @@ std::unique_ptr<CBaseNode, CCustomNodeHandle::DestroyFunc> CCustomNodeHandle::Cr
 CCustomNodeLoader::CCustomNodeLoader(const std::filesystem::path& NodeExtDir)
 {
     if (!std::filesystem::exists(NodeExtDir)) {
-        spdlog::info("[CCustomNodeLoader] Plugin directory does not exist: {}", NodeExtDir.string());
+        spdlog::info("[CCustomNodeLoader] Node ext directory does not exist: {}", NodeExtDir.string());
 
         return;
     }
 
-    spdlog::info("[CCustomNodeLoader] Scanning for plugins in: {}", NodeExtDir.string());
+    spdlog::info("[CCustomNodeLoader] Scanning for nodes in: {}", NodeExtDir.string());
 
 #ifdef _WIN32
     SetDllDirectoryA(NodeExtDir.string().c_str());
@@ -159,11 +176,16 @@ CCustomNodeLoader::CCustomNodeLoader(const std::filesystem::path& NodeExtDir)
             continue;
 
         try {
-            m_NodeExts.insert({ entry.path().stem().string(), entry.path() });
+            m_Handles.emplace_back(entry.path().stem().string(), entry.path());
+            for (const auto& [Name, Allocator] : m_Handles.back().second.m_Allocator) {
+                if (!m_NodeExts.insert_or_assign(Name, Allocator).second) {
+                    spdlog::warn("[CCustomNodeLoader] Overwriting node: {}", Name);
+                }
+            }
         } catch (const std::exception& ex) {
             spdlog::error("[CCustomNodeLoader] Error: {}", ex.what());
         }
     }
 
-    spdlog::info("[CCustomNodeLoader] Loaded: {} plugin(s)", m_NodeExts.size());
+    spdlog::info("[CCustomNodeLoader] Loaded: {} plugin(s) {} node(s)", m_Handles.size(), m_NodeExts.size());
 }

@@ -44,6 +44,12 @@ public:
         return m_InputPins | std::views::filter([](const auto& Pin) static { return *Pin == PinTy; });
     }
 
+    template <EPinType PinTy>
+    auto GetOutputPinsWith() const noexcept
+    {
+        return m_OutputPins | std::views::filter([](const auto& Pin) static { return *Pin == PinTy; });
+    }
+
     virtual void OnPinModified() noexcept { }
 
     [[nodiscard]] operator ENodeType() const noexcept { return m_NodeType; } // NOLINT
