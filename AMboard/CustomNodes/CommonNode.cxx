@@ -7,6 +7,14 @@
 
 #include <iostream>
 
+class CEntranceNode : public CExecuteNode {
+public:
+    CEntranceNode()
+    {
+        EmplacePin<CFlowPin>(false);
+    }
+};
+
 class CPrintingNode : public CExecuteNode {
 public:
     CPrintingNode(std::string Msg = "")
@@ -60,4 +68,4 @@ public:
     }
 };
 
-REGISTER_MACROS(CPrintingNode, CBranchingNode, CSequenceNode)
+REGISTER_MACROS(CEntranceNode, CPrintingNode, CBranchingNode, CSequenceNode)
