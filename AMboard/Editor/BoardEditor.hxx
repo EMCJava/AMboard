@@ -9,9 +9,11 @@
 #include <Interface/Font/TextRenderSystemHandle.hxx>
 #include <Interface/WindowBase.hxx>
 
-#include <boost/bimap.hpp>
+#include <filesystem>
 #include <memory>
 #include <vector>
+
+#include <boost/bimap.hpp>
 
 #include <glm/vec2.hpp>
 
@@ -39,6 +41,9 @@ class CBoardEditor : public CWindowBase {
     void UnregisterNode(size_t NodeId);
 
     void MoveCanvas(const glm::vec2& Delta) noexcept;
+
+    void SaveCanvas() noexcept;
+    void SaveCanvasTo(const std::filesystem::path& Path) noexcept;
 
 public:
     CBoardEditor();
@@ -83,4 +88,6 @@ protected:
     glm::vec2 m_CameraOffset { };
     float m_CameraZoom = 1;
     float m_NodeSnapValue = 5;
+
+    std::filesystem::path m_CurrentBoardPath;
 };

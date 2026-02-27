@@ -48,6 +48,12 @@ public:
     [[nodiscard]] operator bool() const noexcept { return !m_ConnectedPins.empty(); } // NOLINT
     [[nodiscard]] operator EPinType() const noexcept { return m_PinType; } // NOLINT
 
+    template <typename Self>
+    decltype(auto) GetConnections(this Self&& s) noexcept
+    {
+        return static_cast<std::add_const_t<decltype(s.m_ConnectedPins)>>(s.m_ConnectedPins);
+    }
+
     auto AddOnConnectionChanges(auto&& Func)
     {
         return m_OnConnectionChanges.emplace_back(Func);

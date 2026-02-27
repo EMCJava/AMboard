@@ -125,6 +125,12 @@ void CNodeRenderer::WriteToNode(const size_t Id, const std::string& Title, const
     m_CommonNodeSSBOBuffer->Upload(Id);
 }
 
+uint32_t CNodeRenderer::GetHeaderColor(size_t Id) const noexcept
+{
+    MAKE_SURE(Id < m_IdCount)
+    return m_NodeBackgroundPipline->GetVertexBuffer().At<SNodeBackgroundInstanceBuffer>(Id).HeaderColor;
+}
+
 void CNodeRenderer::Select(size_t Id) const
 {
     MAKE_SURE(Id < m_IdCount)
@@ -179,6 +185,12 @@ void CNodeRenderer::ToggleHoverPin(const size_t Id) const
 
     m_NodePinPipline->GetVertexBuffer().At<SNodePinInstanceBuffer>(Id).Flag ^= SNodePinInstanceBuffer::HoveringFlag;
     m_NodePinPipline->GetVertexBuffer().Upload(Id);
+}
+
+const glm::vec2& CNodeRenderer::GetNodePosition(size_t Id) const noexcept
+{
+    MAKE_SURE(Id < m_IdCount)
+    return m_CommonNodeSSBOBuffer->At<SCommonNodeSSBO>(Id).Position;
 }
 
 void CNodeRenderer::SetNodePosition(size_t Id, const glm::vec2& Position) const

@@ -1,16 +1,16 @@
-Node:
+Nodes:
   - ID: Branching Node
     pos: [100, 100]
-    header_color: 0x668DAB88
-    salt: 1
+    header_color: 1720560520
+    salt: 7534966028519738810
   - ID: Printing Node
-    pos: [ 100, 300 ]
-    header_color: 0x669FAB66
-    salt: 2
+    pos: [365, 100]
+    header_color: 1721740134
+    salt: 8794629171745500445
   - ID: Printing Node
-    pos: [ 100, 500 ]
-    header_color: 0x669FAB66
-    salt: 3
-Link:
-  - [2109959069025161, 8042686386972756495]
-  - [5577051506714156677, 10160427978662282904]
+    pos: [365, 210]
+    header_color: 1721740134
+    salt: 4251826089751676240
+Links:
+  - [15004568908053529838, 16063716934890025689]
+  - [2700606556364473804, 16289230125227781884]

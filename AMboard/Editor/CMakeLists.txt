@@ -1,4 +1,5 @@
 find_package(glm CONFIG REQUIRED)
+find_package(nfd CONFIG REQUIRED)
 find_package(Boost REQUIRED COMPONENTS bimap)
 find_package(yaml-cpp CONFIG REQUIRED)
 
@@ -15,11 +16,12 @@ create_library(
         Boost::bimap
 
         P_DEPS
-        yaml-cpp::yaml-cpp
         Assertions
         CustomNodeManager
 
         glm::glm
+        nfd::nfd
+        yaml-cpp::yaml-cpp
 
         GridPipline
         NodeRenderer

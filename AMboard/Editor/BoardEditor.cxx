@@ -25,6 +25,9 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <nfd.h>
+
+#include <fstream>
 #include <random>
 
 void NodeDefaultDeleter(CBaseNode* Node)
@@ -145,6 +148,89 @@ void CBoardEditor::MoveCanvas(const glm::vec2& Delta) noexcept
     m_ScreenUniformDirty = true;
 }
 
+void CBoardEditor::SaveCanvas() noexcept
+{
+    NFD_Init();
+
+    nfdchar_t* SavePath;
+
+    // prepare filters for the dialog
+    static constexpr nfdfilteritem_t FilterItem[] = { { "Board", "yaml" } };
+    if (NFD_SaveDialog(&SavePath, FilterItem, 1, std::filesystem::current_path().string().c_str(), "Board.yaml") == NFD_OKAY) {
+        SaveCanvasTo(m_CurrentBoardPath = SavePath);
+        NFD_FreePath(SavePath);
+    }
+
+    NFD_Quit();
+}
+
+void CBoardEditor::SaveCanvasTo(const std::filesystem::path& Path) noexcept
+{
+    YAML::Node Root;
+
+    std::random_device rd;
+    std::mt19937_64 Salt(rd());
+
+    std::unordered_map<CBaseNode*, std::size_t> NodeSaltMap;
+    std::unordered_map<const CPin*, std::size_t> PinHashMap;
+
+    /// Scan all node and pin to generate hash
+    for (const auto& [Left, Right] : m_NodeRenderer->GetValidRange()) {
+        for (auto i = Left; i <= Right; ++i) {
+            const uint64_t NodeSalt = NodeSaltMap[m_Nodes[i].Node.get()] = Salt();
+
+            std::mt19937 rng(NodeSalt);
+            std::uniform_int_distribution<uint64_t> dist;
+
+            /// Lets just assume no collision
+            for (const auto& Pin : m_Nodes[i].Node->GetInputPins())
+                MAKE_SURE(PinHashMap.insert({ Pin.get(), dist(rng) }).second);
+            for (const auto& Pin : m_Nodes[i].Node->GetOutputPins())
+                MAKE_SURE(PinHashMap.insert({ Pin.get(), dist(rng) }).second);
+        }
+    }
+
+    /// Write node
+    for (const auto& [Left, Right] : m_NodeRenderer->GetValidRange()) {
+        for (auto i = Left; i <= Right; ++i) {
+
+            YAML::Node Node;
+
+            Node["ID"] = m_NodeRenderer->GetTitle(i);
+
+            const auto Position = m_NodeRenderer->GetNodePosition(i);
+            Node["pos"].SetStyle(YAML::EmitterStyle::Flow);
+            Node["pos"].push_back(Position.x);
+            Node["pos"].push_back(Position.y);
+
+            Node["header_color"] = m_NodeRenderer->GetHeaderColor(i);
+
+            Node["salt"] = NodeSaltMap[m_Nodes[i].Node.get()];
+
+            Root["Nodes"].push_back(Node);
+        }
+    }
+
+    /// Write connections
+    for (const auto& [Left, Right] : m_NodeRenderer->GetValidRange()) {
+        for (auto i = Left; i <= Right; ++i) {
+            for (const auto& Pin : m_Nodes[i].Node->GetOutputPins()) {
+                for (const auto* OtherPin : Pin->GetConnections()) {
+                    YAML::Node Link;
+                    Link.SetStyle(YAML::EmitterStyle::Flow);
+                    Link.push_back(PinHashMap.at(Pin.get()));
+                    Link.push_back(PinHashMap.at(OtherPin));
+
+                    Root["Links"].push_back(Link);
+                }
+            }
+        }
+    }
+
+    std::ofstream fout(Path);
+    fout << Root;
+}
+
 CBoardEditor::CBoardEditor()
 {
     m_GridPipline = std::make_unique<CGridPipline>();
@@ -181,7 +267,7 @@ CBoardEditor::CBoardEditor()
 
         std::unordered_map<uint64_t, CPin*> PinHashMap;
 
-        for (const auto& Node : Graph["Node"]) {
+        for (const auto& Node : Graph["Nodes"]) {
             const auto Name = Node["ID"].as<std::string>();
             const auto Position = Node["pos"].IsDefined() ? glm::vec2 { Node["pos"][0].as<float>(), Node["pos"][1].as<float>() } : glm::vec2(0.0f, 0.0f);
             const auto HeaderColor = Node["header_color"].as<uint32_t>(0xAAAAAA88);
@@ -197,7 +283,7 @@ CBoardEditor::CBoardEditor()
                 MAKE_SURE(PinHashMap.insert({ dist(rng), Pin.get() }).second);
         }
 
-        for (const auto& Link : Graph["Link"]) {
+        for (const auto& Link : Graph["Links"]) {
             const auto OutputId = Link[0].as<uint64_t>();
             const auto InputId = Link[1].as<uint64_t>();
 
@@ -251,6 +337,21 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
                 m_LastHoveringPin = CursorHoveringPin;
                 break;
+            }
+        }
+    }
+
+    /// Save
+    {
+        if (GetInputManager().GetKeyboardButtons().ConsumeEvent({ GLFW_KEY_S, GLFW_PRESS, GLFW_MOD_SHIFT | GLFW_MOD_CONTROL })) {
+            SaveCanvas();
+        }
+
+        if (GetInputManager().GetKeyboardButtons().ConsumeEvent({ GLFW_KEY_S, GLFW_PRESS, GLFW_MOD_CONTROL })) {
+            if (exists(m_CurrentBoardPath)) {
+                SaveCanvasTo(m_CurrentBoardPath);
+            } else {
+                SaveCanvas();
             }
         }
     }

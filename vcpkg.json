@@ -10,6 +10,7 @@
     "freetype",
     "boost-bimap",
     "yaml-cpp",
+    "nativefiledialog-extended",
     {
       "name": "dawn",
       "features": [

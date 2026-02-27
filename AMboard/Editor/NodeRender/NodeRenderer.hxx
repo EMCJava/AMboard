@@ -45,6 +45,11 @@ public:
 
     void WriteToNode(size_t Id, const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor, std::optional<glm::vec2> NodeSize = std::nullopt);
 
+    uint32_t GetHeaderColor(size_t Id) const noexcept;
+
+    template <typename Self>
+    decltype(auto) GetTitle(this Self&& s, size_t Id) noexcept { return s.m_NodeResourcesHandles[Id].TitleText.value()->Text; }
+
     void Select(size_t Id) const;
     void ToggleSelect(size_t Id) const;
 
@@ -55,6 +60,7 @@ public:
     void HoverPin(size_t Id) const;
     void ToggleHoverPin(size_t Id) const;
 
+    const glm::vec2& GetNodePosition(size_t Id) const noexcept;
     void SetNodePosition(size_t Id, const glm::vec2& Position) const;
     glm::vec2 MoveNode(size_t Id, const glm::vec2& Delta) const;
 
