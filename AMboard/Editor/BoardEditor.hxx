@@ -76,9 +76,9 @@ protected:
     std::unordered_map<std::pair<CPin*, CPin*>, size_t, PinPtrPairHash> m_ConnectionIdMapping;
     boost::bimap<CPin*, size_t> m_PinIdMapping;
 
-    std::vector<SEditorNodeContext> m_Nodes;
-
     std::unique_ptr<class CCustomNodeLoader> m_CustomNodeLoader;
+
+    std::vector<SEditorNodeContext> m_Nodes;
 
     glm::vec2 m_CameraOffset { };
     float m_CameraZoom = 1;

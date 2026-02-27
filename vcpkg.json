@@ -9,6 +9,7 @@
     "harfbuzz",
     "freetype",
     "boost-bimap",
+    "yaml-cpp",
     {
       "name": "dawn",
       "features": [

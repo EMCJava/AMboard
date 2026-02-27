@@ -23,6 +23,8 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/mat4x4.hpp>
 
+#include <yaml-cpp/yaml.h>
+
 #include <random>
 
 void NodeDefaultDeleter(CBaseNode* Node)
@@ -175,36 +177,44 @@ CBoardEditor::CBoardEditor()
     m_CustomNodeLoader = std::make_unique<CCustomNodeLoader>("NodeExts");
 
     {
-        auto BranchingNode = m_CustomNodeLoader->CreateNodeExt("Branching Node");
-        auto Node1 = m_CustomNodeLoader->CreateNodeExt("Printing Node");
-        auto Node2 = m_CustomNodeLoader->CreateNodeExt("Printing Node");
-        auto SequenceNode = m_CustomNodeLoader->CreateNodeExt("Sequence Node");
+        YAML::Node Graph = YAML::LoadFile("graph.yaml");
 
-        for (int i = 0; i < 10; ++i)
-            SequenceNode->EmplacePin<CFlowPin>(false);
+        std::unordered_map<uint64_t, CPin*> PinHashMap;
 
-        CExecuteNode* BranchingNodePtr = static_cast<CExecuteNode*>(BranchingNode.get());
-        CExecuteNode* Node1Ptr = static_cast<CExecuteNode*>(Node1.get());
-        CExecuteNode* Node2Ptr = static_cast<CExecuteNode*>(Node2.get());
-        CExecuteNode* SequenceNodePtr = static_cast<CExecuteNode*>(SequenceNode.get());
+        for (const auto& Node : Graph["Node"]) {
+            const auto Name = Node["ID"].as<std::string>();
+            const auto Position = Node["pos"].IsDefined() ? glm::vec2 { Node["pos"][0].as<float>(), Node["pos"][1].as<float>() } : glm::vec2(0.0f, 0.0f);
+            const auto HeaderColor = Node["header_color"].as<uint32_t>(0xAAAAAA88);
 
-        RegisterNode(std::move(BranchingNode), "Branching Node", { 100, 100 }, 0x668DAB88);
-        RegisterNode(std::move(Node1), "Printing Node", { 100, 100 }, 0x669FAB66);
-        RegisterNode(std::move(Node2), "Printing Node", { 100, 100 }, 0x669FAB66);
-        RegisterNode(std::move(SequenceNode), "Sequence Node", { 100, 100 }, 0xAAAAAA88);
+            const auto NodeId = CreateNode(Name, Position, HeaderColor);
 
-        if (auto DataPins = BranchingNodePtr->GetInputPinsWith<EPinType::Data>(); !DataPins.empty())
-            DataPins.front()->As<CDataPin>()->Set(true);
+            std::mt19937 rng(Node["salt"].as<uint64_t>());
+            std::uniform_int_distribution<uint64_t> dist;
 
-        for (const auto& Pin : SequenceNodePtr->GetOutputPinsWith<EPinType::Flow>()) {
-            Pin->ConnectPin(Node1Ptr->GetFlowInputPins().front());
+            for (const auto& Pin : m_Nodes[NodeId].Node->GetInputPins())
+                MAKE_SURE(PinHashMap.insert({ dist(rng), Pin.get() }).second);
+            for (const auto& Pin : m_Nodes[NodeId].Node->GetOutputPins())
+                MAKE_SURE(PinHashMap.insert({ dist(rng), Pin.get() }).second);
         }
 
-        auto& OutputPins = BranchingNodePtr->GetFlowOutputPins();
-        OutputPins[0]->ConnectPin(SequenceNodePtr->GetFlowInputPins().front());
-        OutputPins[1]->ConnectPin(Node2Ptr->GetFlowInputPins().front());
+        for (const auto& Link : Graph["Link"]) {
+            const auto OutputId = Link[0].as<uint64_t>();
+            const auto InputId = Link[1].as<uint64_t>();
 
-        BranchingNodePtr->ExecuteNode();
+            const auto OutputIt = PinHashMap.find(OutputId);
+            const auto InputIt = PinHashMap.find(InputId);
+
+            if (OutputIt == PinHashMap.end()) [[unlikely]] {
+                spdlog::error("Pin #{} missing", OutputId);
+                continue;
+            }
+            if (InputIt == PinHashMap.end()) [[unlikely]] {
+                spdlog::error("Pin #{} missing", InputId);
+                continue;
+            }
+
+            OutputIt->second->ConnectPin(InputIt->second);
+        }
     }
 }
 
