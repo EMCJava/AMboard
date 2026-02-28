@@ -111,7 +111,7 @@ struct SButtonSet {
      * @return true if the key is being double-clicked this frame
      */
     [[nodiscard]]
-    bool IsKeyDoubleClick(int GLFWKeyCode) const noexcept;
+    bool IsDoubleClick(int GLFWKeyCode) const noexcept;
 
     void ClearEvents()
     {

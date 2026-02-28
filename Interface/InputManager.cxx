@@ -87,7 +87,7 @@ bool SButtonSet::IsKeyDown(int GLFWKeyCode) const noexcept
     return KeyStages[GLFWKeyCode].IsDown;
 }
 
-bool SButtonSet::IsKeyDoubleClick(int GLFWKeyCode) const noexcept
+bool SButtonSet::IsDoubleClick(int GLFWKeyCode) const noexcept
 {
     return KeyStages[GLFWKeyCode].LastDoubleClickFrame == GlobalFrameCounter;
 }
