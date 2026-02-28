@@ -105,16 +105,22 @@ size_t CBoardEditor::RegisterNode(NodeStorage Node, const std::string& Title, co
     };
 
     // Ensure both views have the EXACT same type
-    static constexpr auto MakePinView = [](auto&& vec, bool IsInput) {
+    static constexpr auto MakePinView = [](auto&& vec, bool IsInput) static {
         return vec | std::views::transform([IsInput](auto&& v) {
             return std::pair(IsInput, v.get());
         });
     };
 
-    for (const auto [IsInput, Pin] : std::views::join(std::array { MakePinView(m_Nodes[NodeId].Node->GetInputPins(), true), MakePinView(m_Nodes[NodeId].Node->GetOutputPins(), false) })) {
+    const auto RegisterPin = [=, this](bool IsInput, auto* Pin) {
         MAKE_SURE(m_PinIdMapping.insert({ Pin, m_NodeRenderer->AddPin(NodeId, IsInput, *Pin == EPinType::Flow) }).second);
         Pin->AddOnConnectionChanges(PinConnectionUpdateCallback);
-    }
+    };
+
+    std::ranges::for_each(
+        std::views::join(std::array { MakePinView(m_Nodes[NodeId].Node->GetInputPins(), true), MakePinView(m_Nodes[NodeId].Node->GetOutputPins(), false) }),
+        [&](auto&& pair) {
+            std::apply(RegisterPin, pair);
+        });
 
     return NodeId;
 }
