@@ -124,6 +124,10 @@ size_t CBoardEditor::RegisterNode(NodeStorage Node, const std::string& Title, co
             const auto PinIdIt = m_PinIdMapping.left.find(TargetPin);
             const bool IsInputPin = m_NodeRenderer->RemovePin(NodeId, PinIdIt->second);
 
+            if (m_DraggingPin.has_value() && PinIdIt->second == *m_DraggingPin) {
+                EndPinDrag();
+            }
+
             /// Pin position changes
             for (const auto& SameSidePin : IsInputPin ? TargetPin->GetOwner()->GetInputPins() : TargetPin->GetOwner()->GetOutputPins()) {
                 const auto SameSidePinId = m_PinIdMapping.left.at(SameSidePin.get());
@@ -137,11 +141,7 @@ size_t CBoardEditor::RegisterNode(NodeStorage Node, const std::string& Title, co
                 }
 
                 if (m_DraggingPin.has_value() && SameSidePinId == *m_DraggingPin) {
-                    if (IsInputPin) {
-                        m_NodeRenderer->RefreshLinkedPin(m_VirtualConnectionForPinDrag, std::nullopt, SameSidePinId);
-                    } else {
-                        m_NodeRenderer->RefreshLinkedPin(m_VirtualConnectionForPinDrag, SameSidePinId, std::nullopt);
-                    }
+                    EndPinDrag();
                 }
             }
 
@@ -164,6 +164,21 @@ void CBoardEditor::MoveCanvas(const glm::vec2& Delta) noexcept
 {
     m_CameraOffset += Delta;
     m_ScreenUniformDirty = true;
+}
+
+void CBoardEditor::EndPinDrag() noexcept
+{
+    /// Not connected
+    if (!*m_PinIdMapping.right.at(*m_DraggingPin)) {
+        m_NodeRenderer->DisconnectPin(*m_DraggingPin);
+    }
+
+    /// Clear pin selection
+    m_DraggingPin.reset();
+
+    /// Remove virtual node for drag visualization
+    m_NodeRenderer->UnlinkPin(m_VirtualConnectionForPinDrag);
+    m_NodeRenderer->RemoveNode(m_VirtualNodeForPinDrag);
 }
 
 void CBoardEditor::SaveCanvas() noexcept
@@ -459,30 +474,16 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
         /// End of pin drag
         if (m_DraggingPin.has_value()) {
-            bool IsPinConnected = false;
 
             /// End of drag pin
             if (CursorHoveringPin.has_value() && *m_DraggingPin != *CursorHoveringPin) {
                 std::pair Pins = { m_PinIdMapping.right.at(*m_DraggingPin), m_PinIdMapping.right.at(*CursorHoveringPin) };
                 if (Pins.first->IsInputPin())
                     std::swap(Pins.first, Pins.second);
-                IsPinConnected = TryRegisterConnection(Pins.first, Pins.second).has_value();
+                TryRegisterConnection(Pins.first, Pins.second).has_value();
             }
 
-            /// No new connection is created, maybe there exist an old one?
-            if (!IsPinConnected) {
-                /// Not connected
-                if (!*m_PinIdMapping.right.at(*m_DraggingPin)) {
-                    m_NodeRenderer->DisconnectPin(*m_DraggingPin);
-                }
-            }
-
-            /// Clear pin selection
-            m_DraggingPin.reset();
-
-            /// Remove virtual node for drag visualization
-            m_NodeRenderer->UnlinkPin(m_VirtualConnectionForPinDrag);
-            m_NodeRenderer->RemoveNode(m_VirtualNodeForPinDrag);
+            EndPinDrag();
         }
 
         MouseStartClickPos.reset();

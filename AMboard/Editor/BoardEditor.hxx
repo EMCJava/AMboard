@@ -42,6 +42,8 @@ class CBoardEditor : public CWindowBase {
 
     void MoveCanvas(const glm::vec2& Delta) noexcept;
 
+    void EndPinDrag() noexcept;
+
     void SaveCanvas() noexcept;
     void SaveCanvasTo(const std::filesystem::path& Path) noexcept;
 
