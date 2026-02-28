@@ -11,6 +11,8 @@
 #include "MacroDefines.hxx"
 #include "Pin.hxx"
 
+#include <algorithm>
+
 enum class ENodeType {
     Data,
     Execution
@@ -36,6 +38,28 @@ public:
         return Result;
     }
 
+    template <typename PinTy>
+        requires std::is_base_of_v<CPin, PinTy>
+    bool ErasePin(const PinTy* PinPtr) noexcept
+    {
+        if (PinPtr == nullptr) [[unlikely]]
+            return false;
+
+        auto& Pins = PinPtr->IsInputPin() ? m_InputPins : m_OutputPins;
+        if (auto It = std::ranges::find_if(Pins, [PinPtr](auto&& Pin) { return Pin.get() == static_cast<const CPin*>(PinPtr); }); It != Pins.end()) {
+
+            const auto PinExtracted = std::move(*It);
+            Pins.erase(It);
+
+            for (const auto& Func : m_OnPinChanges)
+                Func(PinExtracted.get(), false);
+
+            return true;
+        }
+
+        return false;
+    }
+
     const auto& GetInputPins() const noexcept { return m_InputPins; }
     const auto& GetOutputPins() const noexcept { return m_OutputPins; }
 
@@ -51,10 +75,7 @@ public:
         return m_OutputPins | std::views::filter([](const auto& Pin) static { return *Pin == PinTy; });
     }
 
-    auto AddOnPinChanges(auto&& Func)
-    {
-        return m_OnPinChanges.emplace_back(Func);
-    }
+    auto AddOnPinChanges(auto&& Func) { return m_OnPinChanges.emplace_back(Func); }
 
     [[nodiscard]] operator ENodeType() const noexcept { return m_NodeType; } // NOLINT
 

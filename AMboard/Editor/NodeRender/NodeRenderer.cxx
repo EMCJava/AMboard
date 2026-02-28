@@ -210,6 +210,53 @@ glm::vec2 CNodeRenderer::MoveNode(size_t Id, const glm::vec2& Delta) const
     return NewPosition;
 }
 
+static constexpr glm::vec2 NodePinStartPosition { 10.0f, 30.0f };
+static constexpr float NodeRadius { 8.0f };
+
+bool CNodeRenderer::RemovePin(size_t NodeId, size_t PinId)
+{
+    MAKE_SURE(NodeId < m_IdCount)
+
+    /// Find out where the pin is
+    bool IsOutputPin = false;
+    size_t PinIndex = std::distance(std::ranges::find(m_NodeResourcesHandles[NodeId].InputPins, PinId), m_NodeResourcesHandles[NodeId].InputPins.begin());
+    if ((IsOutputPin = PinIndex == m_NodeResourcesHandles[NodeId].InputPins.size()))
+        PinIndex = std::distance(std::ranges::find(m_NodeResourcesHandles[NodeId].OutputPins, PinId), m_NodeResourcesHandles[NodeId].OutputPins.begin());
+
+    auto& ThisSide = IsOutputPin ? m_NodeResourcesHandles[NodeId].OutputPins : m_NodeResourcesHandles[NodeId].InputPins;
+    const auto& OtherSide = IsOutputPin ? m_NodeResourcesHandles[NodeId].InputPins : m_NodeResourcesHandles[NodeId].OutputPins;
+    MAKE_SURE(ThisSide[PinIndex] == PinId);
+
+    /// Fit size
+    if (ThisSide.size() > OtherSide.size()) {
+        const auto PinCount = ThisSide.size();
+        const float InternalYOffset = PinCount * 3 * NodeRadius;
+        const float NodeOffset = NodePinStartPosition.y + NodeRadius * 2 + InternalYOffset;
+
+        auto& NodeInstance = m_NodeBackgroundPipline->GetVertexBuffer().At<SNodeBackgroundInstanceBuffer>(NodeId);
+        NodeInstance.Size.y = std::max(MinimumNodeSize.y, NodeOffset - NodeRadius * 2);
+        m_NodeBackgroundPipline->GetVertexBuffer().Upload(NodeId);
+    }
+
+    /// Remove the record
+    ThisSide.erase(ThisSide.begin() + PinIndex);
+
+    /// Re-arrange all pin at this side
+    auto& NodeInstance = m_NodeBackgroundPipline->GetVertexBuffer().At<SNodeBackgroundInstanceBuffer>(NodeId);
+    for (int i = 0; i < ThisSide.size(); ++i) {
+        const glm::vec2 InternalNodeOffset = { IsOutputPin ? NodeInstance.Size.x - NodeRadius * 3.5f : NodeRadius, i * 3 * NodeRadius };
+        const glm::vec2 NodeOffset = NodePinStartPosition + glm::vec2 { 0, NodeRadius * 2 } + InternalNodeOffset;
+
+        m_NodePinPipline->GetVertexBuffer().At<SNodePinInstanceBuffer>(ThisSide[i]).Offset = NodeOffset;
+        m_NodePinPipline->GetVertexBuffer().Upload(ThisSide[i]);
+    }
+
+    /// Actually remove the pin from the renderer
+    m_NodePinPipline->RemovePin(PinId);
+
+    return !IsOutputPin;
+}
+
 size_t CNodeRenderer::AddPin(size_t Id, bool IsInput, bool IsExecutionPin)
 {
     if (IsInput) {
@@ -218,9 +265,6 @@ size_t CNodeRenderer::AddPin(size_t Id, bool IsInput, bool IsExecutionPin)
         return AddOutputPin(Id, IsExecutionPin);
     }
 }
-
-static constexpr glm::vec2 NodePinStartPosition { 10.0f, 30.0f };
-static constexpr float NodeRadius { 8.0f };
 
 size_t CNodeRenderer::AddInputPin(size_t Id, bool IsExecutionPin)
 {
@@ -273,6 +317,16 @@ size_t CNodeRenderer::LinkPin(size_t Id1, size_t Id2)
             .EndInnerOffset = m_NodePinPipline->GetRenderMetas()[Id2].Offset,
             .StartNodeId = m_NodePinPipline->GetRenderMetas()[Id1].NodeId,
             .EndNodeId = m_NodePinPipline->GetRenderMetas()[Id2].NodeId });
+}
+
+void CNodeRenderer::RefreshLinkedPin(const size_t Id, const std::optional<std::size_t> Id1, const std::optional<std::size_t> Id2)
+{
+    auto& ConnectionBuffer = m_NodeConnectionPipline->GetVertexBuffer().At<SNodeConnectionInstanceBuffer>(Id);
+    if (Id1.has_value())
+        ConnectionBuffer.StartInnerOffset = m_NodePinPipline->GetRenderMetas()[*Id1].Offset;
+    if (Id2.has_value())
+        ConnectionBuffer.EndInnerOffset = m_NodePinPipline->GetRenderMetas()[*Id2].Offset;
+    m_NodeConnectionPipline->GetVertexBuffer().Upload(Id);
 }
 
 void CNodeRenderer::UnlinkPin(const size_t Id) noexcept

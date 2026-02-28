@@ -104,23 +104,52 @@ size_t CBoardEditor::RegisterNode(NodeStorage Node, const std::string& Title, co
         }
     };
 
-    // Ensure both views have the EXACT same type
-    static constexpr auto MakePinView = [](auto&& vec, bool IsInput) static {
-        return vec | std::views::transform([IsInput](auto&& v) {
-            return std::pair(IsInput, v.get());
-        });
-    };
-
-    const auto RegisterPin = [=, this](bool IsInput, auto* Pin) {
-        MAKE_SURE(m_PinIdMapping.insert({ Pin, m_NodeRenderer->AddPin(NodeId, IsInput, *Pin == EPinType::Flow) }).second);
+    const auto RegisterPin = [=, this](auto&& Pin) {
+        MAKE_SURE(m_PinIdMapping.insert({ &*Pin, m_NodeRenderer->AddPin(NodeId, Pin->IsInputPin(), *Pin == EPinType::Flow) }).second);
         Pin->AddOnConnectionChanges(PinConnectionUpdateCallback);
     };
 
-    std::ranges::for_each(
-        std::views::join(std::array { MakePinView(m_Nodes[NodeId].Node->GetInputPins(), true), MakePinView(m_Nodes[NodeId].Node->GetOutputPins(), false) }),
-        [&](auto&& pair) {
-            std::apply(RegisterPin, pair);
-        });
+    {
+        using namespace std::ranges;
+        using namespace std::views;
+
+        /// Register all input and output pins in to the renderer
+        for_each(join(std::array { all(m_Nodes[NodeId].Node->GetInputPins()), all(m_Nodes[NodeId].Node->GetOutputPins()) }), RegisterPin);
+    }
+
+    m_Nodes[NodeId].Node->AddOnPinChanges([=](CPin* TargetPin, bool NewPin) {
+        if (NewPin) {
+            RegisterPin(TargetPin);
+        } else {
+            const auto PinIdIt = m_PinIdMapping.left.find(TargetPin);
+            const bool IsInputPin = m_NodeRenderer->RemovePin(NodeId, PinIdIt->second);
+
+            /// Pin position changes
+            for (const auto& SameSidePin : IsInputPin ? TargetPin->GetOwner()->GetInputPins() : TargetPin->GetOwner()->GetOutputPins()) {
+                const auto SameSidePinId = m_PinIdMapping.left.at(SameSidePin.get());
+
+                for (auto* ConnectedPin : SameSidePin->GetConnections()) {
+                    if (IsInputPin) {
+                        m_NodeRenderer->RefreshLinkedPin(m_ConnectionIdMapping.at(std::pair { ConnectedPin, SameSidePin.get() }), std::nullopt, SameSidePinId);
+                    } else {
+                        m_NodeRenderer->RefreshLinkedPin(m_ConnectionIdMapping.at(std::pair { SameSidePin.get(), ConnectedPin }), SameSidePinId, std::nullopt);
+                    }
+                }
+
+                if (m_DraggingPin.has_value() && SameSidePinId == *m_DraggingPin) {
+                    if (IsInputPin) {
+                        m_NodeRenderer->RefreshLinkedPin(m_VirtualConnectionForPinDrag, std::nullopt, SameSidePinId);
+                    } else {
+                        m_NodeRenderer->RefreshLinkedPin(m_VirtualConnectionForPinDrag, SameSidePinId, std::nullopt);
+                    }
+                }
+            }
+
+            /// We first disconnect all pins, so that all the necessary callback are fired before context outdated
+            TargetPin->DisconnectPins();
+            m_PinIdMapping.left.erase(PinIdIt);
+        }
+    });
 
     return NodeId;
 }

@@ -135,10 +135,15 @@ size_t CNodeConnectionPipline::AddConnection(const SNodeConnectionInstanceBuffer
     }
 
     m_VertexBufferRangeManager.SetSlot(FreeIndex);
-    GetVertexBuffer().At<SNodeConnectionInstanceBuffer>(FreeIndex) = Connection;
-    GetVertexBuffer().Upload(FreeIndex);
+    UpdateConnection(FreeIndex, Connection);
 
     return FreeIndex;
+}
+
+void CNodeConnectionPipline::UpdateConnection(size_t Id, const SNodeConnectionInstanceBuffer& Connection)
+{
+    GetVertexBuffer().At<SNodeConnectionInstanceBuffer>(Id) = Connection;
+    GetVertexBuffer().Upload(Id);
 }
 
 void CNodeConnectionPipline::RemoveConnection(const size_t Id) noexcept

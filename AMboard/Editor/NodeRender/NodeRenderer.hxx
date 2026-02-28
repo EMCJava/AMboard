@@ -64,12 +64,15 @@ public:
     void SetNodePosition(size_t Id, const glm::vec2& Position) const;
     glm::vec2 MoveNode(size_t Id, const glm::vec2& Delta) const;
 
+    /// Return true if removing input pin
+    bool RemovePin(size_t NodeId, size_t PinId);
     size_t AddPin(size_t Id, bool IsInput, bool IsExecutionPin);
     size_t AddInputPin(size_t Id, bool IsExecutionPin);
     size_t AddOutputPin(size_t Id, bool IsExecutionPin);
 
     size_t LinkVirtualPin(size_t Id1, size_t NodeId);
     size_t LinkPin(size_t Id1, size_t Id2);
+    void RefreshLinkedPin(size_t Id, std::optional<std::size_t> Id1, std::optional<std::size_t> Id2);
     void UnlinkPin(size_t Id) noexcept;
 
     size_t CreateVirtualNode(const glm::vec2& Position);

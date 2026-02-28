@@ -23,6 +23,7 @@ public:
     ~CNodeConnectionPipline();
 
     size_t AddConnection(const SNodeConnectionInstanceBuffer& Connection);
+    void UpdateConnection(size_t Id, const SNodeConnectionInstanceBuffer& Connection);
     void RemoveConnection(size_t Id) noexcept;
 
     template <typename Self>
