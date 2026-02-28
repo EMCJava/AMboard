@@ -210,6 +210,15 @@ glm::vec2 CNodeRenderer::MoveNode(size_t Id, const glm::vec2& Delta) const
     return NewPosition;
 }
 
+size_t CNodeRenderer::AddPin(size_t Id, bool IsInput, bool IsExecutionPin)
+{
+    if (IsInput) {
+        return AddInputPin(Id, IsExecutionPin);
+    } else {
+        return AddOutputPin(Id, IsExecutionPin);
+    }
+}
+
 static constexpr glm::vec2 NodePinStartPosition { 10.0f, 30.0f };
 static constexpr float NodeRadius { 8.0f };
 

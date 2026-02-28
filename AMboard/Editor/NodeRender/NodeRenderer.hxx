@@ -64,6 +64,7 @@ public:
     void SetNodePosition(size_t Id, const glm::vec2& Position) const;
     glm::vec2 MoveNode(size_t Id, const glm::vec2& Delta) const;
 
+    size_t AddPin(size_t Id, bool IsInput, bool IsExecutionPin);
     size_t AddInputPin(size_t Id, bool IsExecutionPin);
     size_t AddOutputPin(size_t Id, bool IsExecutionPin);
 

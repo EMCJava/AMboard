@@ -82,55 +82,38 @@ size_t CBoardEditor::RegisterNode(NodeStorage Node, const std::string& Title, co
     m_Nodes[NodeId] = { .Node = std::move(Node), .LogicalPosition = Position };
     m_NodeRenderer->SetNodePosition(NodeId, m_Nodes[NodeId].GetDisplayPosition(m_NodeSnapValue));
 
-    for (const auto& Pin : m_Nodes[NodeId].Node->GetInputPins()) {
-        MAKE_SURE(m_PinIdMapping.insert({ Pin.get(), m_NodeRenderer->AddInputPin(NodeId, *Pin == EPinType::Flow) }).second);
-
-        Pin->AddOnConnectionChanges([this](CPin* This, CPin* Other, const bool IsConnect) {
-            if (IsConnect) {
-                const auto Key = This->IsInputPin() ? std::pair { Other, This } : std::pair { This, Other };
-                if (const auto It = m_ConnectionIdMapping.find(Key); It == m_ConnectionIdMapping.end()) {
-                    m_ConnectionIdMapping
-                        .insert(It, { Key, m_NodeRenderer->LinkPin(m_PinIdMapping.left.at(Key.first), m_PinIdMapping.left.at(Key.second)) });
-                }
-
-                m_NodeRenderer->ConnectPin(m_PinIdMapping.left.at(This));
-            } else {
-                const auto Key = This->IsInputPin() ? std::pair { Other, This } : std::pair { This, Other };
-                if (const auto It = m_ConnectionIdMapping.find(Key); It != m_ConnectionIdMapping.end()) {
-                    m_NodeRenderer->UnlinkPin(It->second);
-                    m_ConnectionIdMapping.erase(It);
-                }
-
-                if (!*This) {
-                    m_NodeRenderer->DisconnectPin(m_PinIdMapping.left.at(This));
-                }
+    const auto PinConnectionUpdateCallback = [this](CPin* This, CPin* Other, const bool IsConnect) {
+        if (IsConnect) {
+            const auto Key = This->IsInputPin() ? std::pair { Other, This } : std::pair { This, Other };
+            if (const auto It = m_ConnectionIdMapping.find(Key); It == m_ConnectionIdMapping.end()) {
+                m_ConnectionIdMapping
+                    .insert(It, { Key, m_NodeRenderer->LinkPin(m_PinIdMapping.left.at(Key.first), m_PinIdMapping.left.at(Key.second)) });
             }
-        });
-    }
-    for (const auto& Pin : m_Nodes[NodeId].Node->GetOutputPins()) {
-        MAKE_SURE(m_PinIdMapping.insert({ Pin.get(), m_NodeRenderer->AddOutputPin(NodeId, *Pin == EPinType::Flow) }).second);
 
-        Pin->AddOnConnectionChanges([this](CPin* This, CPin* Other, const bool IsConnect) {
-            if (IsConnect) {
-                const auto Key = This->IsInputPin() ? std::pair { Other, This } : std::pair { This, Other };
-                if (const auto It = m_ConnectionIdMapping.find(Key); It == m_ConnectionIdMapping.end()) {
-                    m_ConnectionIdMapping
-                        .insert(It, { Key, m_NodeRenderer->LinkPin(m_PinIdMapping.left.at(Key.first), m_PinIdMapping.left.at(Key.second)) });
-                }
-
-                m_NodeRenderer->ConnectPin(m_PinIdMapping.left.at(This));
-            } else {
-                const auto Key = This->IsInputPin() ? std::pair { Other, This } : std::pair { This, Other };
-                if (const auto It = m_ConnectionIdMapping.find(Key); It != m_ConnectionIdMapping.end()) {
-                    m_NodeRenderer->UnlinkPin(It->second);
-                    m_ConnectionIdMapping.erase(It);
-                }
-
-                if (!*This) {
-                    m_NodeRenderer->DisconnectPin(m_PinIdMapping.left.at(This));
-                }
+            m_NodeRenderer->ConnectPin(m_PinIdMapping.left.at(This));
+        } else {
+            const auto Key = This->IsInputPin() ? std::pair { Other, This } : std::pair { This, Other };
+            if (const auto It = m_ConnectionIdMapping.find(Key); It != m_ConnectionIdMapping.end()) {
+                m_NodeRenderer->UnlinkPin(It->second);
+                m_ConnectionIdMapping.erase(It);
             }
+
+            if (!*This) {
+                m_NodeRenderer->DisconnectPin(m_PinIdMapping.left.at(This));
+            }
+        }
+    };
+
+    // Ensure both views have the EXACT same type
+    static constexpr auto MakePinView = [](auto&& vec, bool IsInput) {
+        return vec | std::views::transform([IsInput](auto&& v) {
+            return std::pair(IsInput, v.get());
         });
+    };
+
+    for (const auto [IsInput, Pin] : std::views::join(std::array { MakePinView(m_Nodes[NodeId].Node->GetInputPins(), true), MakePinView(m_Nodes[NodeId].Node->GetOutputPins(), false) })) {
+        MAKE_SURE(m_PinIdMapping.insert({ Pin, m_NodeRenderer->AddPin(NodeId, IsInput, *Pin == EPinType::Flow) }).second);
+        Pin->AddOnConnectionChanges(PinConnectionUpdateCallback);
     }
 
     return NodeId;
