@@ -118,7 +118,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     return vec4f(1.0, 1.0, 1.0, alpha);
 })wgsl";
 
-CNodeConnectionPipline::CNodeConnectionPipline(const CWindowBase* Window)
+CNodeConnectionPipline::CNodeConnectionPipline(CWindowBase* Window)
+    : CRenderPipeline(Window)
 {
     SetShaderCode(LineShaderNode);
     m_RenderVertexBuffer = CDynamicGPUBuffer::Create<SNodeConnectionInstanceBuffer>(Window);

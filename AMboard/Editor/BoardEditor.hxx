@@ -53,6 +53,8 @@ public:
     CBoardEditor();
     ~CBoardEditor();
 
+    void RecreateSurface() noexcept override;
+
     EWindowEventState ProcessEvent() override;
 
     void RenderBoard(const SRenderContext& RenderContext);

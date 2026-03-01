@@ -76,20 +76,20 @@ size_t CNodeRenderer::NextFreeNode()
     return FreeId;
 }
 
-CNodeRenderer::CNodeRenderer(const CWindowBase* Window)
+CNodeRenderer::CNodeRenderer(CWindowBase* Window)
     : m_Window(Window)
 {
     m_NodeBackgroundPipline = std::make_unique<CNodeBackgroundPipline>(Window);
-    m_NodeBackgroundPipline->CreatePipeline(*Window);
+    m_NodeBackgroundPipline->CreatePipeline();
 
     m_NodeTextPipline = std::make_unique<CNodeTextRenderPipline>(Window, std::make_shared<CFont>(Window, "Res/Cubic_11.ttf"));
-    m_NodeTextPipline->CreatePipeline(*Window);
+    m_NodeTextPipline->CreatePipeline();
 
     m_NodePinPipline = std::make_unique<CNodePinPipline>(Window);
-    m_NodePinPipline->CreatePipeline(*Window);
+    m_NodePinPipline->CreatePipeline();
 
     m_NodeConnectionPipline = std::make_unique<CNodeConnectionPipline>(Window);
-    m_NodeConnectionPipline->CreatePipeline(*Window);
+    m_NodeConnectionPipline->CreatePipeline();
 
     m_CommonNodeSSBOBuffer = CDynamicGPUBuffer::Create<SCommonNodeSSBO>(Window, wgpu::BufferUsage::Storage);
 }

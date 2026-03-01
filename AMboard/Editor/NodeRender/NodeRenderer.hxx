@@ -40,7 +40,7 @@ class CNodeRenderer {
     size_t NextFreeNode();
 
 public:
-    CNodeRenderer(const CWindowBase* Window);
+    CNodeRenderer(CWindowBase* Window);
     ~CNodeRenderer();
 
     void WriteToNode(size_t Id, const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor, std::optional<glm::vec2> NodeSize = std::nullopt);

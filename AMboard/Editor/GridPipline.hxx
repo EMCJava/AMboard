@@ -8,5 +8,5 @@
 
 class CGridPipline : public CRenderPipeline {
 public:
-    CGridPipline();
+    CGridPipline(CWindowBase* Window);
 };

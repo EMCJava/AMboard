@@ -303,8 +303,8 @@ CBoardEditor::CBoardEditor()
 {
     SetUpImGui();
 
-    m_GridPipline = std::make_unique<CGridPipline>();
-    m_GridPipline->CreatePipeline(*this);
+    m_GridPipline = std::make_unique<CGridPipline>(this);
+    m_GridPipline->CreatePipeline();
 
     {
         m_SceneUniform = std::make_unique<SSceneUniform>();
@@ -379,6 +379,12 @@ CBoardEditor::CBoardEditor()
 }
 
 CBoardEditor::~CBoardEditor() = default;
+
+void CBoardEditor::RecreateSurface() noexcept
+{
+    CWindowBase::RecreateSurface();
+    m_ScreenUniformDirty = true;
+}
 
 CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 {

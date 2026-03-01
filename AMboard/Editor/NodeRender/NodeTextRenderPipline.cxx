@@ -173,8 +173,9 @@ void CNodeTextRenderPipline::PushPerGroupBuffer(STextGroupHandle& TextGroupHandl
     m_TextGroupBuffer->Upload(TextGroupHandle.GroupId);
 }
 
-CNodeTextRenderPipline::CNodeTextRenderPipline(const CWindowBase* Window, std::shared_ptr<class CFont> Font)
-    : m_Window(Window)
+CNodeTextRenderPipline::CNodeTextRenderPipline(CWindowBase* Window, std::shared_ptr<class CFont> Font)
+    : CRenderPipeline(Window)
+    , m_Window(Window)
     , m_Font(std::move(Font))
 {
     SetShaderCode(NodeTextShaderCode);

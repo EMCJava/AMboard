@@ -15,7 +15,7 @@ struct SNodeBackgroundInstanceBuffer {
 class CNodeBackgroundPipline : public CRenderPipeline {
 
 public:
-    CNodeBackgroundPipline(const CWindowBase* Window);
+    CNodeBackgroundPipline(CWindowBase* Window);
 
     template <typename Self>
     auto GetRenderMetas(this Self&& s)

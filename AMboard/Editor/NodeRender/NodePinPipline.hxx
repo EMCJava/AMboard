@@ -25,7 +25,7 @@ struct SNodePinInstanceBuffer {
 class CNodePinPipline final : public CRenderPipeline {
 
 public:
-    CNodePinPipline(const CWindowBase* Window);
+    CNodePinPipline(CWindowBase* Window);
     ~CNodePinPipline();
 
     template <typename Self>

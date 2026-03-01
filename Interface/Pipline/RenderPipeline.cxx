@@ -8,14 +8,18 @@
 
 #include <dawn/webgpu_cpp.h>
 
-CRenderPipeline::CRenderPipeline() = default;
+CRenderPipeline::CRenderPipeline(CWindowBase* Window)
+    : CWindowResizeReactor(Window)
+{
+}
+
 CRenderPipeline::~CRenderPipeline() = default;
 
-void CRenderPipeline::CreatePipeline(const CWindowBase& Window, bool ForceRecreate)
+void CRenderPipeline::CreatePipeline(bool ForceRecreate)
 {
     wgpu::RenderPipelineDescriptor pipelineDesc;
 
-    const auto ShaderModule = CompileShader(Window.GetDevice());
+    const auto ShaderModule = CompileShader(GetWindowPtr()->GetDevice());
 
     pipelineDesc.vertex.module = ShaderModule;
     pipelineDesc.vertex.entryPoint = "vs_main";
@@ -50,7 +54,7 @@ void CRenderPipeline::CreatePipeline(const CWindowBase& Window, bool ForceRecrea
     blendState.alpha.operation = wgpu::BlendOperation::Add;
 
     wgpu::ColorTargetState colorTarget;
-    colorTarget.format = Window.GetSurfaceFormat();
+    colorTarget.format = GetWindowPtr()->GetSurfaceFormat();
     colorTarget.blend = &blendState;
     colorTarget.writeMask = wgpu::ColorWriteMask::All;
 
@@ -70,7 +74,7 @@ void CRenderPipeline::CreatePipeline(const CWindowBase& Window, bool ForceRecrea
     pipelineDesc.primitive.cullMode = wgpu::CullMode::Back;
 
     if (ForceRecreate || m_BindingGroupLayouts.empty()) {
-        m_BindingGroupLayouts = CreateBindingGroupLayout(Window.GetDevice());
+        m_BindingGroupLayouts = CreateBindingGroupLayout(GetWindowPtr()->GetDevice());
     }
 
     if (!m_BindingGroupLayouts.empty()) {
@@ -78,20 +82,25 @@ void CRenderPipeline::CreatePipeline(const CWindowBase& Window, bool ForceRecrea
         wgpu::PipelineLayoutDescriptor layoutDesc { };
         layoutDesc.bindGroupLayoutCount = m_BindingGroupLayouts.size();
         layoutDesc.bindGroupLayouts = m_BindingGroupLayouts.data();
-        pipelineDesc.layout = Window.GetDevice().CreatePipelineLayout(&layoutDesc);
+        pipelineDesc.layout = GetWindowPtr()->GetDevice().CreatePipelineLayout(&layoutDesc);
     }
 
     wgpu::DepthStencilState depthStencilState;
     depthStencilState.depthCompare = wgpu::CompareFunction::LessEqual;
     depthStencilState.depthWriteEnabled = true;
-    depthStencilState.format = Window.GetDepthFormat();
+    depthStencilState.format = GetWindowPtr()->GetDepthFormat();
     depthStencilState.stencilReadMask = 0;
     depthStencilState.stencilWriteMask = 0;
     pipelineDesc.depthStencil = &depthStencilState;
 
     // pipelineDesc.multisample;
 
-    m_Pipline = Window.GetDevice().CreateRenderPipeline(&pipelineDesc);
+    m_Pipline = GetWindowPtr()->GetDevice().CreateRenderPipeline(&pipelineDesc);
+}
+
+void CRenderPipeline::ResizeCallback(CWindowBase* Window)
+{
+    CreatePipeline(Window);
 }
 
 wgpu::ShaderModule

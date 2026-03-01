@@ -50,7 +50,7 @@ public:
     auto AddOnWindowResizes(auto&& Callback) { return m_OnWindowResizes.emplace(m_OnWindowResizes.end(), std::forward<decltype(Callback)>(Callback)); }
     auto EraseOnWindowResizes(auto&& Iter) { return m_OnWindowResizes.erase(Iter); }
 
-    void RecreateSurface();
+    virtual void RecreateSurface();
 
     float GetDeltaTime() const noexcept { return m_DeltaTime; }
     CInputManager& GetInputManager() const noexcept;

@@ -19,7 +19,7 @@ struct SNodeConnectionInstanceBuffer {
 
 class CNodeConnectionPipline : public CRenderPipeline {
 public:
-    CNodeConnectionPipline(const CWindowBase* Window);
+    CNodeConnectionPipline(CWindowBase* Window);
     ~CNodeConnectionPipline();
 
     size_t AddConnection(const SNodeConnectionInstanceBuffer& Connection);

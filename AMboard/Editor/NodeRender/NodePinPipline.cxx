@@ -187,7 +187,8 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
 })wgsl";
 
 CNodePinPipline::~CNodePinPipline() = default;
-CNodePinPipline::CNodePinPipline(const CWindowBase* Window)
+CNodePinPipline::CNodePinPipline(CWindowBase* Window)
+    : CRenderPipeline(Window)
 {
     SetShaderCode(PinShaderCode);
 

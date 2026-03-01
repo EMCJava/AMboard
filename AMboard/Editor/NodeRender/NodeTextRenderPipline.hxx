@@ -27,7 +27,7 @@ class CNodeTextRenderPipline : public CRenderPipeline {
     void PushPerGroupBuffer(STextGroupHandle& TextGroupHandle);
 
 public:
-    CNodeTextRenderPipline(const CWindowBase* Window, std::shared_ptr<class CFont> Font);
+    CNodeTextRenderPipline(CWindowBase* Window, std::shared_ptr<class CFont> Font);
     ~CNodeTextRenderPipline();
 
     std::list<STextGroupHandle>::iterator RegisterTextGroup(size_t NodeId, std::string Text, float Scale = 1, const SNodeTextPerGroupMeta& Meta = { });

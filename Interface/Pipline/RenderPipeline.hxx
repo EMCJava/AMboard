@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <Interface/WindowResizeReactor.hxx>
+
 #include <dawn/webgpu_cpp.h>
 
 #include <glm/mat4x4.hpp>
@@ -25,7 +27,11 @@ struct SIndirectCommand {
     uint32_t FirstInstance = 0;
 };
 
-class CRenderPipeline {
+class CRenderPipeline : public CWindowResizeReactor<CRenderPipeline> {
+
+    friend CWindowResizeReactor;
+    void ResizeCallback(CWindowBase* Window);
+
 protected:
     static wgpu::ShaderModule CompileShaderFromCode(const wgpu::Device& Device, const std::string_view& Code);
 
@@ -36,11 +42,11 @@ protected:
     [[nodiscard]] virtual std::vector<SVertexBufferMeta> GetVertexBufferMeta() const { return { }; }
 
 public:
-    CRenderPipeline();
+    CRenderPipeline(CWindowBase* Window);
     virtual ~CRenderPipeline();
 
     void SetShaderCode(const std::string_view Code) noexcept { m_ShaderCode = Code; }
-    void CreatePipeline(const class CWindowBase& Window, bool ForceRecreate = true);
+    void CreatePipeline(bool ForceRecreate = true);
 
     [[nodiscard]] auto& GetBindGroups() const noexcept { return m_BindingGroupLayouts; }
     [[nodiscard]] operator const wgpu::RenderPipeline&() const noexcept { return m_Pipline; }

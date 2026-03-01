@@ -146,7 +146,8 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     return color;
 })";
 
-CNodeBackgroundPipline::CNodeBackgroundPipline(const CWindowBase* Window)
+CNodeBackgroundPipline::CNodeBackgroundPipline(CWindowBase* Window)
+    : CRenderPipeline(Window)
 {
     SetShaderCode(NodeRenderShader);
 

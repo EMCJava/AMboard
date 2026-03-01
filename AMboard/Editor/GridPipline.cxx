@@ -107,7 +107,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 }
 )";
 
-CGridPipline::CGridPipline()
+CGridPipline::CGridPipline(CWindowBase* Window)
+    : CRenderPipeline(Window)
 {
     SetShaderCode(GridShaderCode);
 }
