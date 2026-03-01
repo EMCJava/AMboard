@@ -27,6 +27,10 @@
 
 #include <nfd.h>
 
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_wgpu.h"
+
 #include <fstream>
 #include <random>
 
@@ -46,6 +50,37 @@ glm::vec2 SEditorNodeContext::MoveLogicalPosition(const glm::vec2& Delta, const 
 glm::vec2 SEditorNodeContext::GetDisplayPosition(const float SnapValue) const noexcept
 {
     return round(LogicalPosition / SnapValue) * SnapValue;
+}
+
+void CBoardEditor::SetUpImGui() noexcept
+{
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+    ImGui::StyleColorsLight();
+
+    const auto DPIScale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor());
+
+    // Setup scaling
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.ScaleAllSizes(DPIScale); // Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
+    style.FontScaleDpi = DPIScale; // Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here for documentation purpose)
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForOther(m_Window.get(), true);
+#ifdef __EMSCRIPTEN__
+    ImGui_ImplGlfw_InstallEmscriptenCallbacks(window, "#canvas");
+#endif
+    ImGui_ImplWGPU_InitInfo init_info;
+    init_info.Device = m_Device.Get();
+    init_info.NumFramesInFlight = 3;
+    init_info.RenderTargetFormat = static_cast<WGPUTextureFormat>(m_SurfaceFormat);
+    init_info.DepthStencilFormat = WGPUTextureFormat_Depth32Float;
+    ImGui_ImplWGPU_Init(&init_info);
 }
 
 glm::vec2 CBoardEditor::ScreenToWorld(const glm::vec2& ScreenPos) const noexcept
@@ -266,6 +301,8 @@ void CBoardEditor::SaveCanvasTo(const std::filesystem::path& Path) noexcept
 
 CBoardEditor::CBoardEditor()
 {
+    SetUpImGui();
+
     m_GridPipline = std::make_unique<CGridPipline>();
     m_GridPipline->CreatePipeline(*this);
 
@@ -348,6 +385,10 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
     if (const auto EventStage = CWindowBase::ProcessEvent();
         EventStage != EWindowEventState::Normal) [[unlikely]] {
         return EventStage;
+    }
+
+    if (ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard) {
+        return EWindowEventState::Normal;
     }
 
     const auto MouseCurrentPos = GetInputManager().GetCursorPosition();
@@ -569,6 +610,17 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
     RenderContext.RenderPassEncoder.Draw(4);
 
     m_NodeRenderer->Render(RenderContext);
+
+    {
+        ImGui_ImplWGPU_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::ShowDemoWindow();
+
+        ImGui::Render();
+        ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), RenderContext.RenderPassEncoder.Get());
+    }
 }
 
 std::size_t CBoardEditor::PinPtrPairHash::operator()(const std::pair<void*, void*>& p) const noexcept

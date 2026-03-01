@@ -32,6 +32,8 @@ struct SEditorNodeContext {
 class CPin;
 class CBoardEditor : public CWindowBase {
 
+    void SetUpImGui() noexcept;
+
     [[nodiscard]] glm::vec2 ScreenToWorld(const glm::vec2& ScreenPos) const noexcept;
 
     std::optional<size_t> TryRegisterConnection(CPin* OutputPin, CPin* InputPin);
