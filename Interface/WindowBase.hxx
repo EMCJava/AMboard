@@ -46,7 +46,9 @@ public:
     auto& GetWindowSize() const noexcept { return m_WindowSize; }
     auto GetWindowHandle() const noexcept { return m_Window.get(); }
 
-    auto AddOnWindowResizes(auto&& Callback) { return m_OnWindowResizes.emplace_back(std::forward<decltype(Callback)>(Callback)); }
+    using WindowResizeCallbacks = std::list<std::function<void(CWindowBase* Window)>>;
+    auto AddOnWindowResizes(auto&& Callback) { return m_OnWindowResizes.emplace(m_OnWindowResizes.end(), std::forward<decltype(Callback)>(Callback)); }
+    auto EraseOnWindowResizes(auto&& Iter) { return m_OnWindowResizes.erase(Iter); }
 
     void RecreateSurface();
 
@@ -83,7 +85,7 @@ protected:
     wgpu::TextureFormat m_DepthTextureFormat = wgpu::TextureFormat::Depth32Float;
     wgpu::TextureFormat m_SurfaceFormat;
 
-    std::list<std::function<void()>> m_OnWindowResizes;
+    WindowResizeCallbacks m_OnWindowResizes;
 
     std::unique_ptr<CInputManager> m_InputManager;
 

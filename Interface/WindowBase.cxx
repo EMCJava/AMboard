@@ -215,7 +215,7 @@ void CWindowBase::RecreateSurface()
 
     for (auto& Callback : m_OnWindowResizes)
         if (Callback)
-            Callback();
+            Callback(this);
 }
 
 CInputManager&

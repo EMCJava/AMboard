@@ -13,3 +13,4 @@ add_compile_definitions(GLM_ENABLE_EXPERIMENTAL GLM_FORCE_DEPTH_ZERO_TO_ONE GLM_
 
 create_library(InputManager DEPS glm::glm P_DEPS spdlog::spdlog)
 create_library(WindowBase DEPS InputManager dawn::webgpu_dawn glm::glm P_DEPS spdlog::spdlog glfw WebGPUAPI)
+create_library(WindowResizeReactor P_DEPS WindowBase)
