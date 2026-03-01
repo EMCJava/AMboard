@@ -23,6 +23,11 @@ public:
         AddInputOutputFlowPin();
     }
 
+    std::string_view GetCategory() noexcept override
+    {
+        return "Logging";
+    }
+
 protected:
     void Execute() override
     {
@@ -39,6 +44,11 @@ public:
         AddInputOutputFlowPin();
         EmplacePin<CDataPin>(true);
         EmplacePin<CFlowPin>(false);
+    }
+
+    std::string_view GetCategory() noexcept override
+    {
+        return "Flow";
     }
 
 protected:
@@ -58,6 +68,11 @@ public:
     CSequenceNode()
     {
         AddInputOutputFlowPin();
+    }
+
+    std::string_view GetCategory() noexcept override
+    {
+        return "Flow";
     }
 
     void ExecuteNode() override

@@ -45,6 +45,8 @@ add_compile_definitions(GLM_ENABLE_EXPERIMENTAL GLM_FORCE_DEPTH_ZERO_TO_ONE GLM_
 
 add_subdirectory(NodeRender)
 
+create_library(NodeContextMenu P_DEPS ImGui)
+
 create_library(GridPipline DEPS WindowBase RenderPipeline)
 create_library(
         BoardEditor
@@ -56,6 +58,7 @@ create_library(
         P_DEPS
         Assertions
         CustomNodeManager
+        NodeContextMenu
 
         glm::glm
         nfd::nfd

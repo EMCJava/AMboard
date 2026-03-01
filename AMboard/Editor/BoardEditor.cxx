@@ -4,6 +4,7 @@
 
 #include "BoardEditor.hxx"
 #include "GridPipline.hxx"
+#include "NodeContextMenu.hxx"
 #include "NodeRender/NodeRenderer.hxx"
 
 #include <AMboard/CustomNodes/CustomNodeManager.hxx>
@@ -61,7 +62,7 @@ void CBoardEditor::SetUpImGui() noexcept
     (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
-    ImGui::StyleColorsLight();
+    ImGui::StyleColorsDark();
 
     const auto DPIScale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor());
 
@@ -330,7 +331,13 @@ CBoardEditor::CBoardEditor()
 
     m_NodeRenderer = std::make_unique<CNodeRenderer>(this);
 
+    std::vector<SNodeNameMeta> MenuItems;
+    m_NodeContextMenu = std::make_unique<CNodeContextMenu>();
+
     m_CustomNodeLoader = std::make_unique<CCustomNodeLoader>("NodeExts");
+    for (const auto& NodeName : m_CustomNodeLoader->GetNodeExts())
+        MenuItems.emplace_back(NodeName, std::string(m_CustomNodeLoader->CreateNodeExt(NodeName)->GetCategory()));
+    m_NodeContextMenu->Initialize(std::move(MenuItems));
 
     {
         YAML::Node Graph = YAML::LoadFile("graph.yaml");
@@ -485,17 +492,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
     /// Create Node
     if (GetInputManager().GetMouseButtons().ConsumeEvent(GLFW_MOUSE_BUTTON_RIGHT)) {
-        auto Node = NodeStorage { new CExecuteNode, NodeDefaultDeleter };
-        Node->EmplacePin<CFlowPin>(true);
-        Node->EmplacePin<CFlowPin>(false);
-        Node->EmplacePin<CDataPin>(true);
-        Node->EmplacePin<CDataPin>(false);
-
-        static std::random_device rd;
-        static std::mt19937 gen(rd());
-        static std::uniform_int_distribution<uint32_t> distrib(0, 0xFFFFFF);
-
-        RegisterNode(std::move(Node), "Identity", MouseWorldPos, distrib(gen) << 16 | 0x88);
+        m_NodeContextMenu->OpenPopup();
     }
 
     /// Select Node (release mouse)
@@ -622,7 +619,13 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::ShowDemoWindow();
+        if (const auto NewNode = m_NodeContextMenu->Draw()) {
+            static std::random_device rd;
+            static std::mt19937 gen(rd());
+            static std::uniform_int_distribution<uint32_t> distrib(0, 0xFFFFFF);
+
+            CreateNode(*NewNode, std::bit_cast<glm::vec2>(m_NodeContextMenu->GetPopupLocation()), distrib(gen) << 16 | 0x88);
+        }
 
         ImGui::Render();
         ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), RenderContext.RenderPassEncoder.Get());

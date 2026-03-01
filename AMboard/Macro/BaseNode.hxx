@@ -12,6 +12,7 @@
 #include "Pin.hxx"
 
 #include <algorithm>
+#include <string>
 
 enum class ENodeType {
     Data,
@@ -28,6 +29,11 @@ public:
     CBaseNode& operator=(CBaseNode&&) = delete;
 
     virtual ~CBaseNode();
+
+    virtual std::string_view GetCategory() noexcept
+    {
+        return "Default";
+    }
 
     template <typename PinTy>
     PinTy* EmplacePin(const bool IsInput)

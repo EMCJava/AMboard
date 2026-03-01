@@ -67,6 +67,7 @@ protected:
 
     std::unique_ptr<class CGridPipline> m_GridPipline;
     std::unique_ptr<class CNodeRenderer> m_NodeRenderer;
+    std::unique_ptr<class CNodeContextMenu> m_NodeContextMenu;
 
     std::optional<glm::ivec2> MouseStartClickPos;
     std::optional<int> NodeDragThreshold;
