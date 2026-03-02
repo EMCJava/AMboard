@@ -20,6 +20,11 @@ enum class ENodeType {
 };
 
 class MACRO_API CBaseNode {
+
+protected:
+
+    virtual void PrepareInputPin() noexcept;
+
 public:
     CBaseNode() = default;
 
@@ -65,6 +70,9 @@ public:
 
         return false;
     }
+
+    /// return true if successful
+    virtual bool Evaluate() noexcept;
 
     const auto& GetInputPins() const noexcept { return m_InputPins; }
     const auto& GetOutputPins() const noexcept { return m_OutputPins; }

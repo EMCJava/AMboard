@@ -35,9 +35,17 @@ public:
         return *reinterpret_cast<Ty*>(m_Data) = NewValue;
     }
 
+    void Assign(const CDataPin* Source);
+
+
+    template <typename Self>
+    [[nodiscard]] auto* GetData(this Self&& s) noexcept { return s.m_Data; }
+    auto SetValueType(auto Ty) noexcept { return m_DataType = Ty; }
+
+    [[nodiscard]] operator std::type_index() const noexcept { return m_DataType; }
+
 protected:
-    struct NullTy { };
-    std::type_index m_DataType { std::type_index(typeid(NullTy)) };
+    std::type_index m_DataType { std::type_index(typeid(void)) };
 
     alignas(double) uint8_t m_Data[8];
 };

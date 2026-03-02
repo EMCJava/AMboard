@@ -624,7 +624,7 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
             static std::mt19937 gen(rd());
             static std::uniform_int_distribution<uint32_t> distrib(0, 0xFFFFFF);
 
-            CreateNode(*NewNode, std::bit_cast<glm::vec2>(m_NodeContextMenu->GetPopupLocation()), distrib(gen) << 16 | 0x88);
+            CreateNode(*NewNode, ScreenToWorld(std::bit_cast<glm::vec2>(m_NodeContextMenu->GetPopupLocation())), distrib(gen) << 16 | 0x88);
         }
 
         ImGui::Render();

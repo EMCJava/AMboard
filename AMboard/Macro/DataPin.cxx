@@ -4,6 +4,8 @@
 
 #include "DataPin.hxx"
 
+#include "Util/Assertions.hxx"
+
 void CDataPin::PreConnectPin(CPin* NewPin) noexcept
 {
     CPin::PreConnectPin(NewPin);
@@ -18,4 +20,12 @@ CDataPin::CDataPin(CBaseNode* Owner, const bool IsInputPin) noexcept
     : CPin(Owner, IsInputPin)
 {
     m_PinType = EPinType::Data;
+}
+
+void CDataPin::Assign(const CDataPin* Source)
+{
+    MAKE_SURE(m_DataType == std::type_index(typeid(void)) || m_DataType == Source->m_DataType);
+
+    m_DataType = Source->m_DataType;
+    std::memcpy(m_Data, Source->m_Data, sizeof(m_Data));
 }

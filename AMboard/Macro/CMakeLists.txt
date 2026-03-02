@@ -1,5 +1,5 @@
 create_library(Pin P_DEPS Assertions)
-create_library(DataPin DEPS Pin)
+create_library(DataPin DEPS Pin P_DEPS Assertions)
 create_library(FlowPin DEPS Pin)
 create_library(BaseNode DEPS Pin)
 create_library(ExecuteNode DEPS BaseNode FlowPin)

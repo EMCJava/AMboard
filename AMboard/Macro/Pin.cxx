@@ -73,7 +73,7 @@ void CPin::DisconnectPins() noexcept
     }
 }
 
-CPin* CPin::GetTheOnlyPin() const
+CPin* CPin::GetTheOnlyConnected() const
 {
     MAKE_SURE(m_ConnectedPins.size() == 1)
     return *m_ConnectedPins.begin();

@@ -39,7 +39,7 @@ public:
     virtual bool DisconnectPin(CPin* TargetPin) noexcept;
     void DisconnectPins() noexcept;
 
-    [[nodiscard]] CPin* GetTheOnlyPin() const;
+    [[nodiscard]] CPin* GetTheOnlyConnected() const;
 
     [[nodiscard]] bool IsConnected(CPin* TargetPin) const noexcept;
     [[nodiscard]] virtual bool Compatible(CPin* NewPin) noexcept;
@@ -60,11 +60,11 @@ public:
         return m_OnConnectionChanges.emplace_back(Func);
     }
 
-    template <typename PinTy>
+    template <typename PinTy, typename Self>
         requires std::is_base_of_v<CPin, PinTy>
-    [[nodiscard]] PinTy* As() noexcept
+    [[nodiscard]] auto* As(this Self&& s) noexcept
     {
-        return static_cast<PinTy*>(this);
+        return static_cast<std::conditional_t<std::is_const_v<std::remove_reference_t<Self>>, const PinTy*, PinTy*>>(&s);
     }
 
 protected:
