@@ -25,7 +25,7 @@ public:
 protected:
     void AddInputOutputFlowPin();
 
-    virtual void Execute(){}
+    virtual void Execute() { PrepareInputPin(); }
 
     std::vector<CPin*> m_InFlowingPin;
     size_t m_DesiredOutputPin = 0;

@@ -16,6 +16,11 @@ void CDataPin::PreConnectPin(CPin* NewPin) noexcept
     }
 }
 
+bool CDataPin::Compatible(CPin* NewPin) noexcept
+{
+    return CPin::Compatible(NewPin) && (m_IsUniversalPin || static_cast<const CDataPin*>(NewPin)->m_IsUniversalPin || m_DataType == static_cast<const CDataPin*>(NewPin)->m_DataType);
+}
+
 CDataPin::CDataPin(CBaseNode* Owner, const bool IsInputPin) noexcept
     : CPin(Owner, IsInputPin)
 {
@@ -24,8 +29,8 @@ CDataPin::CDataPin(CBaseNode* Owner, const bool IsInputPin) noexcept
 
 void CDataPin::Assign(const CDataPin* Source)
 {
-    MAKE_SURE(m_DataType == "void" || m_DataType == Source->m_DataType);
+    MAKE_SURE(m_IsUniversalPin || Source->m_IsUniversalPin || m_DataType == Source->m_DataType);
 
     m_DataType = Source->m_DataType;
-    std::memcpy(m_Data, Source->m_Data, sizeof(m_Data));
+    m_SharedData = Source->m_SharedData;
 }

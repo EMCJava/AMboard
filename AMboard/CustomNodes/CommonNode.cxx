@@ -84,14 +84,14 @@ using PromotedType = std::conditional_t<(TypeRank<T1> > TypeRank<T2>), T1, T2>;
 
 // Parse void* to Variant using C++17 Fold Expressions
 template <typename Variant>
-Variant ParseData(const std::string_view& ty, const void* data)
+Variant ParseData(const std::string_view& ty, const double data)
 {
     Variant result;
     bool found = false;
 
     // C++20 Templated Lambda to iterate over all types in the variant
     [&]<typename... Ts>(std::variant<Ts...>&) {
-        found = ((ty == TypeName<Ts> ? (result = *static_cast<const Ts*>(data), true) : false) || ...);
+        found = ((ty == TypeName<Ts> ? (result = reinterpret_cast<const Ts&>(data), true) : false) || ...);
     }(result);
 
     if (!found)
@@ -103,37 +103,35 @@ class CEntranceNode : public CExecuteNode {
 public:
     CEntranceNode()
     {
-        EmplacePin<CFlowPin>(false);
+        ErasePin(GetInputPins()[0].get());
     }
 };
 
-class CPrintingNode : public CExecuteNode {
+class CToStringNode : public CBaseNode {
 public:
-    CPrintingNode()
+    CToStringNode()
     {
-        AddInputOutputFlowPin();
-        EmplacePin<CDataPin>(true);
+        EmplacePin<CDataPin>(true)->SetIsUniversalPin();
+        EmplacePin<CDataPin>(false)->SetValueType("string");
     }
 
     std::string_view GetCategory() noexcept override
     {
-        return "Logging";
+        return "Util";
     }
 
 protected:
     // Convert void* to string using Fold Expressions and std::format
     template <typename Variant>
-    std::string ToStringImpl(const std::string_view& ty, const void* data)
+    std::string ToStringImpl(const std::string_view& ty, const double data)
     {
-        if (data == nullptr)
-            return "null";
         std::string result;
         bool found = false;
         Variant dummy;
 
         [&]<typename... Ts>(std::variant<Ts...>&) {
             // Unary '+' ensures int8_t/uint8_t format as numbers, not ASCII chars
-            found = ((ty == TypeName<Ts> ? (result = std::format("{}", +*static_cast<const Ts*>(data)), true) : false) || ...);
+            found = ((ty == TypeName<Ts> ? (result = std::format("{}", +reinterpret_cast<const Ts&>(data)), true) : false) || ...);
         }(dummy);
 
         if (!found)
@@ -142,17 +140,42 @@ protected:
     }
 
     // Public ToString wrapper
-    std::string ToString(std::string_view Ty, const void* Data)
+    std::string ToString(std::string_view Ty, const double Data)
     {
         return ToStringImpl<NumericVariant>(Ty, Data);
     }
 
+    bool Evaluate() noexcept override
+    {
+        if (!CBaseNode::Evaluate())
+            return false;
+
+        const auto& Value = reinterpret_cast<const CDataPin&>(*GetInputPins()[0]);
+        reinterpret_cast<CDataPin&>(*GetOutputPins()[0]).Set("string", std::make_shared<std::string>(ToString(Value.GetValueType(), Value.AsDouble())));
+
+        return true;
+    }
+};
+
+class CPrintingNode : public CExecuteNode {
+public:
+    CPrintingNode()
+    {
+        EmplacePin<CDataPin>(true)->SetValueType("string");
+    }
+
+    std::string_view GetCategory() noexcept override
+    {
+        return "Logging";
+    }
+
+protected:
     void Execute() override
     {
-        Evaluate();
+        CExecuteNode::Execute();
 
         const auto& Value = reinterpret_cast<const CDataPin&>(*GetInputPins()[1]);
-        spdlog::info("{}", ToString(Value.GetDataType(), Value.GetData()));
+        spdlog::info("{}", Value.Get<std::string>("string"));
     }
 };
 
@@ -160,8 +183,7 @@ class CBranchingNode : public CExecuteNode {
 public:
     CBranchingNode()
     {
-        AddInputOutputFlowPin();
-        EmplacePin<CDataPin>(true);
+        EmplacePin<CDataPin>(true)->SetValueType("bool");
         EmplacePin<CFlowPin>(false);
     }
 
@@ -175,7 +197,7 @@ protected:
     {
         if (GetFlowOutputPins().size() > 1) [[likely]] {
             if (auto DataPin = GetInputPinsWith<EPinType::Data>();
-                !DataPin.empty() && !static_cast<CDataPin*>(DataPin.front().get())->PinGet(bool))
+                !DataPin.empty() && !static_cast<CDataPin*>(DataPin.front().get())->PinGetTrivial(bool))
 
                 m_DesiredOutputPin = 1;
         }
@@ -184,11 +206,6 @@ protected:
 
 class CSequenceNode : public CExecuteNode {
 public:
-    CSequenceNode()
-    {
-        AddInputOutputFlowPin();
-    }
-
     std::string_view GetCategory() noexcept override
     {
         return "Flow";
@@ -211,12 +228,12 @@ public:
 
     CMathCommonNode()
     {
-        EmplacePin<CDataPin>(true);
+        EmplacePin<CDataPin>(true)->SetIsUniversalPin();
         EmplacePin<CDataPin>(false);
     }
 
 protected:
-    std::string_view Operate(EMathOperation op, const std::string_view& Ty1, const std::string_view& Ty2, const void* Data1, const void* Data2, void* DataOutput)
+    std::string_view Operate(EMathOperation op, const std::string_view& Ty1, const std::string_view& Ty2, const double Data1, const double Data2, void* DataOutput)
     {
         auto val1 = ParseData<NumericVariant>(Ty1, Data1);
         auto val2 = ParseData<NumericVariant>(Ty2, Data2);
@@ -265,7 +282,7 @@ class CAddNode : public CMathCommonNode {
 public:
     CAddNode()
     {
-        EmplacePin<CDataPin>(true);
+        EmplacePin<CDataPin>(true)->SetIsUniversalPin();
 
         reinterpret_cast<CDataPin&>(*GetInputPins()[0]).PinSet(float, 321.f);
         reinterpret_cast<CDataPin&>(*GetInputPins()[1]).PinSet(uint32_t, 123);
@@ -279,8 +296,10 @@ public:
         const auto& ValueB = reinterpret_cast<const CDataPin&>(*GetInputPins()[1]);
         auto& Result = reinterpret_cast<CDataPin&>(*GetOutputPins()[0]);
 
-        return Result.SetValueType(Operate(EMathOperation::Add, ValueA.GetDataType(), ValueB.GetDataType(), ValueA.GetData(), ValueB.GetData(), Result.GetData())) != "void";
+        double TrivialResult = 0;
+        Result.Set(Operate(EMathOperation::Add, ValueA.GetValueType(), ValueB.GetValueType(), ValueA.AsDouble(), ValueB.AsDouble(), &TrivialResult), &TrivialResult);
+        return Result.GetValueType() != "void";
     }
 };
 
-REGISTER_MACROS(CAddNode, CEntranceNode, CPrintingNode, CBranchingNode, CSequenceNode)
+REGISTER_MACROS(CAddNode, CEntranceNode, CToStringNode, CPrintingNode, CBranchingNode, CSequenceNode)

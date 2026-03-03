@@ -19,6 +19,8 @@ CExecuteNode::CExecuteNode()
         m_OutFlowingPin.clear();
         std::ranges::copy(GetOutputPins() | FlowPinFilter | FlowPinTransform, std::back_inserter(m_OutFlowingPin));
     });
+
+    AddInputOutputFlowPin();
 }
 
 void CExecuteNode::ExecuteNode()
