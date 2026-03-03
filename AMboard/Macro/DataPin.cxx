@@ -24,7 +24,7 @@ CDataPin::CDataPin(CBaseNode* Owner, const bool IsInputPin) noexcept
 
 void CDataPin::Assign(const CDataPin* Source)
 {
-    MAKE_SURE(m_DataType == std::type_index(typeid(void)) || m_DataType == Source->m_DataType);
+    MAKE_SURE(m_DataType == "void" || m_DataType == Source->m_DataType);
 
     m_DataType = Source->m_DataType;
     std::memcpy(m_Data, Source->m_Data, sizeof(m_Data));

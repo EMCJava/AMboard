@@ -6,25 +6,98 @@
 #include <AMboard/Macro/ExecuteNode.hxx>
 
 #include <iostream>
+#include <variant>
 
 #include <spdlog/spdlog.h>
 
-// 1. Helper structs for type lists
-template <typename T>
-struct TypeTag {
-    using type = T;
+// 1. Define the Math Operations
+enum class EMathOperation {
+    Add,
+    Subtract,
+    Multiply,
+    Divide
 };
-template <typename... Ts>
-struct TypeList { };
 
-// 2. Supported basic C++ numeric types
-using SupportedNumericTypes = TypeList<
-    char, signed char, unsigned char,
-    short, unsigned short,
-    int, unsigned int,
-    long, unsigned long,
-    long long, unsigned long long,
-    float, double, long double>;
+// A. Add the type to the Variant
+using NumericVariant = std::variant<
+    int8_t, uint8_t,
+    int16_t, uint16_t,
+    int32_t, uint32_t,
+    int64_t, uint64_t,
+    float, double>;
+
+// B. Define the string mapping
+template <typename T>
+constexpr std::string_view TypeName = "unknown";
+template <>
+constexpr std::string_view TypeName<int8_t> = "int8_t";
+template <>
+constexpr std::string_view TypeName<uint8_t> = "uint8_t";
+template <>
+constexpr std::string_view TypeName<int16_t> = "int16_t";
+template <>
+constexpr std::string_view TypeName<uint16_t> = "uint16_t";
+template <>
+constexpr std::string_view TypeName<int32_t> = "int32_t";
+template <>
+constexpr std::string_view TypeName<uint32_t> = "uint32_t";
+template <>
+constexpr std::string_view TypeName<int64_t> = "int64_t";
+template <>
+constexpr std::string_view TypeName<uint64_t> = "uint64_t";
+template <>
+constexpr std::string_view TypeName<float> = "float";
+template <>
+constexpr std::string_view TypeName<double> = "double";
+
+// C. Define the Promotion Rank (Higher rank becomes the result type)
+template <typename T>
+constexpr int TypeRank = 0;
+template <>
+constexpr int TypeRank<int8_t> = 1;
+template <>
+constexpr int TypeRank<uint8_t> = 2;
+template <>
+constexpr int TypeRank<int16_t> = 3;
+template <>
+constexpr int TypeRank<uint16_t> = 4;
+template <>
+constexpr int TypeRank<int32_t> = 5;
+template <>
+constexpr int TypeRank<uint32_t> = 6;
+template <>
+constexpr int TypeRank<int64_t> = 7;
+template <>
+constexpr int TypeRank<uint64_t> = 8;
+template <>
+constexpr int TypeRank<float> = 9;
+template <>
+constexpr int TypeRank<double> = 10;
+
+// =========================================================================
+// CORE LOGIC
+// =========================================================================
+
+// Automatic Type Promotion based on Rank
+template <typename T1, typename T2>
+using PromotedType = std::conditional_t<(TypeRank<T1> > TypeRank<T2>), T1, T2>;
+
+// Parse void* to Variant using C++17 Fold Expressions
+template <typename Variant>
+Variant ParseData(const std::string_view& ty, const void* data)
+{
+    Variant result;
+    bool found = false;
+
+    // C++20 Templated Lambda to iterate over all types in the variant
+    [&]<typename... Ts>(std::variant<Ts...>&) {
+        found = ((ty == TypeName<Ts> ? (result = *static_cast<const Ts*>(data), true) : false) || ...);
+    }(result);
+
+    if (!found)
+        throw std::invalid_argument(std::format("Unsupported type: {}", ty));
+    return result;
+}
 
 class CEntranceNode : public CExecuteNode {
 public:
@@ -47,35 +120,39 @@ public:
         return "Logging";
     }
 
-    template <typename... Ts>
-    std::string ToString_Impl(const std::type_index Ty, const void* ptr, TypeList<Ts...>)
+protected:
+    // Convert void* to string using Fold Expressions and std::format
+    template <typename Variant>
+    std::string ToStringImpl(const std::string_view& ty, const void* data)
     {
+        if (data == nullptr)
+            return "null";
         std::string result;
+        bool found = false;
+        Variant dummy;
 
-        auto handleType = [&](auto tag) {
-            using T = typename decltype(tag)::type;
+        [&]<typename... Ts>(std::variant<Ts...>&) {
+            // Unary '+' ensures int8_t/uint8_t format as numbers, not ASCII chars
+            found = ((ty == TypeName<Ts> ? (result = std::format("{}", +*static_cast<const Ts*>(data)), true) : false) || ...);
+        }(dummy);
 
-            // Cast the void pointer back to the actual type
-            const T value = *static_cast<const T*>(ptr);
-
-            // std::to_string automatically promotes char/short to int,
-            // so it safely converts all numeric types to their string representation.
-            result = std::to_string(value);
-        };
-
-        // Fold expression: iterate through all types to find the matching type_index
-        ((Ty == typeid(Ts) ? (handleType(TypeTag<Ts> { }), true) : false) || ...);
-
+        if (!found)
+            throw std::invalid_argument(std::format("Unsupported type: {}", ty));
         return result;
     }
 
-protected:
+    // Public ToString wrapper
+    std::string ToString(std::string_view Ty, const void* Data)
+    {
+        return ToStringImpl<NumericVariant>(Ty, Data);
+    }
+
     void Execute() override
     {
         Evaluate();
 
         const auto& Value = reinterpret_cast<const CDataPin&>(*GetInputPins()[1]);
-        spdlog::info("{}", ToString_Impl(Value, Value.GetData(), SupportedNumericTypes { }));
+        spdlog::info("{}", ToString(Value.GetDataType(), Value.GetData()));
     }
 };
 
@@ -98,7 +175,7 @@ protected:
     {
         if (GetFlowOutputPins().size() > 1) [[likely]] {
             if (auto DataPin = GetInputPinsWith<EPinType::Data>();
-                !DataPin.empty() && !static_cast<CDataPin*>(DataPin.front().get())->TryGet<bool>())
+                !DataPin.empty() && !static_cast<CDataPin*>(DataPin.front().get())->PinGet(bool))
 
                 m_DesiredOutputPin = 1;
         }
@@ -139,56 +216,48 @@ public:
     }
 
 protected:
-    // 3. The core generic engine that handles ANY operation
-    template <typename Op, typename... Ts>
-    std::type_index Compute_Impl(const std::type_index ATy, const std::type_index BTy,
-        const void* A, const void* B, void* Result, TypeList<Ts...>)
+    std::string_view Operate(EMathOperation op, const std::string_view& Ty1, const std::string_view& Ty2, const void* Data1, const void* Data2, void* DataOutput)
     {
-        std::type_index resultType = typeid(void);
-        bool success = false;
-        Op op; // Instantiate the operation functor (e.g., std::plus<>)
+        auto val1 = ParseData<NumericVariant>(Ty1, Data1);
+        auto val2 = ParseData<NumericVariant>(Ty2, Data2);
 
-        auto handleA = [&](auto tagA) {
-            using TypeA = typename decltype(tagA)::type;
+        return std::visit([op, DataOutput](auto v1, auto v2) -> std::string_view {
+            using T1 = decltype(v1);
+            using T2 = decltype(v2);
+            using ResultType = PromotedType<T1, T2>;
 
-            auto handleB = [&](auto tagB) {
-                using TypeB = typename decltype(tagB)::type;
+            ResultType c1 = static_cast<ResultType>(v1);
+            ResultType c2 = static_cast<ResultType>(v2);
+            ResultType result { };
 
-                // Deduce the result type based on the operation and C++ promotion rules
-                using ResType = decltype(op(std::declval<TypeA>(), std::declval<TypeB>()));
-                static_assert(!std::is_same_v<ResType, void>);
-
-                const TypeA valA = *static_cast<const TypeA*>(A);
-                const TypeB valB = *static_cast<const TypeB*>(B);
-
-                // Safety check: Prevent Integer Division by Zero
-                if constexpr (std::is_same_v<Op, std::divides<>>) {
-                    if constexpr (std::is_integral_v<TypeB>) {
-                        if (valB == 0) {
-                            throw std::runtime_error("Integer division by zero.");
-                        }
-                    }
+            switch (op) {
+            case EMathOperation::Add:
+                result = c1 + c2;
+                break;
+            case EMathOperation::Subtract:
+                result = c1 - c2;
+                break;
+            case EMathOperation::Multiply:
+                result = c1 * c2;
+                break;
+            case EMathOperation::Divide:
+                if constexpr (std::is_integral_v<ResultType>) {
+                    if (c2 == 0)
+                        throw std::runtime_error("Integer division by zero!");
                 }
+                result = c1 / c2;
+                break;
+            default:
+                std::unreachable(); // C++23
+            }
 
-                // Store result if a valid pointer was provided
-                if (Result) {
-                    *static_cast<ResType*>(Result) = op(valA, valB);
-                }
+            if (DataOutput != nullptr) {
+                *static_cast<ResultType*>(DataOutput) = result;
+            }
 
-                resultType = typeid(ResType);
-                success = true;
-            };
-
-            ((BTy == typeid(Ts) ? (handleB(TypeTag<Ts> { }), true) : false) || ...);
-        };
-
-        ((ATy == typeid(Ts) ? (handleA(TypeTag<Ts> { }), true) : false) || ...);
-
-        if (!success) {
-            return typeid(void);
-        }
-
-        return resultType;
+            return TypeName<ResultType>;
+        },
+            val1, val2);
     }
 };
 
@@ -198,8 +267,8 @@ public:
     {
         EmplacePin<CDataPin>(true);
 
-        reinterpret_cast<CDataPin&>(*GetInputPins()[0]).Set(123);
-        reinterpret_cast<CDataPin&>(*GetInputPins()[1]).Set(321.f);
+        reinterpret_cast<CDataPin&>(*GetInputPins()[0]).PinSet(float, 321.f);
+        reinterpret_cast<CDataPin&>(*GetInputPins()[1]).PinSet(uint32_t, 123);
     }
 
     bool Evaluate() noexcept override
@@ -210,7 +279,7 @@ public:
         const auto& ValueB = reinterpret_cast<const CDataPin&>(*GetInputPins()[1]);
         auto& Result = reinterpret_cast<CDataPin&>(*GetOutputPins()[0]);
 
-        return Result.SetValueType(Compute_Impl<std::plus<>>(ValueA, ValueB, ValueA.GetData(), ValueB.GetData(), Result.GetData(), SupportedNumericTypes { })) != typeid(void);
+        return Result.SetValueType(Operate(EMathOperation::Add, ValueA.GetDataType(), ValueB.GetDataType(), ValueA.GetData(), ValueB.GetData(), Result.GetData())) != "void";
     }
 };
 
