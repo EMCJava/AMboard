@@ -496,7 +496,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
     }
 
     /// Select Node (release mouse)
-    if (GetInputManager().GetMouseButtons().ConsumeEvent({ GLFW_MOUSE_BUTTON_LEFT, GLFW_RELEASE })) {
+    if (GetInputManager().GetMouseButtons().ConsumeEvent({ GLFW_MOUSE_BUTTON_LEFT, GLFW_RELEASE }) && /* Clicking title bar will not register */ MouseStartClickPos.has_value()) {
 
         /// Click, not drag
         if (glm::length2(glm::vec2 { MouseCurrentPos - *MouseStartClickPos }) < 3 * 3) {
@@ -626,6 +626,10 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
 
             CreateNode(*NewNode, ScreenToWorld(std::bit_cast<glm::vec2>(m_NodeContextMenu->GetPopupLocation())), distrib(gen) << 16 | 0x88);
         }
+
+        ImGui::BeginTooltip();
+        ImGui::Text("Testing");
+        ImGui::EndTooltip();
 
         ImGui::Render();
         ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), RenderContext.RenderPassEncoder.Get());
