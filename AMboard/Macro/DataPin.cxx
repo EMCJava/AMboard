@@ -27,6 +27,17 @@ CDataPin::CDataPin(CBaseNode* Owner, const bool IsInputPin) noexcept
     m_PinType = EPinType::Data;
 }
 
+std::string_view CDataPin::GetToolTips() const noexcept
+{
+    if (CPin::GetToolTips().empty()) {
+        if (m_IsUniversalPin && m_DataType == "void")
+            return "Any";
+        return m_DataType;
+    }
+
+    return CPin::GetToolTips();
+}
+
 void CDataPin::Assign(const CDataPin* Source)
 {
     MAKE_SURE(m_IsUniversalPin || Source->m_IsUniversalPin || m_DataType == Source->m_DataType);

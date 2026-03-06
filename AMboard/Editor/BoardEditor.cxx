@@ -410,6 +410,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
     std::optional<std::size_t> CursorHoveringNode;
     std::optional<std::size_t> CursorHoveringPin;
+    CPin* CursorHoveringPtr = nullptr;
 
     /// Node interaction pre-compute
     for (const auto& [Left, Right] : m_NodeRenderer->GetValidRange()) {
@@ -417,7 +418,9 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
             if (m_NodeRenderer->InBound(i, MouseWorldPos)) [[unlikely]] {
                 CursorHoveringNode = i;
 
-                CursorHoveringPin = m_NodeRenderer->GetHoveringPin(i, MouseWorldPos, m_DraggingPin.has_value() ? 8 : 0);
+                if ((CursorHoveringPin = m_NodeRenderer->GetHoveringPin(i, MouseWorldPos, m_DraggingPin.has_value() ? 8 : 0))) {
+                    CursorHoveringPtr = m_PinIdMapping.right.at(*CursorHoveringPin);
+                }
 
                 if (m_LastHoveringPin != CursorHoveringPin) {
                     if (m_LastHoveringPin.has_value()) /// Deselect
@@ -521,7 +524,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
             /// End of drag pin
             if (CursorHoveringPin.has_value() && *m_DraggingPin != *CursorHoveringPin) {
-                std::pair Pins = { m_PinIdMapping.right.at(*m_DraggingPin), m_PinIdMapping.right.at(*CursorHoveringPin) };
+                std::pair Pins = { m_PinIdMapping.right.at(*m_DraggingPin), CursorHoveringPtr };
                 if (Pins.first->IsInputPin())
                     std::swap(Pins.first, Pins.second);
                 TryRegisterConnection(Pins.first, Pins.second).has_value();
@@ -535,7 +538,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
     if (GetInputManager().GetMouseButtons().IsDoubleClick(GLFW_MOUSE_BUTTON_LEFT)) {
         if (CursorHoveringPin.has_value()) {
-            m_PinIdMapping.right.at(*CursorHoveringPin)->DisconnectPins();
+            CursorHoveringPtr->DisconnectPins();
         }
     }
 
@@ -564,8 +567,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
                 m_VirtualNodeForPinDrag = m_NodeRenderer->CreateVirtualNode(MouseWorldPos);
 
-                const CPin* InteractingPin = m_PinIdMapping.right.at(*CursorHoveringPin);
-                m_VirtualConnectionForPinDrag = (m_NodeRenderer.get()->*(InteractingPin->IsInputPin() ? &CNodeRenderer::InputLinkVirtualPin : &CNodeRenderer::OutputLinkVirtualPin))(*m_DraggingPin, m_VirtualNodeForPinDrag);
+                m_VirtualConnectionForPinDrag = (m_NodeRenderer.get()->*(CursorHoveringPtr->IsInputPin() ? &CNodeRenderer::InputLinkVirtualPin : &CNodeRenderer::OutputLinkVirtualPin))(*m_DraggingPin, m_VirtualNodeForPinDrag);
 
                 FirstClickHasUsed = true;
             }
@@ -595,6 +597,11 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
                 }
             }
         }
+    }
+
+    m_CurrentToolTips = { };
+    if (!m_DraggingPin.has_value() && CursorHoveringPin.has_value()) {
+        m_CurrentToolTips = CursorHoveringPtr->GetToolTips();
     }
 
     return EWindowEventState::Normal;
@@ -629,9 +636,11 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
             CreateNode(*NewNode, ScreenToWorld(std::bit_cast<glm::vec2>(m_NodeContextMenu->GetPopupLocation())), distrib(gen) << 16 | 0x88);
         }
 
-        ImGui::BeginTooltip();
-        ImGui::Text("Testing");
-        ImGui::EndTooltip();
+        if (!m_CurrentToolTips.empty()) {
+            ImGui::BeginTooltip();
+            ImGui::Text(m_CurrentToolTips.data());
+            ImGui::EndTooltip();
+        }
 
         ImGui::Render();
         ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), RenderContext.RenderPassEncoder.Get());

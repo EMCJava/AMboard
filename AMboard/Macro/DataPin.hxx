@@ -23,6 +23,8 @@ protected:
 public:
     CDataPin(CBaseNode* Owner, bool IsInputPin) noexcept;
 
+    std::string_view GetToolTips() const noexcept override;
+
     template <typename Ty>
         requires std::is_trivial_v<Ty>
     Ty TryGetTrivial(const std::string_view& TyStr) const noexcept
@@ -79,7 +81,7 @@ public:
 
     void Assign(const CDataPin* Source);
 
-    decltype(auto) SetValueType(auto&& Ty) noexcept { return m_DataType = Ty; }
+    decltype(auto) SetValueType(auto&& Ty) noexcept { m_DataType = Ty; return* this; }
     [[nodiscard]] const auto& GetValueType() const noexcept { return m_DataType; }
 
     void SetIsUniversalPin(const bool Universal = true) noexcept { m_IsUniversalPin = Universal; }

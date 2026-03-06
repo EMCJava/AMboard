@@ -12,6 +12,8 @@
 
 #include "MacroDefines.hxx"
 
+#include <string_view>
+
 enum class EPinType {
     None,
     Data,
@@ -34,6 +36,9 @@ public:
     CPin& operator=(CPin&&) = delete;
 
     virtual ~CPin();
+
+    void SetToolTips(std::string_view ToolTips) { m_CustomToolTips = ToolTips; }
+    [[nodiscard]] virtual std::string_view GetToolTips() const noexcept { return m_CustomToolTips; }
 
     virtual bool ConnectPin(CPin* NewPin) noexcept;
     virtual bool DisconnectPin(CPin* TargetPin) noexcept;
@@ -70,6 +75,7 @@ public:
 protected:
     bool m_IsInputPin;
     EPinType m_PinType = EPinType::None;
+    std::string_view m_CustomToolTips;
 
     CBaseNode* m_Owner = nullptr;
 

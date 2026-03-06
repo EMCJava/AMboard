@@ -183,7 +183,7 @@ class CBranchingNode : public CExecuteNode {
 public:
     CBranchingNode()
     {
-        EmplacePin<CDataPin>(true)->SetValueType("bool");
+        EmplacePin<CDataPin>(true)->SetValueType("bool").SetToolTips("bCondition");
         EmplacePin<CFlowPin>(false);
     }
 

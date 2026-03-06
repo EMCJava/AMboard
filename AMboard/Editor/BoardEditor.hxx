@@ -69,6 +69,8 @@ protected:
     std::unique_ptr<class CNodeRenderer> m_NodeRenderer;
     std::unique_ptr<class CNodeContextMenu> m_NodeContextMenu;
 
+    std::string_view m_CurrentToolTips;
+
     std::optional<glm::ivec2> MouseStartClickPos;
     std::optional<int> NodeDragThreshold;
 
