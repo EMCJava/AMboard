@@ -82,7 +82,7 @@ public:
     [[nodiscard]] bool InBound(size_t Id, const glm::vec2& Position) const;
 
     /// Assuming the position is within bound of the node, find the hovering pin
-    [[nodiscard]] std::optional<std::size_t> GetHoveringPin(size_t HoveringNodeId, const glm::vec2& Position) const;
+    [[nodiscard]] std::optional<std::size_t> GetHoveringPin(size_t HoveringNodeId, const glm::vec2& Position, float Tolerance = 0) const;
 
     template <typename Self>
     [[nodiscard]] decltype(auto) GetValidRange(this Self&& s) noexcept { return s.m_ValidIdRange; }

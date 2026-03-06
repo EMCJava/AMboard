@@ -417,7 +417,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
             if (m_NodeRenderer->InBound(i, MouseWorldPos)) [[unlikely]] {
                 CursorHoveringNode = i;
 
-                CursorHoveringPin = m_NodeRenderer->GetHoveringPin(i, MouseWorldPos);
+                CursorHoveringPin = m_NodeRenderer->GetHoveringPin(i, MouseWorldPos, m_DraggingPin.has_value() ? 8 : 0);
 
                 if (m_LastHoveringPin != CursorHoveringPin) {
                     if (m_LastHoveringPin.has_value()) /// Deselect

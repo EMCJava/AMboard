@@ -364,21 +364,28 @@ bool CNodeRenderer::InBound(const size_t Id, const glm::vec2& Position) const
     return Position.x >= Offset.x && Position.y >= Offset.y && Position.x <= Offset.x + Size.x && Position.y <= Offset.y + Size.y;
 }
 
-std::optional<std::size_t> CNodeRenderer::GetHoveringPin(const size_t HoveringNodeId, const glm::vec2& Position) const
+std::optional<std::size_t> CNodeRenderer::GetHoveringPin(const size_t HoveringNodeId, const glm::vec2& Position, const float Tolerance) const
 {
     MAKE_SURE(HoveringNodeId < m_IdCount)
 
     const auto& Offset = m_CommonNodeSSBOBuffer->At<SCommonNodeSSBO>(HoveringNodeId).Position;
     const auto InNodeOffset = Position - Offset;
 
+    float MinDistance = std::numeric_limits<float>::max();
+    std::optional<std::size_t> MinPinId;
+
     for (const auto PinId : std::views::join(std::array { std::views::all(m_NodeResourcesHandles[HoveringNodeId].InputPins), std::views::all(m_NodeResourcesHandles[HoveringNodeId].OutputPins) })) {
         const auto& NodeMeta = m_NodePinPipline->GetVertexBuffer().At<SNodePinInstanceBuffer>(PinId);
-        if (glm::length2(InNodeOffset - NodeMeta.Offset) <= std::pow(NodeMeta.Radius + NodeRadius / 2, 2)) {
-            return PinId;
+        const auto PinDistance = glm::length2(InNodeOffset - NodeMeta.Offset);
+        if (PinDistance <= std::pow(NodeMeta.Radius + NodeRadius / 2 + Tolerance, 2)) {
+            if (PinDistance < MinDistance) {
+                MinDistance = PinDistance;
+                MinPinId = PinId;
+            }
         }
     }
 
-    return std::nullopt;
+    return MinPinId;
 }
 
 void CNodeRenderer::Render(const SRenderContext& RenderContext)
