@@ -563,7 +563,9 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
                 m_NodeRenderer->ConnectPin(*CursorHoveringPin);
 
                 m_VirtualNodeForPinDrag = m_NodeRenderer->CreateVirtualNode(MouseWorldPos);
-                m_VirtualConnectionForPinDrag = m_NodeRenderer->LinkVirtualPin(*m_DraggingPin, m_VirtualNodeForPinDrag);
+
+                const CPin* InteractingPin = m_PinIdMapping.right.at(*CursorHoveringPin);
+                m_VirtualConnectionForPinDrag = (m_NodeRenderer.get()->*(InteractingPin->IsInputPin() ? &CNodeRenderer::InputLinkVirtualPin : &CNodeRenderer::OutputLinkVirtualPin))(*m_DraggingPin, m_VirtualNodeForPinDrag);
 
                 FirstClickHasUsed = true;
             }

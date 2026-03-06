@@ -301,7 +301,16 @@ size_t CNodeRenderer::AddOutputPin(size_t Id, bool IsExecutionPin)
     return m_NodeResourcesHandles[Id].OutputPins.emplace_back(m_NodePinPipline->NewPin(Id, NodeOffset, IsExecutionPin ? NodeRadius : NodeRadius * 0.6f, 0xFFFFFFFF, IsExecutionPin, false));
 }
 
-size_t CNodeRenderer::LinkVirtualPin(size_t Id1, size_t NodeId)
+size_t CNodeRenderer::InputLinkVirtualPin(size_t Id1, size_t NodeId)
+{
+    return m_NodeConnectionPipline->AddConnection(
+        { .StartInnerOffset = { },
+            .EndInnerOffset = m_NodePinPipline->GetRenderMetas()[Id1].Offset,
+            .StartNodeId = static_cast<uint32_t>(NodeId),
+            .EndNodeId = m_NodePinPipline->GetRenderMetas()[Id1].NodeId });
+}
+
+size_t CNodeRenderer::OutputLinkVirtualPin(size_t Id1, size_t NodeId)
 {
     return m_NodeConnectionPipline->AddConnection(
         { .StartInnerOffset = m_NodePinPipline->GetRenderMetas()[Id1].Offset,

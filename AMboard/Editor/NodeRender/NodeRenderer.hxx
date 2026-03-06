@@ -70,7 +70,8 @@ public:
     size_t AddInputPin(size_t Id, bool IsExecutionPin);
     size_t AddOutputPin(size_t Id, bool IsExecutionPin);
 
-    size_t LinkVirtualPin(size_t Id1, size_t NodeId);
+    size_t InputLinkVirtualPin(size_t Id1, size_t NodeId);
+    size_t OutputLinkVirtualPin(size_t Id1, size_t NodeId);
     size_t LinkPin(size_t Id1, size_t Id2);
     void RefreshLinkedPin(size_t Id, std::optional<std::size_t> Id1, std::optional<std::size_t> Id2);
     void UnlinkPin(size_t Id) noexcept;
