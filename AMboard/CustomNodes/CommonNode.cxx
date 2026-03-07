@@ -217,6 +217,22 @@ public:
             if (*Pin)
                 Pin->GetTheOnlyConnected()->GetOwner()->As<CExecuteNode>()->ExecuteNode();
     }
+
+    void WriteExtraContext(std::string& ExtContext) const override
+    {
+        assert(GetFlowOutputPins().size() < std::numeric_limits<uint8_t>::max());
+        if (GetFlowOutputPins().size() > 1)
+            ExtContext.push_back(static_cast<uint8_t>(GetFlowOutputPins().size()));
+    }
+
+    void ReadExtraContext(const std::string& ExtContext) override
+    {
+        if (ExtContext.size() == 1) {
+            for (int i = static_cast<uint8_t>(ExtContext[0]); i > 1; --i) {
+                EmplacePin<CFlowPin>(false);
+            }
+        }
+    }
 };
 
 class CMathCommonNode : public CBaseNode {

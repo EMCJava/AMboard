@@ -260,6 +260,7 @@ void CBoardEditor::SaveCanvasTo(const std::filesystem::path& Path) noexcept
     }
 
     /// Write node
+    std::string NodeExt;
     for (const auto& [Left, Right] : m_NodeRenderer->GetValidRange()) {
         for (auto i = Left; i <= Right; ++i) {
 
@@ -275,6 +276,11 @@ void CBoardEditor::SaveCanvasTo(const std::filesystem::path& Path) noexcept
             Node["header_color"] = m_NodeRenderer->GetHeaderColor(i);
 
             Node["salt"] = NodeSaltMap[m_Nodes[i].Node.get()];
+
+            NodeExt.clear();
+            m_Nodes[i].Node->WriteExtraContext(NodeExt);
+            if (!NodeExt.empty())
+                Node["Ext"] = NodeExt;
 
             Root["Nodes"].push_back(Node);
         }
@@ -349,7 +355,11 @@ CBoardEditor::CBoardEditor()
             const auto Position = Node["pos"].IsDefined() ? glm::vec2 { Node["pos"][0].as<float>(), Node["pos"][1].as<float>() } : glm::vec2(0.0f, 0.0f);
             const auto HeaderColor = Node["header_color"].as<uint32_t>(0xAAAAAA88);
 
-            const auto NodeId = CreateNode(Name, Position, HeaderColor);
+            auto CreatedNode = m_CustomNodeLoader->CreateNodeExt(Name);
+            if (auto NodeExt = Node["Ext"]; NodeExt)
+                CreatedNode->ReadExtraContext(NodeExt.as<std::string>());
+
+            const auto NodeId = RegisterNode(std::move(CreatedNode), Name, Position, HeaderColor);
 
             if (Name == "Entrance Node") [[unlikely]] {
                 m_EntranceNode = NodeId;

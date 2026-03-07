@@ -22,7 +22,6 @@ enum class ENodeType {
 class MACRO_API CBaseNode {
 
 protected:
-
     virtual void PrepareInputPin() noexcept;
 
 public:
@@ -88,6 +87,9 @@ public:
     {
         return m_OutputPins | std::views::filter([](const auto& Pin) static { return *Pin == PinTy; });
     }
+
+    virtual void WriteExtraContext(std::string& ExtContext) const { }
+    virtual void ReadExtraContext(const std::string& ExtContext) { }
 
     auto AddOnPinChanges(auto&& Func) { return m_OnPinChanges.emplace_back(Func); }
 
