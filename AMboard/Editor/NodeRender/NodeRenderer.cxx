@@ -219,9 +219,9 @@ bool CNodeRenderer::RemovePin(size_t NodeId, size_t PinId)
 
     /// Find out where the pin is
     bool IsOutputPin = false;
-    size_t PinIndex = std::distance(std::ranges::find(m_NodeResourcesHandles[NodeId].InputPins, PinId), m_NodeResourcesHandles[NodeId].InputPins.begin());
+    size_t PinIndex = std::distance(m_NodeResourcesHandles[NodeId].InputPins.begin(), std::ranges::find(m_NodeResourcesHandles[NodeId].InputPins, PinId));
     if ((IsOutputPin = PinIndex == m_NodeResourcesHandles[NodeId].InputPins.size()))
-        PinIndex = std::distance(std::ranges::find(m_NodeResourcesHandles[NodeId].OutputPins, PinId), m_NodeResourcesHandles[NodeId].OutputPins.begin());
+        PinIndex = std::distance(m_NodeResourcesHandles[NodeId].OutputPins.begin(), std::ranges::find(m_NodeResourcesHandles[NodeId].OutputPins, PinId));
 
     auto& ThisSide = IsOutputPin ? m_NodeResourcesHandles[NodeId].OutputPins : m_NodeResourcesHandles[NodeId].InputPins;
     const auto& OtherSide = IsOutputPin ? m_NodeResourcesHandles[NodeId].InputPins : m_NodeResourcesHandles[NodeId].OutputPins;

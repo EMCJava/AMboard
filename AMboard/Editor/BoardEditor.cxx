@@ -10,6 +10,7 @@
 #include <AMboard/CustomNodes/CustomNodeManager.hxx>
 #include <AMboard/Macro/DataPin.hxx>
 #include <AMboard/Macro/ExecuteNode.hxx>
+#include <AMboard/Macro/Ext/ImGuiPopup.hxx>
 #include <AMboard/Macro/FlowPin.hxx>
 
 #include <Util/Assertions.hxx>
@@ -340,7 +341,7 @@ CBoardEditor::CBoardEditor()
     std::vector<SNodeNameMeta> MenuItems;
     m_NodeContextMenu = std::make_unique<CNodeContextMenu>();
 
-    m_CustomNodeLoader = std::make_unique<CCustomNodeLoader>("NodeExts");
+    m_CustomNodeLoader = std::make_unique<CCustomNodeLoader>("NodeExts", ImGui::GetCurrentContext());
     for (const auto& NodeName : m_CustomNodeLoader->GetNodeExts())
         MenuItems.emplace_back(NodeName, std::string(m_CustomNodeLoader->CreateNodeExt(NodeName)->GetCategory()));
     m_NodeContextMenu->Initialize(std::move(MenuItems));
@@ -549,6 +550,11 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
     if (GetInputManager().GetMouseButtons().IsDoubleClick(GLFW_MOUSE_BUTTON_LEFT)) {
         if (CursorHoveringPin.has_value()) {
             CursorHoveringPtr->DisconnectPins();
+        } else if (CursorHoveringNode.has_value()) {
+            if ((m_PopupNode = dynamic_cast<INodeImGuiPupUpExt*>(m_Nodes[*CursorHoveringNode].Node.get()))) {
+                m_PopupTitle = m_PopupNode->GetTitle().c_str();
+                m_TriggerPopup = true;
+            }
         }
     }
 
@@ -650,6 +656,49 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
             ImGui::BeginTooltip();
             ImGui::Text(m_CurrentToolTips.data());
             ImGui::EndTooltip();
+        }
+
+        if (m_PopupNode) {
+            ImGuiViewport* viewport = ImGui::GetMainViewport();
+            ImGui::SetNextWindowPos(viewport->WorkPos);
+            ImGui::SetNextWindowSize(viewport->WorkSize);
+
+            ImGuiWindowFlags host_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground | // Makes it completely transparent
+                ImGuiWindowFlags_NoInputs; // Lets mouse clicks pass through
+
+            ImGui::Begin("PopupHostWindow", nullptr, host_flags);
+
+            // Trigger the popup ONLY ONCE
+            if (m_TriggerPopup) {
+                ImGui::OpenPopup(m_PopupTitle.c_str());
+                m_TriggerPopup = false;
+            }
+
+            // Center the popup
+            ImVec2 center = viewport->GetCenter();
+            ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+            // Darken the background behind the popup
+            ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, ImVec4(0.0f, 0.0f, 0.0f, 0.85f));
+
+            bool DoShow = true;
+            if (ImGui::BeginPopupModal(m_PopupTitle.c_str(), &DoShow, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove)) {
+                if (!m_PopupNode->Render()) {
+                    DoShow = false;
+                    ImGui::CloseCurrentPopup();
+                }
+
+                ImGui::EndPopup();
+            }
+
+            if (!DoShow) {
+                m_PopupNode = nullptr;
+            }
+
+            ImGui::PopStyleColor();
+
+            // End the invisible host window
+            ImGui::End();
         }
 
         ImGui::Render();

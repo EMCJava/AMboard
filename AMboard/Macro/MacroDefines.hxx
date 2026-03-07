@@ -71,14 +71,20 @@
 //   - create_Baz / destroy_Baz
 //   - get_macro_names() -> { "Foo", "Bar", "Baz", nullptr }
 // ─────────────────────────────────────────────────────────────────────────────
-#define REGISTER_MACROS(...)                               \
-    FOR_EACH(MACRO_FACTORY, __VA_ARGS__)                   \
-                                                           \
-    NODE_EXT_EXPORT const char** get_macro_names()         \
-    {                                                      \
-        static const char* names[] = {                     \
+#define REGISTER_MACROS(...)                              \
+    FOR_EACH(MACRO_FACTORY, __VA_ARGS__)                  \
+                                                          \
+    NODE_EXT_EXPORT const char** get_macro_names()        \
+    {                                                     \
+        static const char* names[] = {                    \
             FOR_EACH_COMMA(MACRO_NAME_ENTRY, __VA_ARGS__) \
-                __VA_OPT__(, ) nullptr                     \
-        };                                                 \
-        return names;                                      \
+                __VA_OPT__(, ) nullptr                    \
+        };                                                \
+        return names;                                     \
+    }
+
+#define ENABLE_IMGUI()                                             \
+    NODE_EXT_EXPORT void set_imgui_context(void* ctx)                              \
+    {                                                              \
+        ImGui::SetCurrentContext(static_cast<ImGuiContext*>(ctx)); \
     }

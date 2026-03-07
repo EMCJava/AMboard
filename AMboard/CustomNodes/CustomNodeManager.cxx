@@ -66,7 +66,7 @@ static bool is_shared_lib(const std::filesystem::path& p)
 
 // ─── CCustomNodeHandle ───────────────────────────────────────────────────────────
 
-CCustomNodeHandle::CCustomNodeHandle(const std::filesystem::path& Path)
+CCustomNodeHandle::CCustomNodeHandle(const std::filesystem::path& Path, void* ImGuiCtx)
 {
     spdlog::info("[CCustomNodeHandle] Loading: {}", Path.string());
 
@@ -83,6 +83,9 @@ CCustomNodeHandle::CCustomNodeHandle(const std::filesystem::path& Path)
         throw std::runtime_error(
             "Plugin " + Path.string() + " missing get_macro_names");
     }
+
+    if (const auto ImGuiCtxFunc = reinterpret_cast<void (*)(void*)>(lib_sym(m_LibHandle, "set_imgui_context")))
+        ImGuiCtxFunc(ImGuiCtx);
 
     for (const char** name = NamesFunc(); *name; ++name) {
         std::string createSym = std::string("create_") + *name;
@@ -153,7 +156,7 @@ CCustomNodeHandle& CCustomNodeHandle::operator=(CCustomNodeHandle&& other) noexc
 
 // ─── CCustomNodeLoader ───────────────────────────────────────────────────────────
 
-CCustomNodeLoader::CCustomNodeLoader(const std::filesystem::path& NodeExtDir)
+CCustomNodeLoader::CCustomNodeLoader(const std::filesystem::path& NodeExtDir, void* ImGuiCtx)
 {
     if (!std::filesystem::exists(NodeExtDir)) {
         spdlog::info("[CCustomNodeLoader] Node ext directory does not exist: {}", NodeExtDir.string());
@@ -176,7 +179,7 @@ CCustomNodeLoader::CCustomNodeLoader(const std::filesystem::path& NodeExtDir)
             continue;
 
         try {
-            m_Handles.emplace_back(entry.path().stem().string(), entry.path());
+            m_Handles.emplace_back(entry.path().stem().string(), CCustomNodeHandle { entry.path(), ImGuiCtx });
             for (const auto& [Name, Allocator] : m_Handles.back().second.m_Allocator) {
                 if (!m_NodeExts.insert_or_assign(Name, Allocator).second) {
                     spdlog::warn("[CCustomNodeLoader] Overwriting node: {}", Name);

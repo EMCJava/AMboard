@@ -93,6 +93,10 @@ protected:
 
     std::unique_ptr<class CCustomNodeLoader> m_CustomNodeLoader;
 
+    class INodeImGuiPupUpExt* m_PopupNode = nullptr;
+    std::string m_PopupTitle;
+    bool m_TriggerPopup = true;
+
     std::vector<SEditorNodeContext> m_Nodes;
 
     glm::vec2 m_CameraOffset { };

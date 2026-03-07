@@ -4,11 +4,14 @@
 
 #include <AMboard/Macro/DataPin.hxx>
 #include <AMboard/Macro/ExecuteNode.hxx>
+#include <AMboard/Macro/Ext/ImGuiPopup.hxx>
 
 #include <iostream>
 #include <variant>
 
 #include <spdlog/spdlog.h>
+
+#include <imgui.h>
 
 // 1. Define the Math Operations
 enum class EMathOperation {
@@ -204,8 +207,31 @@ protected:
     }
 };
 
-class CSequenceNode : public CExecuteNode {
+class CSequenceNode : public CExecuteNode, public INodeImGuiPupUpExt {
 public:
+    std::string GetTitle() override
+    {
+        return "Pin Edit";
+    }
+
+    bool Render() override
+    {
+        uint8_t PinCount = GetFlowOutputPins().size();
+        uint8_t Step = 1;
+        ImGui::InputScalar("Pin Count", ImGuiDataType_U8, &PinCount, &Step, nullptr, "%d");
+
+        if (PinCount >= 1) {
+            while (PinCount != GetFlowOutputPins().size()) {
+                if (PinCount > GetFlowOutputPins().size())
+                    EmplacePin<CFlowPin>(false);
+                else
+                    ErasePin(GetFlowOutputPins().back());
+            }
+        }
+
+        return true;
+    }
+
     std::string_view GetCategory() noexcept override
     {
         return "Flow";
@@ -319,3 +345,4 @@ public:
 };
 
 REGISTER_MACROS(CAddNode, CEntranceNode, CToStringNode, CPrintingNode, CBranchingNode, CSequenceNode)
+ENABLE_IMGUI()

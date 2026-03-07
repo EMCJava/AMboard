@@ -16,7 +16,7 @@ using DestroyExtFunc = void (*)(CBaseNode*);
 class CCustomNodeHandle {
 
 public:
-    CCustomNodeHandle(const std::filesystem::path& Path);
+    CCustomNodeHandle(const std::filesystem::path& Path, void* ImGuiCtx);
     ~CCustomNodeHandle();
 
     CCustomNodeHandle(const CCustomNodeHandle&) = delete;
@@ -37,7 +37,7 @@ private:
 class CCustomNodeLoader {
 public:
     /// @param NodeExtDir Directory to scan for .dll / .so / .dylib files.
-    explicit CCustomNodeLoader(const std::filesystem::path& NodeExtDir);
+    explicit CCustomNodeLoader(const std::filesystem::path& NodeExtDir, void* ImGuiCtx);
 
     /// Returns all successfully loaded plugins.
     [[nodiscard]] decltype(auto) GetNodeExts() const noexcept { return std::views::keys(m_NodeExts); }
