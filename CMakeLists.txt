@@ -22,8 +22,6 @@ target_link_libraries(
         FlowPin.lib
         Pin.lib
 
-        EventHooker.lib
-
         BoardEditor.lib
         DepthTexture.lib
         RenderPipeline.lib

@@ -6,12 +6,19 @@
 #include <AMboard/Macro/ExecuteNode.hxx>
 #include <AMboard/Macro/Ext/ImGuiPopup.hxx>
 
+#include <AMboard/Control/InputService.hxx>
+
 #include <iostream>
 #include <variant>
 
 #include <spdlog/spdlog.h>
 
 #include <imgui.h>
+
+#ifdef _WIN32
+#define NOMINMAX
+#include <windows.h>
+#endif
 
 // 1. Define the Math Operations
 enum class EMathOperation {
@@ -344,5 +351,96 @@ public:
     }
 };
 
-REGISTER_MACROS(CAddNode, CEntranceNode, CToStringNode, CPrintingNode, CBranchingNode, CSequenceNode)
+class CActionReplayNode : public CExecuteNode, public INodeImGuiPupUpExt {
+public:
+    std::string GetTitle() override
+    {
+        return "Event Record";
+    }
+
+    void InputCallback(const InputEvent& input_event)
+    {
+        if (!m_IsRecording) {
+            return;
+        }
+
+        if (input_event.type == InputType::KeyDown) {
+            if (input_event.keyCode == VK_ESCAPE) {
+#ifdef _WIN32
+                m_IsRecording = false;
+                return;
+#else
+#error Well Well Well
+#endif
+            }
+        }
+
+        if (input_event.type != InputType::MouseMove) {
+            m_Logger.append((input_event.ToString() + "\n").c_str());
+        }
+    }
+
+    void OnStartPopup() override
+    {
+        m_InputMonitor = InputService::Get().Subscribe(std::bind_front(&CActionReplayNode::InputCallback, this));
+    }
+
+    void OnEndPopup() override
+    {
+        InputService::Get().Unsubscribe(m_InputMonitor);
+    }
+
+    bool Render() override
+    {
+        ImGui::BeginDisabled(m_IsRecording);
+        if (ImGui::Button("Start record")) {
+            m_Logger.clear();
+            m_IsRecording = true;
+        }
+        if (m_IsRecording) {
+            ImGui::SameLine();
+            ImGui::TextDisabled("Press ESC key to stop.");
+        }
+        ImGui::EndDisabled();
+
+        ImGui::Separator();
+        if (!m_IsRecording) {
+            ImGui::TextDisabled("First event will have a timestamp of zero, record will end with ESC key press.");
+            return true;
+        }
+
+        ImGui::BeginChild("Log", { 0, 400 });
+        ImGui::TextUnformatted(m_Logger.begin(), m_Logger.end());
+        if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+            ImGui::SetScrollHereY(1.0f);
+        ImGui::EndChild();
+
+        return true;
+    }
+
+    std::string_view GetCategory() noexcept override
+    {
+        return "Event";
+    }
+
+    void ExecuteNode() override
+    {
+    }
+
+    void WriteExtraContext(std::string& ExtContext) const override
+    {
+    }
+
+    void ReadExtraContext(const std::string& ExtContext) override
+    {
+    }
+
+private:
+    InputService::SubscriptionID m_InputMonitor { };
+
+    ImGuiTextBuffer m_Logger;
+    bool m_IsRecording = false;
+};
+
+REGISTER_MACROS(CActionReplayNode, CAddNode, CEntranceNode, CToStringNode, CPrintingNode, CBranchingNode, CSequenceNode)
 ENABLE_IMGUI()

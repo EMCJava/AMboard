@@ -677,7 +677,7 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
 
             // Center the popup
             ImVec2 center = viewport->GetCenter();
-            ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+            ImGui::SetNextWindowPos(center, 0, ImVec2(0.5f, 0.5f));
 
             // Darken the background behind the popup
             ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, ImVec4(0.0f, 0.0f, 0.0f, 0.85f));

@@ -1,1 +1,1 @@
-create_library(EventHooker)
+create_library(InputService P_DEPS Assertions)
