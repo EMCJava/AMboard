@@ -36,6 +36,10 @@ create_library(ImGui
         WindowBase # dawn
 )
 target_compile_definitions(ImGui.lib PUBLIC "IMGUI_IMPL_WEBGPU_BACKEND_DAWN")
+if(APPLE)
+        set_source_files_properties(${imgui_SOURCE_DIR}/backends/imgui_impl_wgpu.cpp PROPERTIES COMPILE_FLAGS "-x objective-c++")
+        target_link_libraries(ImGui.lib PRIVATE "-framework CoreFoundation -framework QuartzCore -framework Metal -framework MetalKit -framework Cocoa")
+endif()
 
 # |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # |                       ImGui

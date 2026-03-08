@@ -6,6 +6,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
+
 // ─── Platform-specific dynamic library helpers ──────────────────────────────
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -99,17 +101,18 @@ CCustomNodeHandle::CCustomNodeHandle(const std::filesystem::path& Path, void* Im
             continue;
         }
 
-        m_Allocator.emplace_back(std::string_view(*name)
-                // Split into chunks. Keep grouping as long as the right character 'b' is NOT uppercase.
-                | std::views::chunk_by([](char, const char b) { return !std::isupper(b); })
-                // Drop class prefix
-                | std::views::drop_while([](auto chunk) {
-                      return std::ranges::distance(chunk) == 1 && *chunk.begin() == 'C';
-                  })
-                // Join the resulting chunks with a space
-                | std::views::join_with(' ')
-                // Convert the resulting view back into a std::string (C++23 feature)
-                | std::ranges::to<std::string>(),
+        m_Allocator.emplace_back(
+            std::ranges::fold_left(
+                std::string_view(*name)
+                    | std::views::chunk_by([](char, const char b) { return !std::isupper(b); })
+                    | std::views::drop_while([](auto chunk) {
+                          return std::ranges::distance(chunk) == 1 && *chunk.begin() == 'C';
+                      }),
+                std::string { }, // Initial empty string
+                [](std::string acc, auto chunk) {
+                    const std::string_view sv(chunk.begin(), chunk.end());
+                    return acc.empty() ? std::string(sv) : std::move(acc) + " " + std::string(sv);
+                }),
             [=] {
                 return std::unique_ptr<CBaseNode, DestroyExtFunc>(create(), destroy);
             });

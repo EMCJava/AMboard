@@ -6,6 +6,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include <ranges>
+
 std::string InputEvent::ToString() const
 {
     std::string typeStr;
@@ -195,9 +197,9 @@ void InputService::RunPlatformLoop(std::promise<void>* initialized)
 {
     CGEventMask eventMask = CGEventMaskBit(kCGEventKeyDown) | CGEventMaskBit(kCGEventKeyUp) | CGEventMaskBit(kCGEventMouseMoved) | CGEventMaskBit(kCGEventLeftMouseDown) | CGEventMaskBit(kCGEventLeftMouseUp) | CGEventMaskBit(kCGEventRightMouseDown) | CGEventMaskBit(kCGEventRightMouseUp);
 
-    CFMachPortRef eventTap = CGEventTapCreate(kCGSessionEventTap, kCGHeadInsertEventTap, 0, eventMask, MacEventCallback, nullptr);
+    CFMachPortRef eventTap = CGEventTapCreate(kCGSessionEventTap, kCGHeadInsertEventTap, kCGEventTapOptionDefault, eventMask, MacEventCallback, nullptr);
     if (!eventTap) {
-        std::cerr << "Failed to create Mac Event Tap! (Check Accessibility permissions)\n";
+        spdlog::error("Failed to create Mac Event Tap! (Check Accessibility permissions)");
         initialized->set_value();
         return;
     }

@@ -649,7 +649,8 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
             static std::mt19937 gen(rd());
             static std::uniform_int_distribution<uint32_t> distrib(0, 0xFFFFFF);
 
-            CreateNode(*NewNode, ScreenToWorld(std::bit_cast<glm::vec2>(m_NodeContextMenu->GetPopupLocation())), distrib(gen) << 16 | 0x88);
+            const auto PopupPosition = m_NodeContextMenu->GetPopupLocation();
+            CreateNode(*NewNode, ScreenToWorld(reinterpret_cast<const glm::vec2&>(PopupPosition)), distrib(gen) << 16 | 0x88);
         }
 
         if (!m_CurrentToolTips.empty()) {

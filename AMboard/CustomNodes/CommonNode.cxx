@@ -18,6 +18,8 @@
 #ifdef _WIN32
 #define NOMINMAX
 #include <windows.h>
+#else
+#include <Carbon/Carbon.h>
 #endif
 
 // 1. Define the Math Operations
@@ -365,13 +367,14 @@ public:
         }
 
         if (input_event.type == InputType::KeyDown) {
-            if (input_event.keyCode == VK_ESCAPE) {
 #ifdef _WIN32
+            if (input_event.keyCode == VK_ESCAPE)
+#else
+            if (input_event.keyCode == kVK_Escape)
+#endif
+            {
                 m_IsRecording = false;
                 return;
-#else
-#error Well Well Well
-#endif
             }
         }
 
@@ -410,7 +413,8 @@ public:
         }
 
         ImGui::BeginChild("Log", { 0, 400 });
-        ImGui::TextUnformatted(m_Logger.begin(), m_Logger.end());
+        if (!m_Logger.empty())
+            ImGui::TextUnformatted(m_Logger.begin(), m_Logger.end());
         if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
             ImGui::SetScrollHereY(1.0f);
         ImGui::EndChild();

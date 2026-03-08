@@ -9,6 +9,10 @@ add_library(CommonNode SHARED CommonNode.cxx)
 target_compile_definitions(CommonNode PRIVATE MACRO_API_IMPORTS)
 target_link_libraries(CommonNode PRIVATE MacroSharedLib spdlog::spdlog ImGui.lib InputService.lib)
 
+if (APPLE)
+    target_link_libraries(CommonNode PRIVATE "-framework Carbon")
+endif (APPLE)
+
 #Copy CommonNode AND its dependencies
 add_custom_command(TARGET CommonNode POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/NodeExts

@@ -210,5 +210,6 @@ std::optional<std::string> CNodeContextMenu::Draw()
 void CNodeContextMenu::OpenPopup()
 {
     m_ShouldOpen = true;
-    m_PopupPos = std::bit_cast<std::pair<float, float>>(ImGui::GetMousePos());
+    const auto MousePos = ImGui::GetMousePos();
+    m_PopupPos = reinterpret_cast<const std::pair<float, float>&>(MousePos);
 }
