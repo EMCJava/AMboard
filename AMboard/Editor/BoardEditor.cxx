@@ -671,6 +671,7 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
             // Trigger the popup ONLY ONCE
             if (m_TriggerPopup) {
                 ImGui::OpenPopup(m_PopupTitle.c_str());
+                m_PopupNode->OnStartPopup();
                 m_TriggerPopup = false;
             }
 
@@ -692,6 +693,7 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
             }
 
             if (!DoShow) {
+                m_PopupNode->OnEndPopup();
                 m_PopupNode = nullptr;
             }
 
