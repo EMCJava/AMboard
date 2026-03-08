@@ -360,17 +360,26 @@ public:
         return "Event Record";
     }
 
-    void InputCallback(const InputEvent& input_event)
+    void InputCallback(const InputEvent& InputEvent)
     {
         if (!m_IsRecording) {
             return;
         }
 
-        if (input_event.type == InputType::KeyDown) {
+        using namespace std::chrono;
+
+        const auto CurrentTime = steady_clock::now();
+        if (m_EventRecord.empty())
+            m_LastEventTime = m_StartTime = CurrentTime;
+        const auto Timepoint = duration_cast<milliseconds>(CurrentTime - m_StartTime).count();
+        const auto SinceLastEvent = duration_cast<milliseconds>(CurrentTime - m_LastEventTime).count();
+        m_LastEventTime = CurrentTime;
+
+        if (InputEvent.type == InputType::KeyDown) {
 #ifdef _WIN32
-            if (input_event.keyCode == VK_ESCAPE)
+            if (InputEvent.keyCode == VK_ESCAPE)
 #else
-            if (input_event.keyCode == kVK_Escape)
+            if (InputEvent.keyCode == kVK_Escape)
 #endif
             {
                 m_IsRecording = false;
@@ -378,8 +387,9 @@ public:
             }
         }
 
-        if (input_event.type != InputType::MouseMove) {
-            m_Logger.append((input_event.ToString() + "\n").c_str());
+        if (InputEvent.type != InputType::MouseMove) {
+            m_EventRecord.emplace_back(Timepoint, InputEvent);
+            m_Logger.append(std::format("{}ms(+{}) {} \n", Timepoint, SinceLastEvent, InputEvent.ToString()).c_str());
         }
     }
 
@@ -396,8 +406,9 @@ public:
     bool Render() override
     {
         ImGui::BeginDisabled(m_IsRecording);
-        if (ImGui::Button("Start record")) {
+        if ((m_Logger.empty() && ImGui::Button("Start record")) || (!m_Logger.empty() && ImGui::Button("Restart record"))) {
             m_Logger.clear();
+            m_EventRecord.clear();
             m_IsRecording = true;
         }
         if (m_IsRecording) {
@@ -407,16 +418,16 @@ public:
         ImGui::EndDisabled();
 
         ImGui::Separator();
-        if (!m_IsRecording) {
-            ImGui::TextDisabled("First event will have a timestamp of zero, record will end with ESC key press.");
-            return true;
-        }
 
-        ImGui::BeginChild("Log", { 0, 400 });
-        if (!m_Logger.empty())
-            ImGui::TextUnformatted(m_Logger.begin(), m_Logger.end());
-        if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
-            ImGui::SetScrollHereY(1.0f);
+        ImGui::BeginChild("Log", { 1200, 400 });
+        if (m_Logger.empty()) {
+            ImGui::TextDisabled("First event will have a timestamp of zero, record will end with ESC key press.");
+        } else {
+            if (!m_Logger.empty())
+                ImGui::TextUnformatted(m_Logger.begin(), m_Logger.end());
+            if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+                ImGui::SetScrollHereY(1.0f);
+        }
         ImGui::EndChild();
 
         return true;
@@ -433,10 +444,118 @@ public:
 
     void WriteExtraContext(std::string& ExtContext) const override
     {
-    }
+        if (m_EventRecord.empty())
+            return;
 
+        const auto Data = std::as_bytes(std::span(m_EventRecord));
+
+        // Reserve a reasonable estimate to prevent reallocations
+        ExtContext.reserve(ExtContext.size() + Data.size() * 4);
+
+        char Buf[32]; // 20 chars for size_t + 1 space + 3 chars for uint8_t + 1 pipe = 25 max
+
+        auto AppendRun = [&](size_t RunLength, std::byte ByteVal, bool IsLast) {
+            // Convert RunLength
+            auto [p1, ec1] = std::to_chars(Buf, Buf + sizeof(Buf), RunLength);
+            *p1++ = ' ';
+
+            // Convert Byte value
+            auto [p2, ec2] = std::to_chars(p1, Buf + sizeof(Buf), std::to_integer<uint8_t>(ByteVal));
+
+            if (!IsLast)
+                *p2++ = '|';
+
+            ExtContext.append(Buf, p2);
+        };
+
+        size_t RLE = 1;
+        std::byte LastByte = Data[0];
+
+        for (size_t Index = 1; Index < Data.size(); ++Index) {
+            if (Data[Index] != LastByte) {
+                AppendRun(RLE, LastByte, false);
+                LastByte = Data[Index];
+                RLE = 1;
+            } else {
+                ++RLE;
+            }
+        }
+
+        AppendRun(RLE, LastByte, true);
+    }
     void ReadExtraContext(const std::string& ExtContext) override
     {
+        m_Logger.clear();
+        m_EventRecord.clear();
+
+        if (ExtContext.empty())
+            return;
+
+        const char* Ptr = ExtContext.data();
+        const char* End = Ptr + ExtContext.size();
+
+        // ========================================================================
+        //  Calculate total uncompressed size to avoid reallocations
+        // ========================================================================
+        size_t TotalBytes = 0;
+        while (Ptr < End) {
+            size_t RunLength = 0;
+            auto Res = std::from_chars(Ptr, End, RunLength);
+            if (Res.ec != std::errc { })
+                break; // Stop on malformed data
+
+            TotalBytes += RunLength;
+
+            // Fast-forward to the next '|' using highly optimized C-string search
+            Ptr = static_cast<const char*>(std::memchr(Res.ptr, '|', End - Res.ptr));
+            if (!Ptr)
+                break; // No more pipes, we are done
+            ++Ptr; // Skip the '|'
+        }
+
+        using ElementType = typename decltype(m_EventRecord)::value_type;
+        m_EventRecord.resize(TotalBytes / sizeof(ElementType));
+
+        // ========================================================================
+        //  Decode directly into the destination memory
+        // ========================================================================
+        uint8_t* OutPtr = reinterpret_cast<uint8_t*>(m_EventRecord.data());
+        Ptr = ExtContext.data(); // Reset pointer to the start of the string
+
+        while (Ptr < End) {
+            size_t RunLength = 0;
+            uint8_t ByteVal = 0;
+
+            // 1. Parse Run Length
+            auto Res1 = std::from_chars(Ptr, End, RunLength);
+            if (Res1.ec != std::errc { })
+                break;
+            Ptr = Res1.ptr;
+
+            // 2. Skip space
+            if (Ptr < End && *Ptr == ' ')
+                ++Ptr;
+
+            // 3. Parse Byte Value
+            auto Res2 = std::from_chars(Ptr, End, ByteVal);
+            if (Res2.ec != std::errc { })
+                break;
+            Ptr = Res2.ptr;
+
+            // 4. Write directly to the final memory location using memset
+            std::memset(OutPtr, ByteVal, RunLength);
+            OutPtr += RunLength;
+
+            // 5. Skip pipe
+            if (Ptr < End && *Ptr == '|')
+                ++Ptr;
+        }
+
+        uint32_t LastTimePoint = 0;
+        for (const auto& [TimePoint, InputEvent] : m_EventRecord) {
+            m_Logger.append(std::format("{}ms(+{}) {} \n", TimePoint, TimePoint - LastTimePoint, InputEvent.ToString()).c_str());
+            LastTimePoint = TimePoint;
+        }
     }
 
 private:
@@ -444,6 +563,10 @@ private:
 
     ImGuiTextBuffer m_Logger;
     bool m_IsRecording = false;
+
+    std::vector<std::pair<uint32_t, InputEvent>> m_EventRecord;
+    std::chrono::steady_clock::time_point m_StartTime;
+    std::chrono::steady_clock::time_point m_LastEventTime;
 };
 
 REGISTER_MACROS(CActionReplayNode, CAddNode, CEntranceNode, CToStringNode, CPrintingNode, CBranchingNode, CSequenceNode)
