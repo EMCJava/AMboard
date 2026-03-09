@@ -131,20 +131,53 @@ uint32_t CNodeRenderer::GetHeaderColor(size_t Id) const noexcept
     return m_NodeBackgroundPipline->GetVertexBuffer().At<SNodeBackgroundInstanceBuffer>(Id).HeaderColor;
 }
 
-void CNodeRenderer::Select(size_t Id) const
+void CNodeRenderer::SetState(const size_t Id, const ECommonNodeState State) const
 {
     MAKE_SURE(Id < m_IdCount)
 
-    m_CommonNodeSSBOBuffer->At<SCommonNodeSSBO>(Id).State |= 1;
+    m_CommonNodeSSBOBuffer->At<SCommonNodeSSBO>(Id).State |= std::to_underlying(State);
     m_CommonNodeSSBOBuffer->Upload(Id);
+}
+
+void CNodeRenderer::ResetState(size_t Id, ECommonNodeState State) const
+{
+    MAKE_SURE(Id < m_IdCount)
+
+    m_CommonNodeSSBOBuffer->At<SCommonNodeSSBO>(Id).State &= ~std::to_underlying(State);
+    m_CommonNodeSSBOBuffer->Upload(Id);
+}
+
+void CNodeRenderer::ToggleState(const size_t Id, const ECommonNodeState State) const
+{
+    MAKE_SURE(Id < m_IdCount)
+
+    m_CommonNodeSSBOBuffer->At<SCommonNodeSSBO>(Id).State ^= std::to_underlying(State);
+    m_CommonNodeSSBOBuffer->Upload(Id);
+}
+
+void CNodeRenderer::Execute(size_t Id) const
+{
+    SetState(Id, ECommonNodeState::Executing);
+}
+
+void CNodeRenderer::DeExecute(size_t Id) const
+{
+    ResetState(Id, ECommonNodeState::Executing);
+}
+
+void CNodeRenderer::ToggleExecute(size_t Id) const
+{
+    ToggleState(Id, ECommonNodeState::Executing);
+}
+
+void CNodeRenderer::Select(size_t Id) const
+{
+    SetState(Id, ECommonNodeState::Selected);
 }
 
 void CNodeRenderer::ToggleSelect(size_t Id) const
 {
-    MAKE_SURE(Id < m_IdCount)
-
-    m_CommonNodeSSBOBuffer->At<SCommonNodeSSBO>(Id).State ^= 1;
-    m_CommonNodeSSBOBuffer->Upload(Id);
+    ToggleState(Id, ECommonNodeState::Selected);
 }
 
 void CNodeRenderer::ConnectPin(size_t Id) const

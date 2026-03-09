@@ -63,6 +63,7 @@ create_library(
         Assertions
         CustomNodeManager
         NodeContextMenu
+        ExecutionManager
 
         glm::glm
         nfd::nfd

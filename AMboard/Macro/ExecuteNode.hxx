@@ -16,17 +16,21 @@ class MACRO_API CExecuteNode : public CBaseNode {
 
 public:
     CExecuteNode();
+    ~CExecuteNode() override;
 
-    virtual void ExecuteNode();
+    virtual CExecuteNode* ExecuteNode();
 
-    const auto& GetFlowInputPins() const noexcept { return m_InFlowingPin; }
-    const auto& GetFlowOutputPins() const noexcept { return m_OutFlowingPin; }
+    void SetManager(class CExecutionManager* Manager);
+
+    [[nodiscard]] const auto& GetFlowInputPins() const noexcept { return m_InFlowingPin; }
+    [[nodiscard]] const auto& GetFlowOutputPins() const noexcept { return m_OutFlowingPin; }
 
 protected:
     void AddInputOutputFlowPin();
 
     virtual void Execute() { PrepareInputPin(); }
 
+    CExecutionManager* m_Manager { };
     std::vector<CPin*> m_InFlowingPin;
     size_t m_DesiredOutputPin = 0;
     std::vector<CPin*> m_OutFlowingPin;

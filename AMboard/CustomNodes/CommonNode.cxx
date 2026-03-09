@@ -2,6 +2,8 @@
 // Created by LYS on 2/26/2026.
 //
 
+#include "AMboard/Macro/ExecutionManager.hxx"
+
 #include <AMboard/Macro/DataPin.hxx>
 #include <AMboard/Macro/ExecuteNode.hxx>
 #include <AMboard/Macro/Ext/ImGuiPopup.hxx>
@@ -246,11 +248,18 @@ public:
         return "Flow";
     }
 
-    void ExecuteNode() override
+    CExecuteNode* ExecuteNode() override
     {
+        if (m_Manager == nullptr) [[unlikely]]
+            return nullptr;
+
         for (const auto* Pin : GetFlowOutputPins())
-            if (*Pin)
-                Pin->GetTheOnlyConnected()->GetOwner()->As<CExecuteNode>()->ExecuteNode();
+            if (*Pin) {
+                auto* Node = Pin->GetTheOnlyConnected()->GetOwner()->As<CExecuteNode>();
+                m_Manager->Execute(Node);
+            }
+
+        return nullptr;
     }
 
     void WriteExtraContext(std::string& ExtContext) const override
@@ -438,8 +447,9 @@ public:
         return "Event";
     }
 
-    void ExecuteNode() override
+    void Execute() override
     {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
     void WriteExtraContext(std::string& ExtContext) const override

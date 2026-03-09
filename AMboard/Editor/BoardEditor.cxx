@@ -10,6 +10,7 @@
 #include <AMboard/CustomNodes/CustomNodeManager.hxx>
 #include <AMboard/Macro/DataPin.hxx>
 #include <AMboard/Macro/ExecuteNode.hxx>
+#include <AMboard/Macro/ExecutionManager.hxx>
 #include <AMboard/Macro/Ext/ImGuiPopup.hxx>
 #include <AMboard/Macro/FlowPin.hxx>
 
@@ -112,6 +113,9 @@ size_t CBoardEditor::RegisterNode(NodeStorage Node, const std::string& Title, co
 {
     if (!Node)
         return -1;
+
+    if (auto* ExecutionNode = dynamic_cast<CExecuteNode*>(Node.get()))
+        ExecutionNode->SetManager(m_ExecutionManager.get());
 
     const auto NodeId = m_NodeRenderer->CreateNode(Title, Position, HeaderColor);
     if (NodeId >= m_Nodes.size())
@@ -341,6 +345,7 @@ CBoardEditor::CBoardEditor()
     std::vector<SNodeNameMeta> MenuItems;
     m_NodeContextMenu = std::make_unique<CNodeContextMenu>();
 
+    m_ExecutionManager = std::make_unique<CExecutionManager>();
     m_CustomNodeLoader = std::make_unique<CCustomNodeLoader>("NodeExts", ImGui::GetCurrentContext());
     for (const auto& NodeName : m_CustomNodeLoader->GetNodeExts())
         MenuItems.emplace_back(NodeName, std::string(m_CustomNodeLoader->CreateNodeExt(NodeName)->GetCategory()));
@@ -488,7 +493,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
     /// Execute Node
     if (m_EntranceNode.has_value() && GetInputManager().GetKeyboardButtons().ConsumeEvent(GLFW_KEY_R)) {
         if (auto* ENode = dynamic_cast<CExecuteNode*>(m_Nodes[*m_EntranceNode].Node.get())) {
-            ENode->ExecuteNode();
+            m_ExecutionManager->StartExecuteThread(ENode);
         }
     }
 
@@ -625,6 +630,29 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
 void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
 {
+
+    const auto CurrentActiveNode = m_ExecutionManager->GetActiveNode();
+    if (m_LastExecutedNode != CurrentActiveNode) {
+
+        if (m_LastExecutedNode != nullptr) {
+            if (const auto It = std::find(m_Nodes.begin(), m_Nodes.end(), m_LastExecutedNode); It != m_Nodes.end()) {
+                m_NodeRenderer->DeExecute(std::distance(m_Nodes.begin(), It));
+            }
+        }
+
+        if (CurrentActiveNode != nullptr) {
+            if (const auto It = std::find(m_Nodes.begin(), m_Nodes.end(), CurrentActiveNode); It != m_Nodes.end()) {
+                m_NodeRenderer->Execute(std::distance(m_Nodes.begin(), It));
+            }
+        }
+
+        m_LastExecutedNode = CurrentActiveNode;
+    }
+
+    /// ===================================================
+    ///                  Actual Rendering
+    /// ===================================================
+
     RenderContext.RenderPassEncoder.SetBindGroup(0, m_UniformBindingGroup, 0, nullptr);
 
     if (m_ScreenUniformDirty) {

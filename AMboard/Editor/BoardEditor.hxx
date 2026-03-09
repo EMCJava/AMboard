@@ -27,6 +27,8 @@ struct SEditorNodeContext {
     /// Mode the logical position and return the display position
     glm::vec2 MoveLogicalPosition(const glm::vec2& Delta, float SnapValue) noexcept;
     glm::vec2 GetDisplayPosition(float SnapValue) const noexcept;
+
+    bool operator==(const CBaseNode* Ptr) const noexcept { return Node.get() == Ptr; }
 };
 
 class CPin;
@@ -96,6 +98,9 @@ protected:
     class INodeImGuiPupUpExt* m_PopupNode = nullptr;
     std::string m_PopupTitle;
     bool m_TriggerPopup = true;
+
+    class CExecuteNode* m_LastExecutedNode = nullptr;
+    std::unique_ptr<class CExecutionManager> m_ExecutionManager;
 
     std::vector<SEditorNodeContext> m_Nodes;
 

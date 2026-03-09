@@ -4,6 +4,8 @@
 
 #include "ExecuteNode.hxx"
 
+#include "ExecutionManager.hxx"
+
 #include <cassert>
 
 CExecuteNode::CExecuteNode()
@@ -23,13 +25,26 @@ CExecuteNode::CExecuteNode()
     AddInputOutputFlowPin();
 }
 
-void CExecuteNode::ExecuteNode()
+CExecuteNode::~CExecuteNode()
+{
+    if (m_Manager)
+        m_Manager->UnRegisterNode(this);
+}
+
+CExecuteNode* CExecuteNode::ExecuteNode()
 {
     m_DesiredOutputPin = 0;
     Execute();
 
     if (m_DesiredOutputPin < m_OutFlowingPin.size() && *m_OutFlowingPin[m_DesiredOutputPin])
-        static_cast<CExecuteNode*>(m_OutFlowingPin[m_DesiredOutputPin]->GetTheOnlyConnected()->GetOwner())->ExecuteNode();
+        return static_cast<CExecuteNode*>(m_OutFlowingPin[m_DesiredOutputPin]->GetTheOnlyConnected()->GetOwner());
+
+    return nullptr;
+}
+
+void CExecuteNode::SetManager(CExecutionManager* Manager)
+{
+    m_Manager = Manager;
 }
 
 void CExecuteNode::AddInputOutputFlowPin()

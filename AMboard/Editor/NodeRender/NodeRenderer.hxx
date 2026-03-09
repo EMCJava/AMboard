@@ -15,6 +15,11 @@
 #include <memory>
 #include <optional>
 
+enum class ECommonNodeState : uint32_t {
+    Selected = 0b1,
+    Executing = 0b10,
+};
+
 struct SCommonNodeSSBO {
     glm::vec2 Position;
     uint32_t State;
@@ -49,6 +54,14 @@ public:
 
     template <typename Self>
     decltype(auto) GetTitle(this Self&& s, size_t Id) noexcept { return s.m_NodeResourcesHandles[Id].TitleText.value()->Text; }
+
+    void SetState(size_t Id, ECommonNodeState State) const;
+    void ResetState(size_t Id, ECommonNodeState State) const;
+    void ToggleState(size_t Id, ECommonNodeState State) const;
+
+    void Execute(size_t Id) const;
+    void DeExecute(size_t Id) const;
+    void ToggleExecute(size_t Id) const;
 
     void Select(size_t Id) const;
     void ToggleSelect(size_t Id) const;
