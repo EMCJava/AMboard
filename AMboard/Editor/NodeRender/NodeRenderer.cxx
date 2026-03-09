@@ -20,9 +20,11 @@
 
 void SNodeAdditionalSourceHandle::UnRegister(const CNodeRenderer* Renderer)
 {
-    if (TitleText.has_value()) {
-        Renderer->m_NodeTextPipline->UnregisterTextGroup(*TitleText);
-        TitleText.reset();
+    for (auto& Text : Texts) {
+        if (Text.has_value()) {
+            Renderer->m_NodeTextPipline->UnregisterTextGroup(*Text);
+            Text.reset();
+        }
     }
 
     for (const auto PinIndex :
@@ -96,7 +98,10 @@ CNodeRenderer::CNodeRenderer(CWindowBase* Window)
 
 CNodeRenderer::~CNodeRenderer() = default;
 
-constexpr glm::vec2 MinimumNodeSize { 150, 100 };
+static constexpr glm::vec2 MinimumNodeSize { 150, 100 };
+static constexpr float NodeItemRadius { 8.0f };
+static constexpr glm::vec2 NodeInnerPinStartPosition { 10.0f, 30.0f + NodeItemRadius * 2 };
+static constexpr glm::vec2 NodeInnerContentStartPosition = NodeInnerPinStartPosition + glm::vec2 { NodeItemRadius * 4, -NodeItemRadius };
 
 void CNodeRenderer::WriteToNode(const size_t Id, const std::string& Title, const glm::vec2& Position, const uint32_t HeaderColor, std::optional<glm::vec2> NodeSize)
 {
@@ -110,19 +115,40 @@ void CNodeRenderer::WriteToNode(const size_t Id, const std::string& Title, const
     BackgroundInstanceBuffer.HeaderColor = HeaderColor;
     BackgroundInstanceBuffer.Size = NodeSize.value_or(MinimumNodeSize);
 
-    if (!m_NodeResourcesHandles[Id].TitleText.has_value()) {
-        m_NodeResourcesHandles[Id].TitleText = m_NodeTextPipline->RegisterTextGroup(Id, Title, 0.4, { .Color = 0xFFFFFFFF });
-    } else {
-        (*m_NodeResourcesHandles[Id].TitleText)->Text = Title;
-        m_NodeTextPipline->UpdateTextGroup(*m_NodeResourcesHandles[Id].TitleText);
-    }
+    if (!Title.empty())
+        WriteTextToNode(Id, ENodeTextType::Title, Title, 0.4, { .Offset = SNodeAdditionalSourceHandle::TitleOffset, .Color = 0xFFFFFFFF });
 
-    if (!Title.empty() && !NodeSize.has_value()) {
-        BackgroundInstanceBuffer.Size = glm::max(BackgroundInstanceBuffer.Size, { (*m_NodeResourcesHandles[Id].TitleText)->TextWidth + 20, 0 });
+    /// TODO: put it in WriteTextToNode ish.
+    if (!NodeSize.has_value()) {
+        static_assert(std::to_underlying(ENodeTextType::Title) == 0);
+        const float MaxTitleTextWidth = !Title.empty() ? (*m_NodeResourcesHandles[Id].Texts[0])->TextWidth + SNodeAdditionalSourceHandle::TitleOffset.x * 2 : 0;
+        float MaxContentTextWidth = 0;
+        for (const auto& Text : m_NodeResourcesHandles[Id].Texts | std::views::drop(1)) {
+            if (Text.has_value()) {
+                constexpr auto ContentTotalPadding = NodeInnerContentStartPosition.x * 2;
+                MaxContentTextWidth = std::max(MaxContentTextWidth, (*Text)->TextWidth + ContentTotalPadding);
+            }
+        }
+
+        BackgroundInstanceBuffer.Size = glm::max(BackgroundInstanceBuffer.Size, { std::max(MaxTitleTextWidth, MaxContentTextWidth), 0 });
     }
 
     m_NodeBackgroundPipline->GetVertexBuffer().Upload(Id);
     m_CommonNodeSSBOBuffer->Upload(Id);
+}
+
+void CNodeRenderer::WriteTextToNode(const size_t Id, const ENodeTextType Ty, std::string Text, const float Scale, const SNodeTextPerGroupMeta& Meta)
+{
+    /// TODO: Update node size
+    m_NodeTextPipline->WriteTextGroup(m_NodeResourcesHandles[Id].Texts[std::to_underlying(Ty)], Id, std::move(Text), Scale, Meta);
+}
+
+void CNodeRenderer::WriteInnerTextToNode(const size_t Id, const ENodeTextType Ty, std::string Text, const float Scale, const SNodeTextPerGroupMeta& Meta)
+{
+    /// TODO: Update node size
+    SNodeTextPerGroupMeta Copy = Meta;
+    Copy.Offset += NodeInnerContentStartPosition;
+    m_NodeTextPipline->WriteTextGroup(m_NodeResourcesHandles[Id].Texts[std::to_underlying(Ty)], Id, std::move(Text), Scale, Copy);
 }
 
 uint32_t CNodeRenderer::GetHeaderColor(size_t Id) const noexcept
@@ -243,9 +269,6 @@ glm::vec2 CNodeRenderer::MoveNode(size_t Id, const glm::vec2& Delta) const
     return NewPosition;
 }
 
-static constexpr glm::vec2 NodePinStartPosition { 10.0f, 30.0f };
-static constexpr float NodeRadius { 8.0f };
-
 bool CNodeRenderer::RemovePin(size_t NodeId, size_t PinId)
 {
     MAKE_SURE(NodeId < m_IdCount)
@@ -263,11 +286,11 @@ bool CNodeRenderer::RemovePin(size_t NodeId, size_t PinId)
     /// Fit size
     if (ThisSide.size() > OtherSide.size()) {
         const auto PinCount = ThisSide.size();
-        const float InternalYOffset = PinCount * 3 * NodeRadius;
-        const float NodeOffset = NodePinStartPosition.y + NodeRadius * 2 + InternalYOffset;
+        const float InternalYOffset = PinCount * 3 * NodeItemRadius;
+        const float NodeOffset = NodeInnerPinStartPosition.y + InternalYOffset;
 
         auto& NodeInstance = m_NodeBackgroundPipline->GetVertexBuffer().At<SNodeBackgroundInstanceBuffer>(NodeId);
-        NodeInstance.Size.y = std::max(MinimumNodeSize.y, NodeOffset - NodeRadius * 2);
+        NodeInstance.Size.y = std::max(MinimumNodeSize.y, NodeOffset - NodeItemRadius * 2);
         m_NodeBackgroundPipline->GetVertexBuffer().Upload(NodeId);
     }
 
@@ -277,8 +300,8 @@ bool CNodeRenderer::RemovePin(size_t NodeId, size_t PinId)
     /// Re-arrange all pin at this side
     auto& NodeInstance = m_NodeBackgroundPipline->GetVertexBuffer().At<SNodeBackgroundInstanceBuffer>(NodeId);
     for (int i = 0; i < ThisSide.size(); ++i) {
-        const glm::vec2 InternalNodeOffset = { IsOutputPin ? NodeInstance.Size.x - NodeRadius * 3.5f : NodeRadius, i * 3 * NodeRadius };
-        const glm::vec2 NodeOffset = NodePinStartPosition + glm::vec2 { 0, NodeRadius * 2 } + InternalNodeOffset;
+        const glm::vec2 InternalNodeOffset = { IsOutputPin ? NodeInstance.Size.x - NodeInnerPinStartPosition.x - NodeItemRadius * 2.f : 0, i * 3 * NodeItemRadius };
+        const glm::vec2 NodeOffset = NodeInnerPinStartPosition + InternalNodeOffset;
 
         m_NodePinPipline->GetVertexBuffer().At<SNodePinInstanceBuffer>(ThisSide[i]).Offset = NodeOffset;
         m_NodePinPipline->GetVertexBuffer().Upload(ThisSide[i]);
@@ -304,16 +327,16 @@ size_t CNodeRenderer::AddInputPin(size_t Id, bool IsExecutionPin)
     MAKE_SURE(Id < m_IdCount)
 
     const auto PinCount = m_NodeResourcesHandles[Id].InputPins.size();
-    const glm::vec2 InternalNodeOffset = { NodeRadius, PinCount * 3 * NodeRadius };
-    const glm::vec2 NodeOffset = NodePinStartPosition + glm::vec2 { 0, NodeRadius * 2 } + InternalNodeOffset;
+    const glm::vec2 InternalNodeOffset = { NodeItemRadius, PinCount * 3 * NodeItemRadius };
+    const glm::vec2 NodeOffset = NodeInnerPinStartPosition + InternalNodeOffset;
 
     if (m_NodeResourcesHandles[Id].InputPins.size() >= m_NodeResourcesHandles[Id].OutputPins.size()) {
         auto& NodeInstance = m_NodeBackgroundPipline->GetVertexBuffer().At<SNodeBackgroundInstanceBuffer>(Id);
-        NodeInstance.Size = glm::max(NodeInstance.Size, { 0, NodeOffset.y + NodeRadius * 2 });
+        NodeInstance.Size = glm::max(NodeInstance.Size, { 0, NodeOffset.y + NodeItemRadius * 2 });
         m_NodeBackgroundPipline->GetVertexBuffer().Upload(Id);
     }
 
-    return m_NodeResourcesHandles[Id].InputPins.emplace_back(m_NodePinPipline->NewPin(Id, NodeOffset, IsExecutionPin ? NodeRadius : NodeRadius * 0.6f, 0xFFFFFFFF, IsExecutionPin, false));
+    return m_NodeResourcesHandles[Id].InputPins.emplace_back(m_NodePinPipline->NewPin(Id, NodeOffset, IsExecutionPin ? NodeItemRadius : NodeItemRadius * 0.6f, 0xFFFFFFFF, IsExecutionPin, false));
 }
 
 size_t CNodeRenderer::AddOutputPin(size_t Id, bool IsExecutionPin)
@@ -323,15 +346,15 @@ size_t CNodeRenderer::AddOutputPin(size_t Id, bool IsExecutionPin)
     const auto PinCount = m_NodeResourcesHandles[Id].OutputPins.size();
     auto& NodeInstance = m_NodeBackgroundPipline->GetVertexBuffer().At<SNodeBackgroundInstanceBuffer>(Id);
 
-    const glm::vec2 InternalNodeOffset = { NodeInstance.Size.x - NodeRadius * 3.5f, PinCount * 3 * NodeRadius };
-    const glm::vec2 NodeOffset = NodePinStartPosition + glm::vec2 { 0, NodeRadius * 2 } + InternalNodeOffset;
+    const glm::vec2 InternalNodeOffset = { NodeInstance.Size.x - NodeInnerPinStartPosition.x - NodeItemRadius * 3.f, PinCount * 3 * NodeItemRadius };
+    const glm::vec2 NodeOffset = NodeInnerPinStartPosition + InternalNodeOffset;
 
     if (m_NodeResourcesHandles[Id].OutputPins.size() >= m_NodeResourcesHandles[Id].InputPins.size()) {
-        NodeInstance.Size = glm::max(NodeInstance.Size, { 0, NodeOffset.y + NodeRadius * 2 });
+        NodeInstance.Size = glm::max(NodeInstance.Size, { 0, NodeOffset.y + NodeItemRadius * 2 });
         m_NodeBackgroundPipline->GetVertexBuffer().Upload(Id);
     }
 
-    return m_NodeResourcesHandles[Id].OutputPins.emplace_back(m_NodePinPipline->NewPin(Id, NodeOffset, IsExecutionPin ? NodeRadius : NodeRadius * 0.6f, 0xFFFFFFFF, IsExecutionPin, false));
+    return m_NodeResourcesHandles[Id].OutputPins.emplace_back(m_NodePinPipline->NewPin(Id, NodeOffset, IsExecutionPin ? NodeItemRadius : NodeItemRadius * 0.6f, 0xFFFFFFFF, IsExecutionPin, false));
 }
 
 size_t CNodeRenderer::InputLinkVirtualPin(size_t Id1, size_t NodeId)
@@ -419,7 +442,7 @@ std::optional<std::size_t> CNodeRenderer::GetHoveringPin(const size_t HoveringNo
     for (const auto PinId : std::views::join(std::array { std::views::all(m_NodeResourcesHandles[HoveringNodeId].InputPins), std::views::all(m_NodeResourcesHandles[HoveringNodeId].OutputPins) })) {
         const auto& NodeMeta = m_NodePinPipline->GetVertexBuffer().At<SNodePinInstanceBuffer>(PinId);
         const auto PinDistance = glm::length2(InNodeOffset - NodeMeta.Offset);
-        if (PinDistance <= std::pow(NodeMeta.Radius + NodeRadius / 2 + Tolerance, 2)) {
+        if (PinDistance <= std::pow(NodeMeta.Radius + NodeItemRadius / 2 + Tolerance, 2)) {
             if (PinDistance < MinDistance) {
                 MinDistance = PinDistance;
                 MinPinId = PinId;

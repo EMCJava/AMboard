@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "NodeTextPerGroupMeta.hxx"
+
 #include "AMboard/Editor/BoardEditor.hxx"
 
 #include <Util/RangeManager.hxx>
@@ -12,6 +14,7 @@
 
 #include <dawn/webgpu_cpp.h>
 
+#include <array>
 #include <memory>
 #include <optional>
 
@@ -26,10 +29,16 @@ struct SCommonNodeSSBO {
     uint8_t Padding[4];
 };
 
-struct SNodeAdditionalSourceHandle {
-    static constexpr glm::vec2 TitleOffset = { 10, 10 };
+enum class ENodeTextType : uint8_t {
+    Title,
+    Inner,
+    Count
+};
 
-    std::optional<std::list<STextGroupHandle>::iterator> TitleText;
+struct SNodeAdditionalSourceHandle {
+    static constexpr glm::vec2 TitleOffset = { 9, 9 };
+
+    std::array<std::optional<std::list<STextGroupHandle>::iterator>, std::to_underlying(ENodeTextType::Count)> Texts;
 
     std::vector<size_t> InputPins;
     std::vector<size_t> OutputPins;
@@ -49,11 +58,13 @@ public:
     ~CNodeRenderer();
 
     void WriteToNode(size_t Id, const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor, std::optional<glm::vec2> NodeSize = std::nullopt);
+    void WriteTextToNode(size_t Id, ENodeTextType Ty, std::string Text, float Scale, const SNodeTextPerGroupMeta& Meta);
+    void WriteInnerTextToNode(size_t Id, ENodeTextType Ty, std::string Text, float Scale, const SNodeTextPerGroupMeta& Meta);
 
     uint32_t GetHeaderColor(size_t Id) const noexcept;
 
     template <typename Self>
-    decltype(auto) GetTitle(this Self&& s, size_t Id) noexcept { return s.m_NodeResourcesHandles[Id].TitleText.value()->Text; }
+    decltype(auto) GetTitle(this Self&& s, size_t Id) noexcept { return s.m_NodeResourcesHandles[Id].Texts[std::to_underlying(ENodeTextType::Title)].value()->Text; }
 
     void SetState(size_t Id, ECommonNodeState State) const;
     void ResetState(size_t Id, ECommonNodeState State) const;

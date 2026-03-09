@@ -37,11 +37,13 @@ struct NodeCommon {
 }
 
 struct TextGroup {
+    offset: vec2<f32>,
     color: u32,
+    _padding: u32,
 }
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
-@group(1) @binding(0) var<storage, read> text_commons: array<NodeCommon>;
+@group(1) @binding(0) var<storage, read> node_commons: array<NodeCommon>;
 @group(2) @binding(0) var<storage, read> text_groups: array<TextGroup>;
 @group(2) @binding(1) var char_texture: texture_2d<f32>;
 @group(2) @binding(2) var char_sampler: sampler;
@@ -56,7 +58,7 @@ fn vs_main(input: VertexInput) -> VertexOutput {
     let color = unpack4x8unorm(text_groups[input.text_group_index].color);
 
     // Compute position
-    let pos = vertex * input.text_bound.zw + input.text_bound.xy + text_commons[input.node_index].offset + vec2<f32>(10.0, 10.0);
+    let pos = vertex * input.text_bound.zw + input.text_bound.xy + node_commons[input.node_index].offset + text_groups[input.text_group_index].offset;
 
     return VertexOutput(
         uniforms.projection * uniforms.view * vec4<f32>(pos, 0.0, 1.0),
@@ -104,7 +106,7 @@ void CNodeTextRenderPipline::CreateCommonBindingGroup()
     m_TextGroupSSBOBindingGroup = m_Window->GetDevice().CreateBindGroup(&bindGroupDesc);
 }
 
-void CNodeTextRenderPipline::RefreshBuffer(STextGroupHandle& TextGroupHandle)
+void CNodeTextRenderPipline::RefreshVertexBuffer(STextGroupHandle& TextGroupHandle)
 {
     /// Free old buffer
     if (TextGroupHandle.GroupId != -1) {
@@ -128,7 +130,7 @@ void CNodeTextRenderPipline::RefreshBuffer(STextGroupHandle& TextGroupHandle)
 
 float CNodeTextRenderPipline::PushVertexBuffer(STextGroupHandle& TextGroupHandle)
 {
-    RefreshBuffer(TextGroupHandle);
+    RefreshVertexBuffer(TextGroupHandle);
 
     unsigned int GlyphsCount = 0;
     float TextWidth = m_Font->BuildVertex(TextGroupHandle.Text, TextGroupHandle.Scale, [&](const size_t GlyphsToAllocate) {
@@ -186,29 +188,30 @@ CNodeTextRenderPipline::CNodeTextRenderPipline(CWindowBase* Window, std::shared_
 
 CNodeTextRenderPipline::~CNodeTextRenderPipline() = default;
 
-std::list<STextGroupHandle>::iterator CNodeTextRenderPipline::RegisterTextGroup(size_t NodeId, std::string Text, float Scale, const SNodeTextPerGroupMeta& Meta)
+void CNodeTextRenderPipline::WriteTextGroup(std::optional<std::list<STextGroupHandle>::iterator>& It, size_t NodeId, std::string Text, float Scale, const SNodeTextPerGroupMeta& Meta)
 {
-    auto Result = m_RegisteredTextGroup.emplace(m_RegisteredTextGroup.end(), std::move(Text), Scale);
-    Result->NodeId = NodeId;
+    if (!It.has_value()) {
+        It = m_RegisteredTextGroup.emplace(m_RegisteredTextGroup.end(), std::move(Text), Scale);
+    }
 
-    RefreshBuffer(*Result);
-    MAKE_SURE(Result->GroupId != -1)
-    m_TextGroupBuffer->At<SNodeTextPerGroupMeta>(Result->GroupId) = Meta;
-
-    UpdateTextGroup(Result);
-    return Result; // NOLINT
+    auto& TextGroupHandle = **It;
+    TextGroupHandle.NodeId = NodeId;
+    RefreshVertexBuffer(TextGroupHandle);
+    MAKE_SURE(TextGroupHandle.GroupId != -1)
+    m_TextGroupBuffer->At<SNodeTextPerGroupMeta>(TextGroupHandle.GroupId) = Meta;
+    UpdateTextGroup(TextGroupHandle);
 }
 
-void CNodeTextRenderPipline::UpdateTextGroup(const std::list<STextGroupHandle>::iterator& Group)
+void CNodeTextRenderPipline::UpdateTextGroup(STextGroupHandle& Group)
 {
-    Group->TextWidth = PushVertexBuffer(*Group);
-    PushPerGroupBuffer(*Group);
+    Group.TextWidth = PushVertexBuffer(Group);
+    PushPerGroupBuffer(Group);
 }
 
 void CNodeTextRenderPipline::UnregisterTextGroup(const std::list<STextGroupHandle>::iterator& Group)
 {
     if (Group->GroupId != -1) {
-        RefreshBuffer(*Group);
+        RefreshVertexBuffer(*Group);
         m_TextGroupBufferFreeList.push(Group->GroupId);
     }
 }

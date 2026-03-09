@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "NodeTextPerGroupMeta.hxx"
+
 #include <Util/RangeManager.hxx>
 
 #include <Interface/Pipline/RenderPipeline.hxx>
@@ -14,14 +16,11 @@
 #include <stack>
 #include <list>
 
-struct SNodeTextPerGroupMeta {
-    uint32_t Color { };
-};
 
 class CNodeTextRenderPipline : public CRenderPipeline {
 
     void CreateCommonBindingGroup();
-    void RefreshBuffer(STextGroupHandle& TextGroupHandle);
+    void RefreshVertexBuffer(STextGroupHandle& TextGroupHandle);
 
     float PushVertexBuffer(STextGroupHandle& TextGroupHandle);
     void PushPerGroupBuffer(STextGroupHandle& TextGroupHandle);
@@ -30,10 +29,13 @@ public:
     CNodeTextRenderPipline(CWindowBase* Window, std::shared_ptr<class CFont> Font);
     ~CNodeTextRenderPipline();
 
-    std::list<STextGroupHandle>::iterator RegisterTextGroup(size_t NodeId, std::string Text, float Scale = 1, const SNodeTextPerGroupMeta& Meta = { });
-    void UpdateTextGroup(const std::list<STextGroupHandle>::iterator& Group);
+    void WriteTextGroup(std::optional<std::list<STextGroupHandle>::iterator>& It, size_t NodeId, std::string Text, float Scale = 1, const SNodeTextPerGroupMeta& Meta = { });
+
+    void UpdateTextGroup(STextGroupHandle& Group);
     void UnregisterTextGroup(const std::list<STextGroupHandle>::iterator& Group);
 
+    template <typename Self>
+    auto GetOffset(this Self&& s, auto&& Iterator) noexcept { return s.m_TextGroupBuffer->template At<STextGroupHandle>(Iterator->GroupId).Offset; }
     template <typename Self>
     auto GetRenderMetas(this Self&& s) noexcept { return s.m_TextVertexBuffer->template GetView<STextRenderVertexMeta>(); }
     template <typename Self>
