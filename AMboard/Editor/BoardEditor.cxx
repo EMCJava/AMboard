@@ -12,7 +12,7 @@
 #include <AMboard/Macro/ExecuteNode.hxx>
 #include <AMboard/Macro/ExecutionManager.hxx>
 #include <AMboard/Macro/Ext/ImGuiPopup.hxx>
-#include <AMboard/Macro/FlowPin.hxx>
+#include <AMboard/Macro/Ext/NodeInnerText.hxx>
 
 #include <Util/Assertions.hxx>
 
@@ -191,6 +191,10 @@ size_t CBoardEditor::RegisterNode(NodeStorage Node, const std::string& Title, co
             m_PinIdMapping.left.erase(PinIdIt);
         }
     });
+
+    if (auto* InnerText = dynamic_cast<INodeInnerText*>(m_Nodes[NodeId].Node.get())) {
+        m_NodeRenderer->WriteInnerTextToNode(NodeId, ENodeTextType::Inner, InnerText->GetInnerText(), 0.4, { .Offset = {}, .Color = 0xFFFFFF8F });
+    }
 
     return NodeId;
 }

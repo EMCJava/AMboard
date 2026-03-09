@@ -6,6 +6,7 @@
 #include <AMboard/Macro/ExecuteNode.hxx>
 #include <AMboard/Macro/ExecutionManager.hxx>
 #include <AMboard/Macro/Ext/ImGuiPopup.hxx>
+#include <AMboard/Macro/Ext/NodeInnerText.hxx>
 
 #include <AMboard/Control/InputDispatcher.hxx>
 #include <AMboard/Control/InputService.hxx>
@@ -362,7 +363,7 @@ public:
     }
 };
 
-class CDelayNode : public CExecuteNode, public INodeImGuiPupUpExt {
+class CDelayNode : public CExecuteNode, public INodeImGuiPupUpExt, public INodeInnerText {
 public:
     std::string_view GetCategory() noexcept override
     {
@@ -384,7 +385,32 @@ public:
 
     void Execute() override
     {
-        std::this_thread::sleep_for(std::chrono::duration<float>(m_Delay));
+        const auto StartTime = std::chrono::steady_clock::now();
+        const auto DelayDuration = std::chrono::duration<float>(m_Delay);
+        const auto EndTime = StartTime + DelayDuration;
+
+        // How often the GUI should update
+        constexpr auto UpdateInterval = std::chrono::milliseconds(100);
+
+        while (true) {
+            auto Now = std::chrono::steady_clock::now();
+
+            if (Now >= EndTime) {
+                break;
+            }
+
+            const std::chrono::duration<float> Remaining = EndTime - Now;
+            SetInnerText(std::format("{:.1f}", Remaining.count()));
+
+            // If remaining time is less than 100ms, only sleep for the exact remaining time.
+            if (Remaining < UpdateInterval) {
+                std::this_thread::sleep_for(Remaining);
+            } else {
+                std::this_thread::sleep_for(UpdateInterval);
+            }
+        }
+
+        SetInnerText(std::format("{:.1f}", m_Delay));
     }
 
     void WriteExtraContext(std::string& ExtContext) const override
@@ -394,6 +420,7 @@ public:
     void ReadExtraContext(const std::string& ExtContext) override
     {
         m_Delay = std::stof(ExtContext);
+        SetInnerText(std::format("{:.1f}", m_Delay));
     }
 
 protected:
