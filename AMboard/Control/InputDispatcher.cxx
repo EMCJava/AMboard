@@ -22,18 +22,28 @@ void CInputDispatcher::InjectEvent(const SInputEvent& ev)
         SendInput(1, &input, sizeof(INPUT));
     } else {
         input.type = INPUT_MOUSE;
-        if (ev.type == EInputType::MouseMove) {
-            // Windows SendInput requires normalized absolute coordinates (0 to 65535)
+
+        // If x and y are not -1, we want to move the cursor to the recorded location
+        if (ev.x != -1 && ev.y != -1) {
             int screenWidth = GetSystemMetrics(SM_CXSCREEN);
             int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-            input.mi.dx = (ev.x * 65535) / screenWidth;
-            input.mi.dy = (ev.y * 65535) / screenHeight;
+
+            // Windows requires normalized absolute coordinates (0 to 65535)
+            input.mi.dx = (ev.x * 65535) / (screenWidth - 1);
+            input.mi.dy = (ev.y * 65535) / (screenHeight - 1);
+
+            // Force the cursor to teleport to this location
             input.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
-        } else if (ev.type == EInputType::MouseDown) {
-            input.mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-        } else if (ev.type == EInputType::MouseUp) {
-            input.mi.dwFlags = MOUSEEVENTF_LEFTUP;
         }
+
+        // Append the click flags (if any) to the move flags
+        if (ev.type == EInputType::MouseDown) {
+            input.mi.dwFlags |= MOUSEEVENTF_LEFTDOWN;
+        } else if (ev.type == EInputType::MouseUp) {
+            input.mi.dwFlags |= MOUSEEVENTF_LEFTUP;
+        }
+
+        // Send the combined Move + Click event in a single OS call
         SendInput(1, &input, sizeof(INPUT));
     }
 }
@@ -41,7 +51,7 @@ void CInputDispatcher::InjectEvent(const SInputEvent& ev)
 #elif defined(__APPLE__)
 #include <ApplicationServices/ApplicationServices.h>
 
-void CInputDispatcher::InjectEvent(const InputEvent& ev)
+void CInputDispatcher::InjectEvent(const SInputEvent& ev)
 {
     CGEventRef cgEvent = nullptr;
 
@@ -50,8 +60,8 @@ void CInputDispatcher::InjectEvent(const InputEvent& ev)
     } else {
         CGPoint loc = CGPointMake(ev.x, ev.y);
 
-        // If x and y are 0 (e.g., a click without moving), fetch current mouse position
-        if (ev.x == 0 && ev.y == 0 && ev.type != EInputType::MouseMove) {
+        // If x and y are -1, fetch the current physical mouse position
+        if (ev.x == -1 && ev.y == -1) {
             CGEventRef tempEvent = CGEventCreate(nullptr);
             loc = CGEventGetLocation(tempEvent);
             CFRelease(tempEvent);
@@ -65,11 +75,11 @@ void CInputDispatcher::InjectEvent(const InputEvent& ev)
         else if (ev.type == EInputType::MouseUp)
             cgType = kCGEventLeftMouseUp;
 
+        // macOS natively moves the cursor to 'loc' before performing the click action
         cgEvent = CGEventCreateMouseEvent(nullptr, cgType, loc, kCGMouseButtonLeft);
     }
 
     if (cgEvent) {
-        // kCGHIDEventTap injects at the hardware level, affecting all apps
         CGEventPost(kCGHIDEventTap, cgEvent);
         CFRelease(cgEvent);
     }
