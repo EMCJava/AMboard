@@ -12,7 +12,7 @@
 // 1. CROSS-PLATFORM DATA STRUCTURES
 // =============================================================================
 
-enum class InputType {
+enum class EInputType {
     KeyDown,
     KeyUp,
     MouseMove,
@@ -20,8 +20,8 @@ enum class InputType {
     MouseUp
 };
 
-struct InputEvent {
-    InputType type;
+struct SInputEvent {
+    EInputType type;
     int keyCode;
     int x, y;
 
@@ -33,12 +33,12 @@ struct InputEvent {
 // 2. THE OPTIMIZED INPUT SERVICE
 // =============================================================================
 
-class InputService {
+class CInputService {
 public:
-    using InputCallback = std::function<void(const InputEvent&)>;
+    using InputCallback = std::function<void(const SInputEvent&)>;
     using SubscriptionID = uint64_t;
 
-    static InputService& Get();
+    static CInputService& Get();
 
     // Automatically starts OS listening if this is the first subscriber
     SubscriptionID Subscribe(InputCallback callback);
@@ -46,11 +46,11 @@ public:
     // Automatically stops OS listening if this was the last subscriber
     void Unsubscribe(SubscriptionID id);
 
-    void DispatchEvent(const InputEvent& event);
+    void DispatchEvent(const SInputEvent& event);
 
 private:
-    InputService() = default;
-    ~InputService() { StopInternal(); }
+    CInputService() = default;
+    ~CInputService() { StopInternal(); }
 
     std::mutex m_mutex;
     std::unordered_map<SubscriptionID, InputCallback> m_subscribers;

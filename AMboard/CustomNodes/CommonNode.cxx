@@ -2,12 +2,12 @@
 // Created by LYS on 2/26/2026.
 //
 
-#include "AMboard/Macro/ExecutionManager.hxx"
-
 #include <AMboard/Macro/DataPin.hxx>
 #include <AMboard/Macro/ExecuteNode.hxx>
+#include <AMboard/Macro/ExecutionManager.hxx>
 #include <AMboard/Macro/Ext/ImGuiPopup.hxx>
 
+#include <AMboard/Control/InputDispatcher.hxx>
 #include <AMboard/Control/InputService.hxx>
 
 #include <iostream>
@@ -362,6 +362,44 @@ public:
     }
 };
 
+class CDelayNode : public CExecuteNode, public INodeImGuiPupUpExt {
+public:
+    std::string_view GetCategory() noexcept override
+    {
+        return "Time";
+    }
+
+    std::string GetTitle() override
+    {
+        return "Delay";
+    }
+
+    bool Render() override
+    {
+        ImGui::InputFloat("Delay (second)", &m_Delay);
+        m_Delay = std::max(m_Delay, 0.f);
+
+        return true;
+    }
+
+    void Execute() override
+    {
+        std::this_thread::sleep_for(std::chrono::duration<float>(m_Delay));
+    }
+
+    void WriteExtraContext(std::string& ExtContext) const override
+    {
+        ExtContext = std::to_string(m_Delay);
+    }
+    void ReadExtraContext(const std::string& ExtContext) override
+    {
+        m_Delay = std::stof(ExtContext);
+    }
+
+protected:
+    float m_Delay = 0;
+};
+
 class CActionReplayNode : public CExecuteNode, public INodeImGuiPupUpExt {
 public:
     std::string GetTitle() override
@@ -369,7 +407,7 @@ public:
         return "Event Record";
     }
 
-    void InputCallback(const InputEvent& InputEvent)
+    void InputCallback(const SInputEvent& InputEvent)
     {
         if (!m_IsRecording) {
             return;
@@ -378,13 +416,13 @@ public:
         using namespace std::chrono;
 
         const auto CurrentTime = steady_clock::now();
-        if (m_EventRecord.empty())
+        if (m_PlaybackEvent.empty())
             m_LastEventTime = m_StartTime = CurrentTime;
         const auto Timepoint = duration_cast<milliseconds>(CurrentTime - m_StartTime).count();
         const auto SinceLastEvent = duration_cast<milliseconds>(CurrentTime - m_LastEventTime).count();
         m_LastEventTime = CurrentTime;
 
-        if (InputEvent.type == InputType::KeyDown) {
+        if (InputEvent.type == EInputType::KeyDown) {
 #ifdef _WIN32
             if (InputEvent.keyCode == VK_ESCAPE)
 #else
@@ -396,20 +434,20 @@ public:
             }
         }
 
-        if (InputEvent.type != InputType::MouseMove) {
-            m_EventRecord.emplace_back(Timepoint, InputEvent);
+        if (InputEvent.type != EInputType::MouseMove) {
+            m_PlaybackEvent.emplace_back(Timepoint, InputEvent);
             m_Logger.append(std::format("{}ms(+{}) {} \n", Timepoint, SinceLastEvent, InputEvent.ToString()).c_str());
         }
     }
 
     void OnStartPopup() override
     {
-        m_InputMonitor = InputService::Get().Subscribe(std::bind_front(&CActionReplayNode::InputCallback, this));
+        m_InputMonitor = CInputService::Get().Subscribe(std::bind_front(&CActionReplayNode::InputCallback, this));
     }
 
     void OnEndPopup() override
     {
-        InputService::Get().Unsubscribe(m_InputMonitor);
+        CInputService::Get().Unsubscribe(m_InputMonitor);
     }
 
     bool Render() override
@@ -417,7 +455,7 @@ public:
         ImGui::BeginDisabled(m_IsRecording);
         if ((m_Logger.empty() && ImGui::Button("Start record")) || (!m_Logger.empty() && ImGui::Button("Restart record"))) {
             m_Logger.clear();
-            m_EventRecord.clear();
+            m_PlaybackEvent.clear();
             m_IsRecording = true;
         }
         if (m_IsRecording) {
@@ -449,15 +487,22 @@ public:
 
     void Execute() override
     {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        CInputDispatcher::Get().Play(m_PlaybackEvent);
+        while (CInputDispatcher::Get().IsPlaying()) {
+            std::this_thread::yield();
+            if (!*m_Manager) {
+                CInputDispatcher::Get().Stop();
+                break;
+            }
+        }
     }
 
     void WriteExtraContext(std::string& ExtContext) const override
     {
-        if (m_EventRecord.empty())
+        if (m_PlaybackEvent.empty())
             return;
 
-        const auto Data = std::as_bytes(std::span(m_EventRecord));
+        const auto Data = std::as_bytes(std::span(m_PlaybackEvent));
 
         // Reserve a reasonable estimate to prevent reallocations
         ExtContext.reserve(ExtContext.size() + Data.size() * 4);
@@ -496,7 +541,7 @@ public:
     void ReadExtraContext(const std::string& ExtContext) override
     {
         m_Logger.clear();
-        m_EventRecord.clear();
+        m_PlaybackEvent.clear();
 
         if (ExtContext.empty())
             return;
@@ -523,13 +568,13 @@ public:
             ++Ptr; // Skip the '|'
         }
 
-        using ElementType = typename decltype(m_EventRecord)::value_type;
-        m_EventRecord.resize(TotalBytes / sizeof(ElementType));
+        using ElementType = typename decltype(m_PlaybackEvent)::value_type;
+        m_PlaybackEvent.resize(TotalBytes / sizeof(ElementType));
 
         // ========================================================================
         //  Decode directly into the destination memory
         // ========================================================================
-        uint8_t* OutPtr = reinterpret_cast<uint8_t*>(m_EventRecord.data());
+        uint8_t* OutPtr = reinterpret_cast<uint8_t*>(m_PlaybackEvent.data());
         Ptr = ExtContext.data(); // Reset pointer to the start of the string
 
         while (Ptr < End) {
@@ -562,22 +607,22 @@ public:
         }
 
         uint32_t LastTimePoint = 0;
-        for (const auto& [TimePoint, InputEvent] : m_EventRecord) {
+        for (const auto& [TimePoint, InputEvent] : m_PlaybackEvent) {
             m_Logger.append(std::format("{}ms(+{}) {} \n", TimePoint, TimePoint - LastTimePoint, InputEvent.ToString()).c_str());
             LastTimePoint = TimePoint;
         }
     }
 
 private:
-    InputService::SubscriptionID m_InputMonitor { };
+    CInputService::SubscriptionID m_InputMonitor { };
 
     ImGuiTextBuffer m_Logger;
     bool m_IsRecording = false;
 
-    std::vector<std::pair<uint32_t, InputEvent>> m_EventRecord;
+    std::vector<SPlaybackEvent> m_PlaybackEvent;
     std::chrono::steady_clock::time_point m_StartTime;
     std::chrono::steady_clock::time_point m_LastEventTime;
 };
 
-REGISTER_MACROS(CActionReplayNode, CAddNode, CEntranceNode, CToStringNode, CPrintingNode, CBranchingNode, CSequenceNode)
+REGISTER_MACROS(CActionReplayNode, CDelayNode, CAddNode, CEntranceNode, CToStringNode, CPrintingNode, CBranchingNode, CSequenceNode)
 ENABLE_IMGUI()

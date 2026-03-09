@@ -1,1 +1,2 @@
 create_library(InputService P_DEPS Assertions)
+create_library(InputDispatcher P_DEPS Assertions)

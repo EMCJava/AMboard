@@ -26,6 +26,8 @@ public:
 
     void UnRegisterNode(CExecuteNode* Node) noexcept;
 
+    operator bool() const noexcept { return !m_TerminationFlag.test(); }
+
 protected:
     std::atomic_flag m_TerminationFlag;
     std::unique_ptr<std::thread> m_ExecutionThread;

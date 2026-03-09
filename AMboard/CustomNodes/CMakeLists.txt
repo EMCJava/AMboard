@@ -7,7 +7,7 @@ endif ()
 
 add_library(CommonNode SHARED CommonNode.cxx)
 target_compile_definitions(CommonNode PRIVATE MACRO_API_IMPORTS)
-target_link_libraries(CommonNode PRIVATE MacroSharedLib spdlog::spdlog ImGui.lib InputService.lib)
+target_link_libraries(CommonNode PRIVATE MacroSharedLib spdlog::spdlog ImGui.lib InputService.lib InputDispatcher.lib)
 
 if (APPLE)
     target_link_libraries(CommonNode PRIVATE "-framework Carbon")

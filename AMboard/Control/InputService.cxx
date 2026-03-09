@@ -8,23 +8,23 @@
 
 #include <ranges>
 
-std::string InputEvent::ToString() const
+std::string SInputEvent::ToString() const
 {
     std::string typeStr;
     switch (type) {
-    case InputType::KeyDown:
+    case EInputType::KeyDown:
         typeStr = "KeyDown";
         break;
-    case InputType::KeyUp:
+    case EInputType::KeyUp:
         typeStr = "KeyUp";
         break;
-    case InputType::MouseMove:
+    case EInputType::MouseMove:
         typeStr = "MouseMove";
         break;
-    case InputType::MouseDown:
+    case EInputType::MouseDown:
         typeStr = "MouseDown";
         break;
-    case InputType::MouseUp:
+    case EInputType::MouseUp:
         typeStr = "MouseUp";
         break;
     default:
@@ -33,20 +33,20 @@ std::string InputEvent::ToString() const
     }
 
     // Format output based on whether it's a keyboard or mouse event
-    if (type == InputType::KeyDown || type == InputType::KeyUp) {
+    if (type == EInputType::KeyDown || type == EInputType::KeyUp) {
         return typeStr + " [KeyCode: " + std::to_string(keyCode) + "]";
     } else {
         return typeStr + " [X: " + std::to_string(x) + ", Y: " + std::to_string(y) + "]";
     }
 }
 
-InputService& InputService::Get()
+CInputService& CInputService::Get()
 {
-    static InputService instance;
+    static CInputService instance;
     return instance;
 }
 
-InputService::SubscriptionID InputService::Subscribe(InputCallback callback)
+CInputService::SubscriptionID CInputService::Subscribe(InputCallback callback)
 {
     std::lock_guard lock(m_mutex);
     SubscriptionID id = ++m_nextId;
@@ -59,7 +59,7 @@ InputService::SubscriptionID InputService::Subscribe(InputCallback callback)
     return id;
 }
 
-void InputService::Unsubscribe(SubscriptionID id)
+void CInputService::Unsubscribe(SubscriptionID id)
 {
     bool shouldStop = false;
     {
@@ -77,7 +77,7 @@ void InputService::Unsubscribe(SubscriptionID id)
     }
 }
 
-void InputService::DispatchEvent(const InputEvent& event)
+void CInputService::DispatchEvent(const SInputEvent& event)
 {
     std::vector<InputCallback> callbacks;
     {
@@ -103,12 +103,12 @@ LRESULT CALLBACK WinMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if (nCode >= 0) {
         MSLLHOOKSTRUCT* ms = reinterpret_cast<MSLLHOOKSTRUCT*>(lParam);
-        InputEvent ev { InputType::MouseMove, 0, ms->pt.x, ms->pt.y };
+        SInputEvent ev { EInputType::MouseMove, 0, ms->pt.x, ms->pt.y };
         if (wParam == WM_LBUTTONDOWN || wParam == WM_RBUTTONDOWN)
-            ev.type = InputType::MouseDown;
+            ev.type = EInputType::MouseDown;
         else if (wParam == WM_LBUTTONUP || wParam == WM_RBUTTONUP)
-            ev.type = InputType::MouseUp;
-        InputService::Get().DispatchEvent(ev);
+            ev.type = EInputType::MouseUp;
+        CInputService::Get().DispatchEvent(ev);
     }
     return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
@@ -117,15 +117,15 @@ LRESULT CALLBACK WinKbdProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if (nCode >= 0) {
         KBDLLHOOKSTRUCT* ks = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
-        InputEvent ev { InputType::KeyDown, static_cast<int>(ks->vkCode), 0, 0 };
+        SInputEvent ev { EInputType::KeyDown, static_cast<int>(ks->vkCode), 0, 0 };
         if (wParam == WM_KEYUP || wParam == WM_SYSKEYUP)
-            ev.type = InputType::KeyUp;
-        InputService::Get().DispatchEvent(ev);
+            ev.type = EInputType::KeyUp;
+        CInputService::Get().DispatchEvent(ev);
     }
     return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
 
-void InputService::RunPlatformLoop(std::promise<void>* initialized)
+void CInputService::RunPlatformLoop(std::promise<void>* initialized)
 {
     m_threadId = GetCurrentThreadId();
 
@@ -149,7 +149,7 @@ void InputService::RunPlatformLoop(std::promise<void>* initialized)
     m_threadId = 0;
 }
 
-void InputService::StopPlatformLoop()
+void CInputService::StopPlatformLoop()
 {
     if (m_threadId != 0) {
         PostThreadMessage(m_threadId, WM_QUIT, 0, 0);
@@ -161,39 +161,39 @@ void InputService::StopPlatformLoop()
 
 CGEventRef MacEventCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void* refcon)
 {
-    InputEvent ev { };
+    SInputEvent ev { };
     CGPoint loc = CGEventGetLocation(event);
     ev.x = static_cast<int>(loc.x);
     ev.y = static_cast<int>(loc.y);
 
     switch (type) {
     case kCGEventKeyDown:
-        ev.type = InputType::KeyDown;
+        ev.type = EInputType::KeyDown;
         ev.keyCode = CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
         break;
     case kCGEventKeyUp:
-        ev.type = InputType::KeyUp;
+        ev.type = EInputType::KeyUp;
         ev.keyCode = CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
         break;
     case kCGEventMouseMoved:
-        ev.type = InputType::MouseMove;
+        ev.type = EInputType::MouseMove;
         break;
     case kCGEventLeftMouseDown:
     case kCGEventRightMouseDown:
-        ev.type = InputType::MouseDown;
+        ev.type = EInputType::MouseDown;
         break;
     case kCGEventLeftMouseUp:
     case kCGEventRightMouseUp:
-        ev.type = InputType::MouseUp;
+        ev.type = EInputType::MouseUp;
         break;
     default:
         return event;
     }
-    InputService::Get().DispatchEvent(ev);
+    CInputService::Get().DispatchEvent(ev);
     return event;
 }
 
-void InputService::RunPlatformLoop(std::promise<void>* initialized)
+void CInputService::RunPlatformLoop(std::promise<void>* initialized)
 {
     CGEventMask eventMask = CGEventMaskBit(kCGEventKeyDown) | CGEventMaskBit(kCGEventKeyUp) | CGEventMaskBit(kCGEventMouseMoved) | CGEventMaskBit(kCGEventLeftMouseDown) | CGEventMaskBit(kCGEventLeftMouseUp) | CGEventMaskBit(kCGEventRightMouseDown) | CGEventMaskBit(kCGEventRightMouseUp);
 
@@ -218,7 +218,7 @@ void InputService::RunPlatformLoop(std::promise<void>* initialized)
     m_runLoop = nullptr;
 }
 
-void InputService::StopPlatformLoop()
+void CInputService::StopPlatformLoop()
 {
     void* loop = m_runLoop.load();
     if (loop) {
@@ -231,7 +231,7 @@ void InputService::StopPlatformLoop()
 // 4. INTERNAL LIFECYCLE MANAGEMENT
 // =============================================================================
 
-void InputService::StartInternal()
+void CInputService::StartInternal()
 {
     if (m_running.exchange(true))
         return;
@@ -245,7 +245,7 @@ void InputService::StartInternal()
     initialized.get_future().wait();
 }
 
-void InputService::StopInternal()
+void CInputService::StopInternal()
 {
     if (!m_running.exchange(false))
         return;

@@ -9,6 +9,7 @@
 void CExecutionManager::ExecutionThread(CExecuteNode* Target)
 {
     Execute(Target);
+    SetActiveNode(nullptr);
 }
 
 CExecutionManager::~CExecutionManager()
