@@ -427,7 +427,7 @@ protected:
     float m_Delay = 0;
 };
 
-class CActionReplayNode : public CExecuteNode, public INodeImGuiPupUpExt {
+class CActionReplayNode : public CExecuteNode, public INodeImGuiPupUpExt, public INodeInnerText {
 public:
     std::string GetTitle() override
     {
@@ -463,6 +463,7 @@ public:
 
         if (InputEvent.type != EInputType::MouseMove) {
             m_PlaybackEvent.emplace_back(Timepoint, InputEvent);
+            SetInnerText(std::format("{:<7} action(s)", m_PlaybackEvent.size()));
             m_Logger.append(std::format("{}ms(+{}) {} \n", Timepoint, SinceLastEvent, InputEvent.ToString()).c_str());
         }
     }
@@ -515,13 +516,21 @@ public:
     void Execute() override
     {
         CInputDispatcher::Get().Play(m_PlaybackEvent);
+        size_t OldProgress = -1;
         while (CInputDispatcher::Get().IsPlaying()) {
-            std::this_thread::yield();
             if (!*m_Manager) {
                 CInputDispatcher::Get().Stop();
                 break;
             }
+
+            if (const auto NewProgress = CInputDispatcher::Get().GetPlaybackProgress(); OldProgress != NewProgress) {
+                OldProgress = NewProgress;
+                SetInnerText(std::format("{:<3}/{:<3} action(s)", OldProgress, m_PlaybackEvent.size()));
+            }
+            std::this_thread::yield();
         }
+
+        SetInnerText(std::format("{:<7} action(s)", m_PlaybackEvent.size()));
     }
 
     void WriteExtraContext(std::string& ExtContext) const override
@@ -638,6 +647,8 @@ public:
             m_Logger.append(std::format("{}ms(+{}) {} \n", TimePoint, TimePoint - LastTimePoint, InputEvent.ToString()).c_str());
             LastTimePoint = TimePoint;
         }
+
+        SetInnerText(std::format("{:<7} action(s)", m_PlaybackEvent.size()));
     }
 
 private:

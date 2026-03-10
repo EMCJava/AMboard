@@ -320,6 +320,15 @@ void CBoardEditor::SaveCanvasTo(const std::filesystem::path& Path) noexcept
     fout << Root;
 }
 
+void CBoardEditor::FlushPendingNodeTextUpdate()
+{
+    std::lock_guard Lock { m_PendingNodeTextUpdateMutex };
+    for (const auto& [Target, Content] : m_PendingNodeTextUpdate) {
+        m_NodeRenderer->WriteInnerTextToNode(Target.first, Target.second, Content.first->GetInnerText(), Content.second);
+    }
+    m_PendingNodeTextUpdate.clear();
+}
+
 CBoardEditor::CBoardEditor()
 {
     SetUpImGui();
@@ -671,14 +680,7 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
         m_ScreenUniformDirty = false;
     }
 
-    {
-        std::lock_guard Lock { m_PendingNodeTextUpdateMutex };
-        for (const auto& [Target, Content] : m_PendingNodeTextUpdate) {
-            spdlog::info("Update {}", Content.first->GetInnerText());
-            m_NodeRenderer->WriteInnerTextToNode(Target.first, Target.second, Content.first->GetInnerText(), Content.second);
-        }
-        m_PendingNodeTextUpdate.clear();
-    }
+    FlushPendingNodeTextUpdate();
 
     RenderContext.RenderPassEncoder.SetPipeline(*m_GridPipline);
     RenderContext.RenderPassEncoder.Draw(4);

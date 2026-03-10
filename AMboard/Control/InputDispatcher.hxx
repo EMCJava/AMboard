@@ -23,6 +23,9 @@ public:
 
     bool IsPlaying() const;
 
+    [[nodiscard]] auto GetPlaybackCount() const noexcept { return m_CurrentPlaybackCount;}
+    [[nodiscard]] auto GetPlaybackProgress() const noexcept { return m_CurrentPlaybackProgress;}
+
 private:
     CInputDispatcher() = default;
     ~CInputDispatcher() { Stop(); }
@@ -32,6 +35,9 @@ private:
     std::condition_variable m_cv;
     std::mutex m_cvMutex;
 
-    void PlaybackLoop(std::vector<SPlaybackEvent> sequence);
+    volatile size_t m_CurrentPlaybackCount { 0 };
+    volatile size_t m_CurrentPlaybackProgress { 0 };
+
+    void PlaybackLoop(std::vector<SPlaybackEvent> Sequence);
     void InjectEvent(const SInputEvent& ev);
 };

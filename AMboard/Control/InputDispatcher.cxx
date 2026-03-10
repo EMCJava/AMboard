@@ -101,6 +101,8 @@ void CInputDispatcher::Play(const std::vector<SPlaybackEvent>& sequence)
     Stop(); // Ensure any currently playing sequence is stopped
 
     m_playing = true;
+    m_CurrentPlaybackCount = sequence.size();
+    m_CurrentPlaybackProgress = 0;
     m_playbackThread = std::thread(&CInputDispatcher::PlaybackLoop, this, sequence);
 }
 
@@ -120,23 +122,24 @@ bool CInputDispatcher::IsPlaying() const
     return m_playing.load();
 }
 
-void CInputDispatcher::PlaybackLoop(std::vector<SPlaybackEvent> sequence)
+void CInputDispatcher::PlaybackLoop(const std::vector<SPlaybackEvent> Sequence)
 {
     const auto StartTimestamp = std::chrono::steady_clock::now();
-    for (const auto& item : sequence) {
+    for (int i = 0; i < Sequence.size(); ++i) {
+        m_CurrentPlaybackProgress = i;
         if (!m_playing)
             break;
 
         // Interruptible sleep: Waits for delayMs, but wakes up instantly if Stop() is called
         std::unique_lock lock(m_cvMutex);
-        if (m_cv.wait_until(lock, StartTimestamp + std::chrono::milliseconds(item.delayMs), [this] { return !m_playing.load(); })) {
+        if (m_cv.wait_until(lock, StartTimestamp + std::chrono::milliseconds(Sequence[i].delayMs), [this] { return !m_playing.load(); })) {
             break; // Stop() was called during the sleep
         }
 
         if (!m_playing)
             break;
 
-        InjectEvent(item.event);
+        InjectEvent(Sequence[i].event);
     }
 
     m_playing = false;

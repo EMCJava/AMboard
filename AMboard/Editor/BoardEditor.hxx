@@ -56,6 +56,8 @@ class CBoardEditor : public CWindowBase {
     void SaveCanvas() noexcept;
     void SaveCanvasTo(const std::filesystem::path& Path) noexcept;
 
+    void FlushPendingNodeTextUpdate();
+
 public:
     CBoardEditor();
     ~CBoardEditor();
