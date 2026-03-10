@@ -48,13 +48,15 @@ class CNodeRenderer {
 
     size_t NextFreeNode();
 
+    void UpdateNodeSizeByText(size_t Id);
+
 public:
     CNodeRenderer(CWindowBase* Window);
     ~CNodeRenderer();
 
     void WriteToNode(size_t Id, const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor, std::optional<glm::vec2> NodeSize = std::nullopt);
-    void WriteTextToNode(size_t Id, ENodeTextType Ty, std::string Text, const STextUpdateData& Data);
-    void WriteInnerTextToNode(size_t Id, ENodeTextType Ty, std::string Text, const STextUpdateData& Data);
+    void WriteTextToNode(size_t Id, ENodeTextType Ty, std::string Text, const STextUpdateData& Data, bool UpdateNodeSize = true);
+    void WriteInnerTextToNode(size_t Id, ENodeTextType Ty, std::string Text, const STextUpdateData& Data, bool UpdateNodeSize = true);
 
     uint32_t GetHeaderColor(size_t Id) const noexcept;
 
