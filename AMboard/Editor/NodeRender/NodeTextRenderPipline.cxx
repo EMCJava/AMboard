@@ -191,11 +191,13 @@ CNodeTextRenderPipline::~CNodeTextRenderPipline() = default;
 void CNodeTextRenderPipline::WriteTextGroup(std::optional<std::list<STextGroupHandle>::iterator>& It, size_t NodeId, std::string Text, float Scale, const SNodeTextPerGroupMeta& Meta)
 {
     if (!It.has_value()) {
-        It = m_RegisteredTextGroup.emplace(m_RegisteredTextGroup.end(), std::move(Text), Scale);
+        It = m_RegisteredTextGroup.emplace(m_RegisteredTextGroup.end());
     }
 
     auto& TextGroupHandle = **It;
     TextGroupHandle.NodeId = NodeId;
+    TextGroupHandle.Text = std::move(Text);
+    TextGroupHandle.Scale = Scale;
     RefreshVertexBuffer(TextGroupHandle);
     MAKE_SURE(TextGroupHandle.GroupId != -1)
     m_TextGroupBuffer->At<SNodeTextPerGroupMeta>(TextGroupHandle.GroupId) = Meta;

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "NodeTextPerGroupMeta.hxx"
+#include "NodeTextType.hxx"
 
 #include "AMboard/Editor/BoardEditor.hxx"
 
@@ -27,12 +28,6 @@ struct SCommonNodeSSBO {
     glm::vec2 Position;
     uint32_t State;
     uint8_t Padding[4];
-};
-
-enum class ENodeTextType : uint8_t {
-    Title,
-    Inner,
-    Count
 };
 
 struct SNodeAdditionalSourceHandle {
@@ -58,8 +53,8 @@ public:
     ~CNodeRenderer();
 
     void WriteToNode(size_t Id, const std::string& Title, const glm::vec2& Position, uint32_t HeaderColor, std::optional<glm::vec2> NodeSize = std::nullopt);
-    void WriteTextToNode(size_t Id, ENodeTextType Ty, std::string Text, float Scale, const SNodeTextPerGroupMeta& Meta);
-    void WriteInnerTextToNode(size_t Id, ENodeTextType Ty, std::string Text, float Scale, const SNodeTextPerGroupMeta& Meta);
+    void WriteTextToNode(size_t Id, ENodeTextType Ty, std::string Text, const STextUpdateData& Data);
+    void WriteInnerTextToNode(size_t Id, ENodeTextType Ty, std::string Text, const STextUpdateData& Data);
 
     uint32_t GetHeaderColor(size_t Id) const noexcept;
 

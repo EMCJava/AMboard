@@ -158,7 +158,7 @@ size_t CBoardEditor::RegisterNode(NodeStorage Node, const std::string& Title, co
         for_each(join(std::array { all(m_Nodes[NodeId].Node->GetInputPins()), all(m_Nodes[NodeId].Node->GetOutputPins()) }), RegisterPin);
     }
 
-    m_Nodes[NodeId].Node->AddOnPinChanges([=](CPin* TargetPin, bool NewPin) {
+    m_Nodes[NodeId].Node->AddOnPinChanges([=, this](CPin* TargetPin, bool NewPin) {
         if (NewPin) {
             RegisterPin(TargetPin);
         } else {
@@ -193,7 +193,12 @@ size_t CBoardEditor::RegisterNode(NodeStorage Node, const std::string& Title, co
     });
 
     if (auto* InnerText = dynamic_cast<INodeInnerText*>(m_Nodes[NodeId].Node.get())) {
-        m_NodeRenderer->WriteInnerTextToNode(NodeId, ENodeTextType::Inner, InnerText->GetInnerText(), 0.4, { .Offset = {}, .Color = 0xFFFFFF8F });
+        const auto TextUpdate = [=, this] {
+            std::lock_guard Lock { m_PendingNodeTextUpdateMutex };
+            m_PendingNodeTextUpdate[{ NodeId, ENodeTextType::Inner }] = { InnerText, { 0.4, { .Offset = { }, .Color = 0xFFFFFF8F } } };
+        };
+        InnerText->SetOnUpdate(TextUpdate);
+        TextUpdate();
     }
 
     return NodeId;
@@ -561,7 +566,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
             CursorHoveringPtr->DisconnectPins();
         } else if (CursorHoveringNode.has_value()) {
             if ((m_PopupNode = dynamic_cast<INodeImGuiPupUpExt*>(m_Nodes[*CursorHoveringNode].Node.get()))) {
-                m_PopupTitle = m_PopupNode->GetTitle().c_str();
+                m_PopupTitle = m_PopupNode->GetTitle();
                 m_TriggerPopup = true;
             }
         }
@@ -666,6 +671,15 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
         m_ScreenUniformDirty = false;
     }
 
+    {
+        std::lock_guard Lock { m_PendingNodeTextUpdateMutex };
+        for (const auto& [Target, Content] : m_PendingNodeTextUpdate) {
+            spdlog::info("Update {}", Content.first->GetInnerText());
+            m_NodeRenderer->WriteInnerTextToNode(Target.first, Target.second, Content.first->GetInnerText(), Content.second);
+        }
+        m_PendingNodeTextUpdate.clear();
+    }
+
     RenderContext.RenderPassEncoder.SetPipeline(*m_GridPipline);
     RenderContext.RenderPassEncoder.Draw(4);
 
@@ -739,14 +753,4 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
         ImGui::Render();
         ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), RenderContext.RenderPassEncoder.Get());
     }
-}
-
-std::size_t CBoardEditor::PinPtrPairHash::operator()(const std::pair<void*, void*>& p) const noexcept
-{
-    const auto h1 = std::hash<void*> { }(p.first);
-    const auto h2 = std::hash<void*> { }(p.second);
-
-    // The "Magic Number" 0x9e3779b9 is the golden ratio,
-    // which spreads bits randomly to avoid collisions.
-    return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
 }

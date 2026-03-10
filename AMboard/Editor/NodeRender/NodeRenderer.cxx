@@ -116,7 +116,7 @@ void CNodeRenderer::WriteToNode(const size_t Id, const std::string& Title, const
     BackgroundInstanceBuffer.Size = NodeSize.value_or(MinimumNodeSize);
 
     if (!Title.empty())
-        WriteTextToNode(Id, ENodeTextType::Title, Title, 0.4, { .Offset = SNodeAdditionalSourceHandle::TitleOffset, .Color = 0xFFFFFFFF });
+        WriteTextToNode(Id, ENodeTextType::Title, Title, { 0.4, { .Offset = SNodeAdditionalSourceHandle::TitleOffset, .Color = 0xFFFFFFFF } });
 
     /// TODO: put it in WriteTextToNode ish.
     if (!NodeSize.has_value()) {
@@ -137,18 +137,18 @@ void CNodeRenderer::WriteToNode(const size_t Id, const std::string& Title, const
     m_CommonNodeSSBOBuffer->Upload(Id);
 }
 
-void CNodeRenderer::WriteTextToNode(const size_t Id, const ENodeTextType Ty, std::string Text, const float Scale, const SNodeTextPerGroupMeta& Meta)
+void CNodeRenderer::WriteTextToNode(const size_t Id, const ENodeTextType Ty, std::string Text, const STextUpdateData& Data)
 {
     /// TODO: Update node size
-    m_NodeTextPipline->WriteTextGroup(m_NodeResourcesHandles[Id].Texts[std::to_underlying(Ty)], Id, std::move(Text), Scale, Meta);
+    m_NodeTextPipline->WriteTextGroup(m_NodeResourcesHandles[Id].Texts[std::to_underlying(Ty)], Id, std::move(Text), Data.Scale, Data.Meta);
 }
 
-void CNodeRenderer::WriteInnerTextToNode(const size_t Id, const ENodeTextType Ty, std::string Text, const float Scale, const SNodeTextPerGroupMeta& Meta)
+void CNodeRenderer::WriteInnerTextToNode(const size_t Id, const ENodeTextType Ty, std::string Text, const STextUpdateData& Data)
 {
     /// TODO: Update node size
-    SNodeTextPerGroupMeta Copy = Meta;
+    SNodeTextPerGroupMeta Copy = Data.Meta;
     Copy.Offset += NodeInnerContentStartPosition;
-    m_NodeTextPipline->WriteTextGroup(m_NodeResourcesHandles[Id].Texts[std::to_underlying(Ty)], Id, std::move(Text), Scale, Copy);
+    m_NodeTextPipline->WriteTextGroup(m_NodeResourcesHandles[Id].Texts[std::to_underlying(Ty)], Id, std::move(Text), Data.Scale, Copy);
 }
 
 uint32_t CNodeRenderer::GetHeaderColor(size_t Id) const noexcept

@@ -5,9 +5,15 @@
 #pragma once
 
 #include <glm/vec2.hpp>
+#include <string>
 
 struct SNodeTextPerGroupMeta {
     glm::vec2 Offset;
     uint32_t Color { };
     uint8_t Padding[4];
+};
+
+struct STextUpdateData {
+    float Scale;
+    SNodeTextPerGroupMeta Meta;
 };

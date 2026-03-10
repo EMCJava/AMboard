@@ -5,12 +5,17 @@
 #pragma once
 
 #include "BoardEditor.hxx"
+#include "Utils.hxx"
+
+#include <AMboard/Editor/NodeRender/NodeTextType.hxx>
+#include <AMboard/Editor/NodeRender/NodeTextPerGroupMeta.hxx>
 
 #include <Interface/Font/TextRenderSystemHandle.hxx>
 #include <Interface/WindowBase.hxx>
 
 #include <filesystem>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #include <boost/bimap.hpp>
@@ -87,10 +92,7 @@ protected:
     std::optional<std::size_t> m_DraggingPin;
     std::optional<std::size_t> m_LastHoveringPin;
 
-    struct PinPtrPairHash {
-        std::size_t operator()(const std::pair<void*, void*>& p) const noexcept;
-    };
-    std::unordered_map<std::pair<CPin*, CPin*>, size_t, PinPtrPairHash> m_ConnectionIdMapping;
+    std::unordered_map<std::pair<CPin*, CPin*>, size_t, SPairHash<CPin*, CPin*>> m_ConnectionIdMapping;
     boost::bimap<CPin*, size_t> m_PinIdMapping;
 
     std::unique_ptr<class CCustomNodeLoader> m_CustomNodeLoader;
@@ -98,6 +100,9 @@ protected:
     class INodeImGuiPupUpExt* m_PopupNode = nullptr;
     std::string m_PopupTitle;
     bool m_TriggerPopup = true;
+
+    std::mutex m_PendingNodeTextUpdateMutex;
+    std::unordered_map<std::pair<size_t, ENodeTextType>, std::pair<class INodeInnerText*, STextUpdateData>, SPairHash<size_t, ENodeTextType>> m_PendingNodeTextUpdate;
 
     class CExecuteNode* m_LastExecutedNode = nullptr;
     std::unique_ptr<class CExecutionManager> m_ExecutionManager;
