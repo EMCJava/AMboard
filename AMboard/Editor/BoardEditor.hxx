@@ -7,8 +7,8 @@
 #include "BoardEditor.hxx"
 #include "Utils.hxx"
 
-#include <AMboard/Editor/NodeRender/NodeTextType.hxx>
 #include <AMboard/Editor/NodeRender/NodeTextPerGroupMeta.hxx>
+#include <AMboard/Editor/NodeRender/NodeTextType.hxx>
 
 #include <Interface/Font/TextRenderSystemHandle.hxx>
 #include <Interface/WindowBase.hxx>
@@ -41,6 +41,8 @@ class CBoardEditor : public CWindowBase {
 
     void SetUpImGui() noexcept;
 
+    void RenderImGuiMenu();
+
     [[nodiscard]] glm::vec2 ScreenToWorld(const glm::vec2& ScreenPos) const noexcept;
 
     std::optional<size_t> TryRegisterConnection(CPin* OutputPin, CPin* InputPin);
@@ -53,6 +55,8 @@ class CBoardEditor : public CWindowBase {
 
     void EndPinDrag() noexcept;
 
+    void LoadCanvas();
+    void LoadCanvas(const std::filesystem::path& Canvas);
     void SaveCanvas() noexcept;
     void SaveCanvasTo(const std::filesystem::path& Path) noexcept;
 

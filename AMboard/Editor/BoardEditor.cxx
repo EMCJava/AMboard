@@ -86,6 +86,33 @@ void CBoardEditor::SetUpImGui() noexcept
     ImGui_ImplWGPU_Init(&init_info);
 }
 
+void CBoardEditor::RenderImGuiMenu()
+{
+    if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::BeginMenu("File")) {
+
+            if (ImGui::MenuItem("Load")) {
+                LoadCanvas();
+            }
+
+            if (ImGui::MenuItem("Save", "Ctrl+S")) {
+                if (exists(m_CurrentBoardPath)) {
+                    SaveCanvasTo(m_CurrentBoardPath);
+                } else {
+                    SaveCanvas();
+                }
+            }
+            if (ImGui::MenuItem("Save As ...", "Ctrl+Shift+S")) {
+                SaveCanvas();
+            }
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMainMenuBar();
+    }
+}
+
 glm::vec2 CBoardEditor::ScreenToWorld(const glm::vec2& ScreenPos) const noexcept
 {
     return ScreenPos / m_CameraZoom + m_CameraOffset;
@@ -231,6 +258,82 @@ void CBoardEditor::EndPinDrag() noexcept
     m_NodeRenderer->RemoveNode(m_VirtualNodeForPinDrag);
 }
 
+void CBoardEditor::LoadCanvas()
+{
+    NFD_Init();
+
+    nfdchar_t* LoadPath;
+
+    // prepare filters for the dialog
+    static constexpr nfdfilteritem_t FilterItem[] = { { "Board", "yaml" } };
+    if (NFD_OpenDialog(&LoadPath, FilterItem, 1, std::filesystem::current_path().string().c_str()) == NFD_OKAY) {
+        LoadCanvas(LoadPath);
+        NFD_FreePath(LoadPath);
+    }
+
+    NFD_Quit();
+}
+
+void CBoardEditor::LoadCanvas(const std::filesystem::path& Canvas)
+{
+    for (int i = 0; i < m_Nodes.size(); ++i) {
+        if (m_Nodes[i].Node != nullptr) {
+            m_Nodes[i].Node.reset();
+            m_NodeRenderer->RemoveNode(i);
+        }
+    }
+    m_EntranceNode.reset();
+
+    VERIFY(std::filesystem::exists("graph.yaml"), return);
+
+    YAML::Node Graph = YAML::LoadFile(Canvas.string());
+
+    std::unordered_map<uint64_t, CPin*> PinHashMap;
+
+    for (const auto& Node : Graph["Nodes"]) {
+        const auto Name = Node["ID"].as<std::string>();
+        const auto Position = Node["pos"].IsDefined() ? glm::vec2 { Node["pos"][0].as<float>(), Node["pos"][1].as<float>() } : glm::vec2(0.0f, 0.0f);
+        const auto HeaderColor = Node["header_color"].as<uint32_t>(0xAAAAAA88);
+
+        auto CreatedNode = m_CustomNodeLoader->CreateNodeExt(Name);
+        if (auto NodeExt = Node["Ext"]; NodeExt)
+            CreatedNode->ReadExtraContext(NodeExt.as<std::string>());
+
+        const auto NodeId = RegisterNode(std::move(CreatedNode), Name, Position, HeaderColor);
+
+        if (Name == "Entrance Node") [[unlikely]] {
+            m_EntranceNode = NodeId;
+        }
+
+        std::mt19937 rng(Node["salt"].as<uint64_t>());
+        std::uniform_int_distribution<uint64_t> dist;
+
+        for (const auto& Pin : m_Nodes[NodeId].Node->GetInputPins())
+            MAKE_SURE(PinHashMap.insert({ dist(rng), Pin.get() }).second);
+        for (const auto& Pin : m_Nodes[NodeId].Node->GetOutputPins())
+            MAKE_SURE(PinHashMap.insert({ dist(rng), Pin.get() }).second);
+    }
+
+    for (const auto& Link : Graph["Links"]) {
+        const auto OutputId = Link[0].as<uint64_t>();
+        const auto InputId = Link[1].as<uint64_t>();
+
+        const auto OutputIt = PinHashMap.find(OutputId);
+        const auto InputIt = PinHashMap.find(InputId);
+
+        if (OutputIt == PinHashMap.end()) [[unlikely]] {
+            spdlog::error("Pin #{} missing", OutputId);
+            continue;
+        }
+        if (InputIt == PinHashMap.end()) [[unlikely]] {
+            spdlog::error("Pin #{} missing", InputId);
+            continue;
+        }
+
+        OutputIt->second->ConnectPin(InputIt->second);
+    }
+}
+
 void CBoardEditor::SaveCanvas() noexcept
 {
     NFD_Init();
@@ -369,54 +472,7 @@ CBoardEditor::CBoardEditor()
         MenuItems.emplace_back(NodeName, std::string(m_CustomNodeLoader->CreateNodeExt(NodeName)->GetCategory()));
     m_NodeContextMenu->Initialize(std::move(MenuItems));
 
-    {
-        YAML::Node Graph = YAML::LoadFile("graph.yaml");
-
-        std::unordered_map<uint64_t, CPin*> PinHashMap;
-
-        for (const auto& Node : Graph["Nodes"]) {
-            const auto Name = Node["ID"].as<std::string>();
-            const auto Position = Node["pos"].IsDefined() ? glm::vec2 { Node["pos"][0].as<float>(), Node["pos"][1].as<float>() } : glm::vec2(0.0f, 0.0f);
-            const auto HeaderColor = Node["header_color"].as<uint32_t>(0xAAAAAA88);
-
-            auto CreatedNode = m_CustomNodeLoader->CreateNodeExt(Name);
-            if (auto NodeExt = Node["Ext"]; NodeExt)
-                CreatedNode->ReadExtraContext(NodeExt.as<std::string>());
-
-            const auto NodeId = RegisterNode(std::move(CreatedNode), Name, Position, HeaderColor);
-
-            if (Name == "Entrance Node") [[unlikely]] {
-                m_EntranceNode = NodeId;
-            }
-
-            std::mt19937 rng(Node["salt"].as<uint64_t>());
-            std::uniform_int_distribution<uint64_t> dist;
-
-            for (const auto& Pin : m_Nodes[NodeId].Node->GetInputPins())
-                MAKE_SURE(PinHashMap.insert({ dist(rng), Pin.get() }).second);
-            for (const auto& Pin : m_Nodes[NodeId].Node->GetOutputPins())
-                MAKE_SURE(PinHashMap.insert({ dist(rng), Pin.get() }).second);
-        }
-
-        for (const auto& Link : Graph["Links"]) {
-            const auto OutputId = Link[0].as<uint64_t>();
-            const auto InputId = Link[1].as<uint64_t>();
-
-            const auto OutputIt = PinHashMap.find(OutputId);
-            const auto InputIt = PinHashMap.find(InputId);
-
-            if (OutputIt == PinHashMap.end()) [[unlikely]] {
-                spdlog::error("Pin #{} missing", OutputId);
-                continue;
-            }
-            if (InputIt == PinHashMap.end()) [[unlikely]] {
-                spdlog::error("Pin #{} missing", InputId);
-                continue;
-            }
-
-            OutputIt->second->ConnectPin(InputIt->second);
-        }
-    }
+    LoadCanvas("graph.yaml");
 }
 
 CBoardEditor::~CBoardEditor() = default;
@@ -691,6 +747,8 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
         ImGui_ImplWGPU_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+
+        RenderImGuiMenu();
 
         if (const auto NewNode = m_NodeContextMenu->Draw()) {
             static std::random_device rd;
