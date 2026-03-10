@@ -11,9 +11,10 @@
 #include <spdlog/spdlog.h>
 
 #include <cassert>
+#include <glm/gtx/norm.hpp>
 #include <ranges>
 
-constexpr int DoubleClickingFrameInterval = 40;
+constexpr float DoubleClickingFrameInterval = 0.5f;
 
 SButtonInputEvent::SButtonInputEvent(int Key, int Action, int Mods)
 {
@@ -89,7 +90,7 @@ bool SButtonSet::IsKeyDown(int GLFWKeyCode) const noexcept
 
 bool SButtonSet::IsDoubleClick(int GLFWKeyCode) const noexcept
 {
-    return KeyStages[GLFWKeyCode].LastDoubleClickFrame == GlobalFrameCounter;
+    return KeyStages[GLFWKeyCode].LastDoubleClickedFrame == GlobalFrameCounter;
 }
 
 CInputManager::CInputManager(GLFWwindow* WindowHandle)
@@ -130,12 +131,12 @@ void CInputManager::RegisterKeyInput(int key, [[maybe_unused]] int, int action, 
     KeyboardButtons.ButtonEvents.emplace_back(key, action, mods);
 
     KeyboardButtons.KeyStages[key].IsDown = action != GLFW_RELEASE;
-    if (action == GLFW_PRESS) {
-        if (KeyboardButtons.KeyStages[key].LastClickFrame + DoubleClickingFrameInterval >= GlobalFrameCounter) {
-            KeyboardButtons.KeyStages[key].LastDoubleClickFrame = GlobalFrameCounter;
+    if (action == GLFW_RELEASE) {
+        if (KeyboardButtons.KeyStages[key].LastClickReleaseSecond + DoubleClickingFrameInterval >= GlobalGameSecond) {
+            KeyboardButtons.KeyStages[key].LastDoubleClickedFrame = GlobalFrameCounter;
         }
 
-        KeyboardButtons.KeyStages[key].LastClickFrame = GlobalFrameCounter;
+        KeyboardButtons.KeyStages[key].LastClickReleaseSecond = GlobalGameSecond;
     }
 }
 
@@ -150,12 +151,14 @@ void CInputManager::RegisterMouseInput(int key, int action, int mods)
     MouseButtons.ButtonEvents.emplace_back(key, action, mods);
 
     MouseButtons.KeyStages[key].IsDown = action != GLFW_RELEASE;
-    if (action == GLFW_PRESS) {
-        if (MouseButtons.KeyStages[key].LastClickFrame + DoubleClickingFrameInterval >= GlobalFrameCounter) {
-            MouseButtons.KeyStages[key].LastDoubleClickFrame = GlobalFrameCounter;
+    if (action == GLFW_RELEASE) {
+
+        if (MouseButtons.KeyStages[key].LastClickReleaseSecond + DoubleClickingFrameInterval >= GlobalGameSecond && CursorLastReleasePos == CursorPos) {
+            MouseButtons.KeyStages[key].LastDoubleClickedFrame = GlobalFrameCounter;
         }
 
-        MouseButtons.KeyStages[key].LastClickFrame = GlobalFrameCounter;
+        CursorLastReleasePos = CursorPos;
+        MouseButtons.KeyStages[key].LastClickReleaseSecond = GlobalGameSecond;
     }
 
     bHasMouseEvent = true;

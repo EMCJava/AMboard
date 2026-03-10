@@ -89,6 +89,8 @@ CWindowBase::GetNextSurfaceView()
 
 CWindowBase::CWindowBase()
 {
+    m_StartTime = std::chrono::steady_clock::now();
+
     // Move the whole initialization here
     // Open window
     glfwSetErrorCallback(GLFWErrorCallback);
@@ -227,7 +229,10 @@ CWindowBase::GetInputManager() const noexcept
 
 CWindowBase::EWindowEventState CWindowBase::ProcessEvent()
 {
+    const auto NowTime = std::chrono::steady_clock::now();
+
     GlobalFrameCounter++;
+    GlobalGameSecond = std::chrono::duration<float>(NowTime - m_StartTime).count();
 
     if (glfwWindowShouldClose(m_Window.get()))
         return EWindowEventState::Closed;
@@ -244,7 +249,6 @@ CWindowBase::EWindowEventState CWindowBase::ProcessEvent()
 
     m_WebGpuInstance.ProcessEvents();
 
-    const auto NowTime = std::chrono::steady_clock::now();
     m_DeltaTime = std::chrono::duration<float> { NowTime - m_LastUpdateTime }.count();
     m_LastUpdateTime = NowTime;
 

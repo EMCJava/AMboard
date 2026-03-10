@@ -7,3 +7,4 @@
 #include <cstdint>
 
 inline uint64_t GlobalFrameCounter = 0;
+inline float GlobalGameSecond = 0;

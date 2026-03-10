@@ -36,10 +36,10 @@ struct SButtonStage final {
     bool IsDown = false;
 
     // The keyboard key detected double click at this frame
-    uint64_t LastDoubleClickFrame = 0;
+    uint64_t LastDoubleClickedFrame = 0;
 
-    // The frame the last click event start technically the same with @HoldLockHolderFrame
-    uint64_t LastClickFrame = 0;
+    // The second the last click event start
+    float LastClickReleaseSecond = 0;
 
     // Object holding the "hold" event lock
     void* HoldLockHolder = nullptr;
@@ -210,6 +210,9 @@ protected:
 
     // Cursor delta scroll since last event poll
     int CursorScrollDelta;
+
+    // Cursor las click position
+    glm::ivec2 CursorLastReleasePos { };
 
 public:
     /**

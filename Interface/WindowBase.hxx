@@ -89,6 +89,7 @@ protected:
 
     std::unique_ptr<CInputManager> m_InputManager;
 
+    std::chrono::time_point<std::chrono::steady_clock> m_StartTime;
     std::chrono::time_point<std::chrono::steady_clock> m_LastUpdateTime;
 
     float m_DeltaTime = 0;
