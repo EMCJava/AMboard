@@ -114,6 +114,62 @@ Variant ParseData(const std::string_view& ty, const double data)
     return result;
 }
 
+template <typename Variant>
+void FromStringImpl(const std::string_view& Type, const std::string_view& Value, double& Data)
+{
+    bool found = false;
+    Variant dummy;
+
+    [&]<typename... Ts>(std::variant<Ts...>&) {
+        found = ((Type == TypeName<Ts> ? ([&]() {
+            Ts temp_val { };
+
+            // Parse the string_view directly into the temporary typed variable
+            auto [ptr, ec] = std::from_chars(Value.data(), Value.data() + Value.size(), temp_val);
+
+            // Check for parsing errors
+            if (ec != std::errc()) {
+                throw std::invalid_argument(std::format("Failed to parse '{}' as {}", Value, Type));
+            }
+
+            // Cast the void* to the correct type pointer and write the value
+            reinterpret_cast<Ts&>(Data) = temp_val; }(), true) : false) || ...);
+    }(dummy);
+
+    if (!found) {
+        throw std::invalid_argument(std::format("Unsupported type: {}", Type));
+    }
+}
+
+void FromString(const std::string_view& Type, const std::string_view& Value, double& Data)
+{
+    FromStringImpl<NumericVariant>(Type, Value, Data);
+}
+
+// Convert void* to string using Fold Expressions and std::format
+template <typename Variant>
+std::string ToStringImpl(const std::string_view& ty, const double data)
+{
+    std::string result;
+    bool found = false;
+    Variant dummy;
+
+    [&]<typename... Ts>(std::variant<Ts...>&) {
+        // Unary '+' ensures int8_t/uint8_t format as numbers, not ASCII chars
+        found = ((ty == TypeName<Ts> ? (result = std::format("{}", +reinterpret_cast<const Ts&>(data)), true) : false) || ...);
+    }(dummy);
+
+    if (!found)
+        throw std::invalid_argument(std::format("Unsupported type: {}", ty));
+    return result;
+}
+
+// Public ToString wrapper
+std::string ToString(std::string_view Ty, const double Data)
+{
+    return ToStringImpl<NumericVariant>(Ty, Data);
+}
+
 class CEntranceNode : public CExecuteNode {
 public:
     CEntranceNode()
@@ -136,30 +192,6 @@ public:
     }
 
 protected:
-    // Convert void* to string using Fold Expressions and std::format
-    template <typename Variant>
-    std::string ToStringImpl(const std::string_view& ty, const double data)
-    {
-        std::string result;
-        bool found = false;
-        Variant dummy;
-
-        [&]<typename... Ts>(std::variant<Ts...>&) {
-            // Unary '+' ensures int8_t/uint8_t format as numbers, not ASCII chars
-            found = ((ty == TypeName<Ts> ? (result = std::format("{}", +reinterpret_cast<const Ts&>(data)), true) : false) || ...);
-        }(dummy);
-
-        if (!found)
-            throw std::invalid_argument(std::format("Unsupported type: {}", ty));
-        return result;
-    }
-
-    // Public ToString wrapper
-    std::string ToString(std::string_view Ty, const double Data)
-    {
-        return ToStringImpl<NumericVariant>(Ty, Data);
-    }
-
     bool Evaluate() noexcept override
     {
         if (!CBaseNode::Evaluate())
@@ -427,6 +459,85 @@ protected:
     float m_Delay = 0;
 };
 
+class CTrivialValueNode : public CBaseNode, public INodeImGuiPupUpExt, public INodeInnerText {
+
+public:
+    CTrivialValueNode()
+    {
+        EmplacePin<CDataPin>(false)->SetIsUniversalPin().AddOnConnectionChanges([this](auto, auto, auto IsConnect) {
+            if (IsConnect)
+                OnStartPopup();
+        });
+    }
+
+    std::string GetTitle() override
+    {
+        return "Trivial Value";
+    }
+
+    void OnStartPopup() override
+    {
+        auto* OurPin = static_cast<CDataPin*>(GetOutputPins()[0].get());
+
+        const auto* OwnerEnd = static_cast<CDataPin*>(OurPin->GetTheOnlyConnected());
+        if (OwnerEnd == nullptr) {
+            OurPin->SetValueType(OtherTy = "void");
+            return;
+        }
+
+        OurPin->SetValueType(OtherTy = OwnerEnd->GetValueType());
+        if (OtherTy != "void") {
+            m_StrBuffer[ToString(OtherTy, OurPin->AsDouble()).copy(m_StrBuffer, sizeof(m_StrBuffer) - 1)] = '\0';
+        }
+    }
+
+    void OnEndPopup() override
+    {
+        if (OtherTy == "void")
+            return;
+
+        double TrivialResult = 0;
+        FromString(OtherTy, std::string_view { m_StrBuffer }, TrivialResult);
+        static_cast<CDataPin*>(GetOutputPins()[0].get())->Set(OtherTy, &TrivialResult);
+    }
+
+    bool Render() override
+    {
+        if (OtherTy == "void") {
+            return false;
+        }
+
+        ImGui::InputText("Value", m_StrBuffer, std::span { m_StrBuffer }.size());
+
+        return true;
+    }
+
+    std::string_view GetCategory() noexcept override
+    {
+        return "Event";
+    }
+
+    void WriteExtraContext(std::string& ExtContext) const override
+    {
+        if (OtherTy == "void") return;
+        ExtContext = std::format("{} {}", OtherTy, m_StrBuffer);
+    }
+    void ReadExtraContext(const std::string& ExtContext) override
+    {
+        if (ExtContext.empty())
+            return;
+
+        const auto SpaceLocation = ExtContext.find(' ');
+        OtherTy = ExtContext.substr(0, SpaceLocation);
+        m_StrBuffer[ExtContext.substr(SpaceLocation + 1).copy(m_StrBuffer, sizeof(m_StrBuffer) - 1)] = '\0';
+        OnEndPopup();
+    }
+
+private:
+    std::string OtherTy;
+    char m_StrBuffer[256] { };
+};
+
 class CActionReplayNode : public CExecuteNode, public INodeImGuiPupUpExt, public INodeInnerText {
 public:
     std::string GetTitle() override
@@ -662,5 +773,5 @@ private:
     std::chrono::steady_clock::time_point m_LastEventTime;
 };
 
-REGISTER_MACROS(CActionReplayNode, CDelayNode, CAddNode, CEntranceNode, CToStringNode, CPrintingNode, CBranchingNode, CSequenceNode)
+REGISTER_MACROS(CActionReplayNode, CDelayNode, CTrivialValueNode, CAddNode, CEntranceNode, CToStringNode, CPrintingNode, CBranchingNode, CSequenceNode)
 ENABLE_IMGUI()

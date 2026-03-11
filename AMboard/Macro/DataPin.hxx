@@ -81,10 +81,18 @@ public:
 
     void Assign(const CDataPin* Source);
 
-    decltype(auto) SetValueType(auto&& Ty) noexcept { m_DataType = Ty; return* this; }
+    decltype(auto) SetValueType(auto&& Ty) noexcept
+    {
+        m_DataType = Ty;
+        return *this;
+    }
     [[nodiscard]] const auto& GetValueType() const noexcept { return m_DataType; }
 
-    void SetIsUniversalPin(const bool Universal = true) noexcept { m_IsUniversalPin = Universal; }
+    decltype(auto) SetIsUniversalPin(const bool Universal = true) noexcept
+    {
+        m_IsUniversalPin = Universal;
+        return *this;
+    }
 
 protected:
     std::string_view m_DataType = "void";
