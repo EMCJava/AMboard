@@ -116,14 +116,15 @@ void CNodeContextMenu::Initialize(std::vector<SNodeNameMeta> nodes)
 
 std::optional<std::string> CNodeContextMenu::Draw()
 {
-    if (!m_ShouldOpen && !ImGui::IsPopupOpen("NCM", ImGuiPopupFlags_AnyPopupId)) {
-        return std::nullopt;
-    }
-
     // We move it way off-screen so it doesn't interfere with anything.
     ImGui::SetNextWindowPos(ImVec2(-10000, -10000));
     ImGui::Begin("##HiddenContextMenuHost", nullptr,
         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize);
+
+    if (!m_ShouldOpen && !ImGui::IsPopupOpen("NCM")) {
+        ImGui::End();
+        return std::nullopt;
+    }
 
     if (m_ShouldOpen) {
         ImGui::OpenPopup("NCM");
