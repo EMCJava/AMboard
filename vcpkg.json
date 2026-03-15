@@ -11,6 +11,7 @@
     "boost-bimap",
     "yaml-cpp",
     "nativefiledialog-extended",
+    "opencv4",
     {
       "name": "dawn",
       "features": [

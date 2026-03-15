@@ -12,6 +12,7 @@
 #include <string_view>
 
 #define PinGetTrivial(Ty) TryGetTrivial<Ty>(#Ty)
+#define PinGet(Ty) Get<Ty>(#Ty)
 #define PinSet(Ty, Val) Set<Ty>(#Ty, Val)
 
 class MACRO_API CDataPin : public CPin {

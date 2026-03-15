@@ -15,7 +15,7 @@ FetchContent_Declare(
         GIT_TAG v1.92.6
 )
 FetchContent_MakeAvailable(imgui)
-
+set(ImGui_Src ${imgui_SOURCE_DIR} CACHE STRING "ImGui Src Cache")
 create_library(ImGui
         SRCS
         # Dear ImGui Backend files

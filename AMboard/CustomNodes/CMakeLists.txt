@@ -5,21 +5,32 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     add_compile_options(/Zc:preprocessor)
 endif ()
 
-add_library(CommonNode SHARED CommonNode.cxx)
-target_compile_definitions(CommonNode PRIVATE MACRO_API_IMPORTS)
-target_link_libraries(CommonNode PRIVATE MacroSharedLib spdlog::spdlog ImGui.lib InputService.lib InputDispatcher.lib)
+add_library(ExtCommonNode SHARED CommonNode.cxx)
+target_compile_definitions(ExtCommonNode PRIVATE MACRO_API_IMPORTS)
+target_link_libraries(ExtCommonNode PRIVATE MacroSharedLib spdlog::spdlog ImGui.lib InputService.lib InputDispatcher.lib)
 
 if (APPLE)
-    target_link_libraries(CommonNode PRIVATE "-framework Carbon")
+    target_link_libraries(ExtCommonNode PRIVATE "-framework Carbon")
 endif (APPLE)
 
-#Copy CommonNode AND its dependencies
-add_custom_command(TARGET CommonNode POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/NodeExts
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        $<TARGET_FILE:CommonNode>            # Copies CommonNode.dll / .so
-        $<TARGET_RUNTIME_DLLS:CommonNode>    # Copies all dependency DLLs
-        ${CMAKE_SOURCE_DIR}/NodeExts         # Destination folder
-        COMMAND_EXPAND_LISTS                 # CRITICAL: Expands the list of DLLs properly
-        VERBATIM
+find_package(OpenCV REQUIRED)
+
+add_library(ExtWindowUtil SHARED WindowUtil.cxx ${ImGui_Src}/misc/cpp/imgui_stdlib.cpp)
+target_compile_definitions(ExtWindowUtil PRIVATE MACRO_API_IMPORTS)
+target_link_libraries(ExtWindowUtil PRIVATE MacroSharedLib ImGui.lib ${OpenCV_LIBS})
+target_include_directories(ExtWindowUtil PRIVATE ${OpenCV_INCLUDE_DIRS})
+
+add_subdirectory(CV)
+
+set(EXT_LIBRARIES
+        ExtCommonNode
+        ExtWindowUtil
 )
+set(DEST_FOLDER "${CMAKE_SOURCE_DIR}/NodeExts")
+foreach(TARGET_NAME IN LISTS EXT_LIBRARIES)
+    set_target_properties(${TARGET_NAME} PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY "${DEST_FOLDER}"
+            RUNTIME_OUTPUT_DIRECTORY_DEBUG "${DEST_FOLDER}"
+            RUNTIME_OUTPUT_DIRECTORY_RELEASE "${DEST_FOLDER}"
+    )
+endforeach()

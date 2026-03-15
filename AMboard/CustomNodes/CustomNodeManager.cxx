@@ -178,7 +178,7 @@ CCustomNodeLoader::CCustomNodeLoader(const std::filesystem::path& NodeExtDir, vo
             continue;
         if (!is_shared_lib(entry.path()))
             continue;
-        if (entry.path().stem() == "MacroSharedLib")
+        if (!std::wstring_view { entry.path().stem().c_str() }.starts_with(L"Ext"))
             continue;
 
         try {
