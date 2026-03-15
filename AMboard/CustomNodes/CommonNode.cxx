@@ -516,7 +516,7 @@ public:
 
     std::string_view GetCategory() noexcept override
     {
-        return "Event";
+        return "Util";
     }
 
     void WriteExtraContext(std::string& ExtContext) const override
