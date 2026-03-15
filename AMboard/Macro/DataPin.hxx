@@ -26,7 +26,7 @@ public:
     std::string_view GetToolTips() const noexcept override;
 
     template <typename Ty>
-        requires std::is_trivial_v<Ty>
+        requires(std::is_trivial_v<Ty> && sizeof(Ty) <= sizeof(std::ptrdiff_t))
     Ty TryGetTrivial(const std::string_view& TyStr) const noexcept
     {
         if (m_DataType == TyStr) [[likely]] {
@@ -51,27 +51,25 @@ public:
     }
 
     template <typename Ty>
-        requires std::is_trivial_v<Ty>
-    Ty& Set(const std::string_view& TyStr, Ty NewValue) noexcept
+        requires(std::is_trivial_v<Ty> && sizeof(Ty) <= sizeof(std::ptrdiff_t))
+    Ty Set(const std::string_view& TyStr, const Ty& NewValue) noexcept
     {
-        return Set(TyStr, &NewValue);
-    }
+        union {
+            void* Ptr;
+            Ty Data;
+        } Tmp { .Data = NewValue };
 
-    template <typename Ty>
-        requires std::is_trivial_v<Ty>
-    Ty& Set(const std::string_view& TyStr, Ty* NewValue) noexcept
-    {
         m_DataType = TyStr;
-        m_SharedData.reset(const_cast<void*>(reinterpret_cast<const void*&>(*NewValue)), [](void*) static noexcept { });
-        return *NewValue;
+        m_SharedData.reset(Tmp.Ptr, [](void*) static noexcept { });
+        return NewValue;
     }
 
     template <typename Ty>
     Ty& Set(const std::string_view& TyStr, std::shared_ptr<Ty> NewValue) noexcept
     {
         m_DataType = TyStr;
-        m_SharedData = std::reinterpret_pointer_cast<Ty>(NewValue);
-        return *NewValue;
+        m_SharedData = std::static_pointer_cast<void>(std::move(NewValue));
+        return *static_cast<Ty*>(m_SharedData.get());
     }
 
     [[nodiscard]] double AsDouble() const noexcept

@@ -242,6 +242,8 @@ public:
 protected:
     void Execute() override
     {
+        CExecuteNode::Execute();
+
         if (GetFlowOutputPins().size() > 1) [[likely]] {
             if (auto DataPin = GetInputPinsWith<EPinType::Data>();
                 !DataPin.empty() && !static_cast<CDataPin*>(DataPin.front().get())->PinGetTrivial(bool))
@@ -390,7 +392,7 @@ public:
         auto& Result = reinterpret_cast<CDataPin&>(*GetOutputPins()[0]);
 
         double TrivialResult = 0;
-        Result.Set(Operate(EMathOperation::Add, ValueA.GetValueType(), ValueB.GetValueType(), ValueA.AsDouble(), ValueB.AsDouble(), &TrivialResult), &TrivialResult);
+        Result.Set(Operate(EMathOperation::Add, ValueA.GetValueType(), ValueB.GetValueType(), ValueA.AsDouble(), ValueB.AsDouble(), &TrivialResult), TrivialResult);
         return Result.GetValueType() != "void";
     }
 };
@@ -498,7 +500,7 @@ public:
 
         double TrivialResult = 0;
         FromString(OtherTy, std::string_view { m_StrBuffer }, TrivialResult);
-        static_cast<CDataPin*>(GetOutputPins()[0].get())->Set(OtherTy, &TrivialResult);
+        static_cast<CDataPin*>(GetOutputPins()[0].get())->Set(OtherTy, TrivialResult);
     }
 
     bool Render() override
