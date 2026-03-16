@@ -255,7 +255,7 @@ void CBoardEditor::EndPinDrag() noexcept
 
     /// Remove virtual node for drag visualization
     m_NodeRenderer->UnlinkPin(m_VirtualConnectionForPinDrag);
-    m_NodeRenderer->RemoveNode(m_VirtualNodeForPinDrag);
+    m_NodeRenderer->RemoveNode(*m_VirtualNodeForPinDrag);
 }
 
 void CBoardEditor::LoadCanvas()
@@ -432,6 +432,13 @@ void CBoardEditor::FlushPendingNodeTextUpdate()
     m_PendingNodeTextUpdate.clear();
 }
 
+void CBoardEditor::SetCancelOnHoldAction(auto&& Func)
+{
+    if (m_CancelOnHoldAction)
+        m_CancelOnHoldAction();
+    m_CancelOnHoldAction = Func;
+}
+
 CBoardEditor::CBoardEditor()
 {
     SetUpImGui();
@@ -505,7 +512,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
     /// Node interaction pre-compute
     for (const auto& [Left, Right] : m_NodeRenderer->GetValidRange()) {
         for (auto i = Left; i <= Right; ++i) {
-            if (m_NodeRenderer->InBound(i, MouseWorldPos)) [[unlikely]] {
+            if (i != m_VirtualNodeForPinDrag && m_NodeRenderer->InBound(i, MouseWorldPos)) [[unlikely]] {
                 CursorHoveringNode = i;
 
                 if ((CursorHoveringPin = m_NodeRenderer->GetHoveringPin(i, MouseWorldPos, m_DraggingPin.has_value() ? 8 : 0))) {
@@ -528,10 +535,12 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
     /// Save
     {
         if (GetInputManager().GetKeyboardButtons().ConsumeEvent({ GLFW_KEY_S, GLFW_PRESS, GLFW_MOD_SHIFT | GLFW_MOD_CONTROL })) {
+            SetCancelOnHoldAction(nullptr);
             SaveCanvas();
         }
 
         if (GetInputManager().GetKeyboardButtons().ConsumeEvent({ GLFW_KEY_S, GLFW_PRESS, GLFW_MOD_CONTROL })) {
+            SetCancelOnHoldAction(nullptr);
             if (exists(m_CurrentBoardPath)) {
                 SaveCanvasTo(m_CurrentBoardPath);
             } else {
@@ -542,7 +551,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
     /// Draging virtual node
     if (m_DraggingPin.has_value()) {
-        m_NodeRenderer->SetNodePosition(m_VirtualNodeForPinDrag, MouseWorldPos);
+        m_NodeRenderer->SetNodePosition(*m_VirtualNodeForPinDrag, MouseWorldPos);
     }
 
     /// Drag canvas
@@ -566,6 +575,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
     /// Execute Node
     if (m_EntranceNode.has_value() && GetInputManager().GetKeyboardButtons().ConsumeEvent(GLFW_KEY_R)) {
+        SetCancelOnHoldAction(nullptr);
         if (auto* ENode = dynamic_cast<CExecuteNode*>(m_Nodes[*m_EntranceNode].Node.get())) {
             m_ExecutionManager->StartExecuteThread(ENode);
         }
@@ -573,6 +583,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
     /// Remove Node
     if (GetInputManager().GetKeyboardButtons().ConsumeEvent(GLFW_KEY_DELETE)) {
+        SetCancelOnHoldAction(nullptr);
         if (m_SelectedNode.has_value()) {
             m_Nodes[*m_SelectedNode].Node.reset();
             m_NodeRenderer->RemoveNode(*m_SelectedNode);
@@ -585,11 +596,13 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
     /// Create Node
     if (GetInputManager().GetMouseButtons().ConsumeEvent(GLFW_MOUSE_BUTTON_RIGHT)) {
+        SetCancelOnHoldAction(nullptr);
         m_NodeContextMenu->OpenPopup();
     }
 
     /// Select Node (release mouse)
     if (GetInputManager().GetMouseButtons().ConsumeEvent({ GLFW_MOUSE_BUTTON_LEFT, GLFW_RELEASE }) && /* Clicking title bar will not register */ MouseStartClickPos.has_value()) {
+        SetCancelOnHoldAction(nullptr);
 
         /// Click, not drag
         if (glm::length2(glm::vec2 { MouseCurrentPos - *MouseStartClickPos }) < 3 * 3) {
@@ -612,21 +625,33 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
         /// End of pin drag
         if (m_DraggingPin.has_value()) {
 
+            bool StopDrag = true;
+
             /// End of drag pin
             if (CursorHoveringPin.has_value() && *m_DraggingPin != *CursorHoveringPin) {
                 std::pair Pins = { m_PinIdMapping.right.at(*m_DraggingPin), CursorHoveringPtr };
                 if (Pins.first->IsInputPin())
                     std::swap(Pins.first, Pins.second);
                 TryRegisterConnection(Pins.first, Pins.second).has_value();
+            } else if (!CursorHoveringNode.has_value()) {
+                StopDrag = false;
+                m_NodeContextMenu->OpenPopup();
+                SetCancelOnHoldAction([this] {
+                    if (m_DraggingPin.has_value()) {
+                        EndPinDrag();
+                    }
+                });
             }
 
-            EndPinDrag();
+            if (StopDrag)
+                EndPinDrag();
         }
 
         MouseStartClickPos.reset();
     }
 
     if (GetInputManager().GetMouseButtons().IsDoubleClick(GLFW_MOUSE_BUTTON_LEFT)) {
+        SetCancelOnHoldAction(nullptr);
         if (CursorHoveringPin.has_value()) {
             CursorHoveringPtr->DisconnectPins();
         } else if (CursorHoveringNode.has_value()) {
@@ -639,7 +664,6 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
     /// Hold primary mouse
     if (GetInputManager().GetMouseButtons().ConsumeHoldEvent(this, GLFW_MOUSE_BUTTON_LEFT)) {
-
         /// First frame clicking
         if (!MouseStartClickPos.has_value()) {
             MouseStartClickPos = MouseCurrentPos;
@@ -653,8 +677,17 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
                 FirstClickHasUsed = true;
             }
 
+            if (!FirstClickHasUsed && m_DraggingPin.has_value()) {
+                CHECK(m_CancelOnHoldAction)
+                m_CancelOnHoldAction = nullptr;
+                FirstClickHasUsed = true;
+            }
+
+            if (!FirstClickHasUsed)
+                SetCancelOnHoldAction(nullptr);
+
             /// Pin selecting takes priority
-            if (!FirstClickHasUsed && CursorHoveringPin.has_value()) {
+            if (!FirstClickHasUsed && !m_DraggingPin.has_value() && CursorHoveringPin.has_value()) {
                 CHECK(!m_DraggingPin.has_value())
 
                 m_DraggingPin = CursorHoveringPin;
@@ -662,12 +695,12 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
                 m_VirtualNodeForPinDrag = m_NodeRenderer->CreateVirtualNode(MouseWorldPos);
 
-                m_VirtualConnectionForPinDrag = (m_NodeRenderer.get()->*(CursorHoveringPtr->IsInputPin() ? &CNodeRenderer::InputLinkVirtualPin : &CNodeRenderer::OutputLinkVirtualPin))(*m_DraggingPin, m_VirtualNodeForPinDrag);
+                m_VirtualConnectionForPinDrag = (m_NodeRenderer.get()->*(CursorHoveringPtr->IsInputPin() ? &CNodeRenderer::InputLinkVirtualPin : &CNodeRenderer::OutputLinkVirtualPin))(*m_DraggingPin, *m_VirtualNodeForPinDrag);
 
                 FirstClickHasUsed = true;
             }
 
-            /// Drag selected pin
+            /// Drag selected node
             m_DraggingNode = false;
             if (!FirstClickHasUsed && m_SelectedNode.has_value()) {
                 if (m_SelectedNode == CursorHoveringNode) {
@@ -756,7 +789,31 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
             static std::uniform_int_distribution<uint32_t> distrib(0, 0xFFFFFF);
 
             const auto PopupPosition = m_NodeContextMenu->GetPopupLocation();
-            CreateNode(*NewNode, ScreenToWorld(reinterpret_cast<const glm::vec2&>(PopupPosition)), distrib(gen) << 16 | 0x88);
+            const auto NodeIndex = CreateNode(*NewNode, ScreenToWorld(reinterpret_cast<const glm::vec2&>(PopupPosition)), distrib(gen) << 16 | 0x88);
+
+            if (m_DraggingPin.has_value()) {
+                CHECK(m_CancelOnHoldAction)
+
+                auto* DraggingPinPtr = m_PinIdMapping.right.at(*m_DraggingPin);
+                CPin* CompatiblePinPtr = nullptr;
+                for (const auto& Pin : m_Nodes[NodeIndex].Node->GetPins(!DraggingPinPtr->IsInputPin())) {
+                    if (Pin->Compatible(DraggingPinPtr)) {
+                        if (CompatiblePinPtr) /// second match, cancel
+                            CompatiblePinPtr = nullptr;
+                        CompatiblePinPtr = Pin.get();
+                    }
+                }
+
+                if (CompatiblePinPtr != nullptr) {
+                    std::pair Pins = { DraggingPinPtr, CompatiblePinPtr };
+                    if (Pins.first->IsInputPin())
+                        std::swap(Pins.first, Pins.second);
+                    TryRegisterConnection(Pins.first, Pins.second).has_value();
+
+                    EndPinDrag();
+                    m_CancelOnHoldAction = nullptr;
+                }
+            }
         }
 
         if (!m_CurrentToolTips.empty()) {

@@ -75,6 +75,7 @@ public:
 
     const auto& GetInputPins() const noexcept { return m_InputPins; }
     const auto& GetOutputPins() const noexcept { return m_OutputPins; }
+    const auto& GetPins(bool IsInput) const noexcept { return IsInput ? GetInputPins() : GetOutputPins(); }
 
     template <EPinType PinTy>
     auto GetInputPinsWith() const noexcept

@@ -62,6 +62,8 @@ class CBoardEditor : public CWindowBase {
 
     void FlushPendingNodeTextUpdate();
 
+    void SetCancelOnHoldAction(auto&& Func);
+
 public:
     CBoardEditor();
     ~CBoardEditor();
@@ -93,10 +95,12 @@ protected:
     std::optional<std::size_t> m_SelectedNode;
     std::optional<std::size_t> m_EntranceNode;
 
-    std::size_t m_VirtualNodeForPinDrag;
+    std::optional<std::size_t> m_VirtualNodeForPinDrag;
     std::size_t m_VirtualConnectionForPinDrag;
     std::optional<std::size_t> m_DraggingPin;
     std::optional<std::size_t> m_LastHoveringPin;
+
+    std::function<void()> m_CancelOnHoldAction;
 
     std::unordered_map<std::pair<CPin*, CPin*>, size_t, SPairHash<CPin*, CPin*>> m_ConnectionIdMapping;
     boost::bimap<CPin*, size_t> m_PinIdMapping;
