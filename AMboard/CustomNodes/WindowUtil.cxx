@@ -351,9 +351,17 @@ struct SWindowPicker {
 
     [[nodiscard]] std::optional<HWND> Search() const
     {
+        std::regex RFilter;
+
+        try {
+            RFilter.assign(Filter);
+        } catch (...) {
+            return std::nullopt;
+        }
+
         SWindowSearchData result {
             .IsWindowTitle = FilterType == 0,
-            .pattern = std::regex(Filter),
+            .pattern = std::move(RFilter),
             .foundWindow = nullptr
         };
 
