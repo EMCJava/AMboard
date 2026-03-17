@@ -2,17 +2,19 @@
 // Created by LYS on 3/15/2026.
 //
 
-#include <AMboard/Macro/ExecuteNode.hxx>
 #include <AMboard/CustomNodes/WindowUtil.hxx>
 #include <AMboard/Macro/BaseNode.hxx>
 #include <AMboard/Macro/DataPin.hxx>
+#include <AMboard/Macro/ExecuteNode.hxx>
 #include <AMboard/Macro/Ext/ImGuiPopup.hxx>
 #include <AMboard/Macro/Ext/NodeInnerText.hxx>
+#include <filesystem>
 
 #include <iostream>
 #include <variant>
 
 #include <imgui.h>
+#include <misc/cpp/imgui_stdlib.h>
 
 #include <spdlog/spdlog.h>
 
@@ -111,6 +113,7 @@ public:
     {
         return "Image";
     }
+
 protected:
     void Execute() override
     {
@@ -177,14 +180,59 @@ protected:
     }
 };
 
-class CImageMatch : public CBaseNode {
+class CLoadImage : public CExecuteNode, public INodeImGuiPupUpExt {
 
 public:
-    CImageMatch()
+    CLoadImage()
+    {
+        EmplacePin<CDataPin>(false)->SetValueType("cv::Mat").SetToolTips("Image");
+    }
+
+    std::string_view GetCategory() noexcept override
+    {
+        return "Image";
+    }
+
+    void Execute() override
+    {
+        if (std::filesystem::exists(m_ImagePath)) {
+            GetOutputPinsWith<EPinType::Data>().front()->As<CDataPin>()->Set("cv::Mat", std::make_shared<cv::Mat>(cv::imread(m_ImagePath)));
+        }
+    }
+
+    std::string GetTitle() override
+    {
+        return "Image Path";
+    }
+
+    bool Render() override
+    {
+        ImGui::InputText("Path", &m_ImagePath, ImGuiInputTextFlags_ElideLeft);
+        return true;
+    }
+
+    void WriteExtraContext(std::string& ExtContext) const override
+    {
+        ExtContext = m_ImagePath;
+    }
+    void ReadExtraContext(const std::string& ExtContext) override
+    {
+        m_ImagePath = ExtContext;
+    }
+
+private:
+    std::string m_ImagePath;
+};
+
+class CImageTemplateMatch : public CBaseNode {
+
+public:
+    CImageTemplateMatch()
     {
         EmplacePin<CDataPin>(true)->SetValueType("cv::Mat").SetToolTips("Source");
-        EmplacePin<CDataPin>(true)->SetValueType("cv::Mat").SetToolTips("Pattern");
-        EmplacePin<CDataPin>(false)->SetValueType("bool").SetToolTips("Contains");
+        EmplacePin<CDataPin>(true)->SetValueType("cv::Mat").SetToolTips("Template");
+        EmplacePin<CDataPin>(true)->SetValueType("bool").SetToolTips("grayscale");
+        EmplacePin<CDataPin>(false)->SetValueType("float").SetToolTips("Max match");
     }
 
     std::string_view GetCategory() noexcept override
@@ -194,10 +242,33 @@ public:
 
     bool Evaluate() noexcept override
     {
-        /// TODO
+        if (!CBaseNode::Evaluate())
+            return false;
+
+        const auto InputPins = GetInputPinsWith<EPinType::Data>()
+            | std::views::transform([](const auto& ptr) { return static_cast<CDataPin*>(ptr.get()); })
+            | std::ranges::to<std::vector>();
+
+        auto Source = InputPins[0]->PinGet(cv::Mat);
+        auto Template = InputPins[1]->PinGet(cv::Mat);
+
+        if (InputPins[2]->PinGetTrivial(bool)) {
+            cv::cvtColor(Source, Source, cv::COLOR_BGR2GRAY);
+            cv::cvtColor(Template, Template, cv::COLOR_BGR2GRAY);
+        }
+
+        cv::Mat Result;
+        cv::matchTemplate(Source, Template, Result, cv::TM_CCOEFF_NORMED);
+
+        // 5. Find the best match location
+        double minVal, maxVal;
+        cv::Point minLoc, maxLoc;
+        cv::minMaxLoc(Result, &minVal, &maxVal, &minLoc, &maxLoc);
+
+        GetOutputPinsWith<EPinType::Data>().front()->As<CDataPin>()->PinSet(float, maxVal);
         return true;
     }
 };
 
-REGISTER_MACROS(CScreenCapture, CWriteImageToClipboard, CImageMatch)
+REGISTER_MACROS(CScreenCapture, CLoadImage, CWriteImageToClipboard, CImageTemplateMatch)
 ENABLE_IMGUI()

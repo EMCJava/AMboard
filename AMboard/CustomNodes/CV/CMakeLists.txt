@@ -1,4 +1,4 @@
-add_library(ExtScreenPattern SHARED ScreenPattern.cxx)
+add_library(ExtScreenPattern SHARED ScreenPattern.cxx ${ImGui_Src}/misc/cpp/imgui_stdlib.cpp)
 target_compile_definitions(ExtScreenPattern PRIVATE MACRO_API_IMPORTS)
 target_link_libraries(ExtScreenPattern PRIVATE MacroSharedLib ImGui.lib spdlog::spdlog)
 

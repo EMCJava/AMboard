@@ -19,8 +19,8 @@
 #include <thread>
 
 #include <imgui.h>
-#include <iostream>
 #include <misc/cpp/imgui_stdlib.h>
+
 #include <ostream>
 
 #include <opencv2/core/types.hpp>
