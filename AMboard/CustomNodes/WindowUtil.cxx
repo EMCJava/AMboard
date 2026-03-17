@@ -276,8 +276,8 @@ DWORD WINAPI SnippingToolThread(cv::Rect& BoundingBox)
         // Convert the window's screen coordinates to the overlay's client coordinates
         SnippingConfig.TargetRectClient.left = BoundingBox.x - SnippingConfig.screenX;
         SnippingConfig.TargetRectClient.top = BoundingBox.y - SnippingConfig.screenY;
-        SnippingConfig.TargetRectClient.right = SnippingConfig.TargetRectClient.left + BoundingBox.width - SnippingConfig.screenX;
-        SnippingConfig.TargetRectClient.bottom = SnippingConfig.TargetRectClient.top + BoundingBox.height - SnippingConfig.screenY;
+        SnippingConfig.TargetRectClient.right = SnippingConfig.TargetRectClient.left + BoundingBox.width;
+        SnippingConfig.TargetRectClient.bottom = SnippingConfig.TargetRectClient.top + BoundingBox.height;
 
         SnippingConfig.bHasTarget = true;
     } else {
@@ -318,7 +318,7 @@ DWORD WINAPI SnippingToolThread(cv::Rect& BoundingBox)
         DeleteObject(SnippingConfig.hScreenBmp);
     UnregisterClass("SnippingToolOverlayClass", hInstance);
 
-    BoundingBox = { SnippingConfig.TargetRectClient.left, SnippingConfig.TargetRectClient.top, SnippingConfig.TargetRectClient.right, SnippingConfig.TargetRectClient.bottom };
+    BoundingBox = { SnippingConfig.TargetRectClient.left + SnippingConfig.screenX, SnippingConfig.TargetRectClient.top + SnippingConfig.screenY, SnippingConfig.TargetRectClient.right, SnippingConfig.TargetRectClient.bottom };
 
     return 0;
 }
