@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <variant>
 #include <vector>
 
 struct SNodeNameMeta {
@@ -38,7 +39,8 @@ public:
     // Allow passing nodes in dynamically
     void Initialize(std::vector<SNodeNameMeta> nodes);
 
-    std::optional<std::string> Draw();
+    std::variant<std::monostate, std::string, bool> Draw();
+    void DisableNextNoticeClose();
 
     void OpenPopup();
     auto GetPopupLocation() const noexcept { return m_PopupPos; }
@@ -56,6 +58,7 @@ private:
     bool m_ScrollToSelection = false;
     bool m_ReclaimFocus = false; // Used to keep focus on search bar after clicking a category
 
+    bool m_PreviouslyOpen = false;
     bool m_ShouldOpen = false;
     std::pair<float, float> m_PopupPos;
 };

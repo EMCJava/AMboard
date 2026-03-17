@@ -114,7 +114,7 @@ void CNodeContextMenu::Initialize(std::vector<SNodeNameMeta> nodes)
     }
 }
 
-std::optional<std::string> CNodeContextMenu::Draw()
+std::variant<std::monostate, std::string, bool> CNodeContextMenu::Draw()
 {
     // We move it way off-screen so it doesn't interfere with anything.
     ImGui::SetNextWindowPos(ImVec2(-10000, -10000));
@@ -123,7 +123,12 @@ std::optional<std::string> CNodeContextMenu::Draw()
 
     if (!m_ShouldOpen && !ImGui::IsPopupOpen("NCM")) {
         ImGui::End();
-        return std::nullopt;
+        if (m_PreviouslyOpen) {
+            m_PreviouslyOpen = false;
+            return false;
+        }
+
+        return std::monostate { };
     }
 
     if (m_ShouldOpen) {
@@ -132,6 +137,7 @@ std::optional<std::string> CNodeContextMenu::Draw()
         m_SearchBuffer[0] = '\0';
         UpdateFilter();
         m_PickedItem.reset();
+        m_PreviouslyOpen = true;
         m_ShouldOpen = false;
     }
 
@@ -205,7 +211,18 @@ std::optional<std::string> CNodeContextMenu::Draw()
 
     ImGui::End();
 
-    return std::move(m_PickedItem);
+    if (m_PickedItem.has_value()) {
+        std::string PickedStr = std::move(*m_PickedItem);
+        m_PickedItem.reset();
+        return PickedStr;
+    }
+
+    return std::monostate { };
+}
+
+void CNodeContextMenu::DisableNextNoticeClose()
+{
+    m_PreviouslyOpen = false;
 }
 
 void CNodeContextMenu::OpenPopup()

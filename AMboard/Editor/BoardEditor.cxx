@@ -783,13 +783,14 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
 
         RenderImGuiMenu();
 
-        if (const auto NewNode = m_NodeContextMenu->Draw()) {
+        if (const auto PopupResult = m_NodeContextMenu->Draw(); holds_alternative<std::string>(PopupResult)) {
             static std::random_device rd;
             static std::mt19937 gen(rd());
             static std::uniform_int_distribution<uint32_t> distrib(0, 0xFFFFFF);
 
             const auto PopupPosition = m_NodeContextMenu->GetPopupLocation();
-            const auto NodeIndex = CreateNode(*NewNode, ScreenToWorld(reinterpret_cast<const glm::vec2&>(PopupPosition)), distrib(gen) << 16 | 0x88);
+            const auto NodeIndex = CreateNode(get<std::string>(PopupResult), ScreenToWorld(reinterpret_cast<const glm::vec2&>(PopupPosition)), distrib(gen) << 16 | 0x88);
+            m_NodeContextMenu->DisableNextNoticeClose();
 
             if (m_DraggingPin.has_value()) {
                 CHECK(m_CancelOnHoldAction)
@@ -815,6 +816,13 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
                     EndPinDrag();
                     m_CancelOnHoldAction = nullptr;
                 }
+            }
+        } else if (holds_alternative<bool>(PopupResult)) {
+
+            /// We close the popup without picking any node
+            if (m_DraggingPin.has_value()) {
+                CHECK(m_CancelOnHoldAction)
+                SetCancelOnHoldAction(nullptr);
             }
         }
 
