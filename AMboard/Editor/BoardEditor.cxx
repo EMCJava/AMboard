@@ -798,8 +798,10 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
                 CPin* CompatiblePinPtr = nullptr;
                 for (const auto& Pin : m_Nodes[NodeIndex].Node->GetPins(!DraggingPinPtr->IsInputPin())) {
                     if (Pin->Compatible(DraggingPinPtr)) {
-                        if (CompatiblePinPtr) /// second match, cancel
+                        if (CompatiblePinPtr) { /// second match, cancel
                             CompatiblePinPtr = nullptr;
+                            break;
+                        }
                         CompatiblePinPtr = Pin.get();
                     }
                 }
@@ -808,7 +810,7 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
                     std::pair Pins = { DraggingPinPtr, CompatiblePinPtr };
                     if (Pins.first->IsInputPin())
                         std::swap(Pins.first, Pins.second);
-                    TryRegisterConnection(Pins.first, Pins.second).has_value();
+                    (void)TryRegisterConnection(Pins.first, Pins.second).has_value();
 
                     EndPinDrag();
                     m_CancelOnHoldAction = nullptr;
