@@ -16,13 +16,7 @@ add_executable(AMB main.cpp)
 
 target_link_libraries(
         AMB
-        ExecuteNode.lib
-        BaseNode.lib
-        DataPin.lib
-        FlowPin.lib
-        Pin.lib
 
         BoardEditor.lib
         DepthTexture.lib
-        RenderPipeline.lib
 )
