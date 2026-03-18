@@ -13,6 +13,11 @@
 
 #include <GLFW/glfw3.h>
 
+#ifdef _WIN32
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
+#endif
+
 #include <spdlog/spdlog.h>
 
 inline void
@@ -45,6 +50,117 @@ void WindowResizeCallback(GLFWwindow* window, int, int)
 {
     static_cast<CWindowBase*>(glfwGetWindowUserPointer(window))->RecreateSurface();
 }
+
+/// ===============
+/// File Dropping
+/// ===============
+
+#ifdef _WIN32
+
+#include <ole2.h>
+#include <shellapi.h>
+#include <windows.h>
+
+class DropTargetImpl : public IDropTarget {
+public:
+    CWindowBase* window;
+    ULONG refCount = 1;
+    HWND hwnd;
+
+    DropTargetImpl(CWindowBase* window, HWND h)
+        : window(window)
+        , hwnd(h)
+    {
+    }
+
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppv) override
+    {
+        if (riid == IID_IUnknown || riid == IID_IDropTarget) {
+            *ppv = this;
+            AddRef();
+            return S_OK;
+        }
+        *ppv = nullptr;
+        return E_NOINTERFACE;
+    }
+    ULONG STDMETHODCALLTYPE AddRef() override { return ++refCount; }
+    ULONG STDMETHODCALLTYPE Release() override
+    {
+        ULONG count = --refCount;
+        if (count == 0)
+            delete this;
+        return count;
+    }
+
+    // Helper to get local window coordinates
+    void GetLocalCoords(POINTL pt, int& x, int& y)
+    {
+        POINT p = { pt.x, pt.y };
+        ScreenToClient(hwnd, &p);
+        x = p.x;
+        y = p.y;
+    }
+
+    HRESULT STDMETHODCALLTYPE DragEnter(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) override
+    {
+        return DragOver(grfKeyState, pt, pdwEffect);
+    }
+
+    HRESULT STDMETHODCALLTYPE DragOver(DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) override
+    {
+        int x, y;
+        GetLocalCoords(pt, x, y);
+
+        // Ask the user if we are in the drop zone
+        if (window->OnFileDrag(x, y)) {
+            *pdwEffect = DROPEFFECT_LINK;
+        } else {
+            *pdwEffect = DROPEFFECT_NONE;
+        }
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE DragLeave() override
+    {
+        window->OnFileDragLeave();
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE Drop(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) override
+    {
+        int x, y;
+        GetLocalCoords(pt, x, y);
+
+        // Only process if the user allowed the drop at this location
+        if (window->OnFileDrag(x, y)) {
+            *pdwEffect = DROPEFFECT_NONE;
+            return S_OK;
+        }
+
+        FORMATETC fmt = { CF_HDROP, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL };
+        STGMEDIUM stg;
+        if (SUCCEEDED(pDataObj->GetData(&fmt, &stg))) {
+            HDROP hDrop = (HDROP)GlobalLock(stg.hGlobal);
+            UINT count = DragQueryFileA(hDrop, 0xFFFFFFFF, nullptr, 0);
+
+            std::vector<std::string> files;
+            for (UINT i = 0; i < count; i++) {
+                char path[MAX_PATH];
+                DragQueryFileA(hDrop, i, path, MAX_PATH);
+                files.push_back(path);
+            }
+
+            GlobalUnlock(stg.hGlobal);
+            ReleaseStgMedium(&stg);
+
+            window->OnFileDragDrop(x, y, files);
+            *pdwEffect = DROPEFFECT_COPY;
+        }
+        return S_OK;
+    }
+};
+
+#endif
 
 SRenderContext::SRenderContext() = default;
 
@@ -195,6 +311,24 @@ CWindowBase::CWindowBase()
     // The variable 'queue' is now declared at the class level
     // (do NOT prefix this line with 'WGPUQueue' otherwise it'd shadow the class attribute)
     m_Queue = m_Device.GetQueue();
+
+    /// ===============
+    /// File Dropping
+    /// ===============
+
+    OleInitialize(nullptr); // Required for Windows Drag and Drop
+    HWND hwnd = glfwGetWin32Window(m_Window.get());
+
+    // Revoke GLFW's default drop target, and register ours
+    RevokeDragDrop(hwnd);
+    DropTargetImpl* target = new DropTargetImpl(this, hwnd);
+    RegisterDragDrop(hwnd, target);
+    m_DropTarget = { target, [this](void* Ptr) {
+                        HWND hwnd = glfwGetWin32Window(m_Window.get());
+                        RevokeDragDrop(hwnd);
+                        ((DropTargetImpl*)Ptr)->Release();
+                        OleUninitialize();
+                    } };
 }
 
 CWindowBase::~CWindowBase() = default;

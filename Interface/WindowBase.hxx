@@ -50,6 +50,12 @@ public:
     auto AddOnWindowResizes(auto&& Callback) { return m_OnWindowResizes.emplace(m_OnWindowResizes.end(), std::forward<decltype(Callback)>(Callback)); }
     auto EraseOnWindowResizes(auto&& Iter) { return m_OnWindowResizes.erase(Iter); }
 
+    // Mouse is dragging a file over the window.
+    // Return TRUE to allow drop. Return FALSE to deny.
+    virtual bool OnFileDrag(int WindowX, int WindowY) { return false; }
+    virtual void OnFileDragLeave() { }
+    virtual void OnFileDragDrop(int WindowX, int WindowY, const std::vector<std::string>& Files) { }
+
     virtual void RecreateSurface();
 
     float GetDeltaTime() const noexcept { return m_DeltaTime; }
@@ -91,6 +97,8 @@ protected:
 
     std::chrono::time_point<std::chrono::steady_clock> m_StartTime;
     std::chrono::time_point<std::chrono::steady_clock> m_LastUpdateTime;
+
+    std::unique_ptr<void, std::function<void(void*)>> m_DropTarget;
 
     float m_DeltaTime = 0;
 
