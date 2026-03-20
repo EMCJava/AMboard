@@ -27,6 +27,7 @@ void NodeDefaultDeleter(CBaseNode* Node);
 
 struct SEditorNodeContext {
     NodeStorage Node = { nullptr, nullptr };
+    bool SupportFileDrop = false;
     glm::vec2 LogicalPosition; // This is used for node snapping
 
     /// Mode the logical position and return the display position
@@ -44,6 +45,7 @@ class CBoardEditor : public CWindowBase {
     void RenderImGuiMenu();
 
     [[nodiscard]] glm::vec2 ScreenToWorld(const glm::vec2& ScreenPos) const noexcept;
+    [[nodiscard]] std::optional<std::size_t> WorldAboveNode(const glm::vec2& WorldPos) const noexcept;
 
     std::optional<size_t> TryRegisterConnection(CPin* OutputPin, CPin* InputPin);
 
@@ -74,6 +76,10 @@ public:
 
     void RenderBoard(const SRenderContext& RenderContext);
 
+    bool OnFileDrag(int WindowX, int WindowY) override;
+    void OnFileDragLeave() override;
+    void OnFileDragDrop(int WindowX, int WindowY, const std::vector<std::string>& Files) override;
+
 protected:
     bool m_ScreenUniformDirty = true;
     std::unique_ptr<class SSceneUniform> m_SceneUniform;
@@ -99,6 +105,8 @@ protected:
     std::size_t m_VirtualConnectionForPinDrag;
     std::optional<std::size_t> m_DraggingPin;
     std::optional<std::size_t> m_LastHoveringPin;
+
+    std::optional<std::size_t> m_LastFileDragNode;
 
     std::function<void()> m_CancelOnHoldAction;
 

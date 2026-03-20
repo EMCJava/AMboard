@@ -22,6 +22,7 @@
 enum class ECommonNodeState : uint32_t {
     Selected = 0b1,
     Executing = 0b10,
+    FileDropAccept = 0b100,
 };
 
 struct SCommonNodeSSBO {

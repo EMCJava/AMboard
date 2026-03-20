@@ -11,6 +11,7 @@
 #include <AMboard/Macro/DataPin.hxx>
 #include <AMboard/Macro/ExecuteNode.hxx>
 #include <AMboard/Macro/ExecutionManager.hxx>
+#include <AMboard/Macro/Ext/FileDrop.hxx>
 #include <AMboard/Macro/Ext/ImGuiPopup.hxx>
 #include <AMboard/Macro/Ext/NodeInnerText.hxx>
 
@@ -118,6 +119,19 @@ glm::vec2 CBoardEditor::ScreenToWorld(const glm::vec2& ScreenPos) const noexcept
     return ScreenPos / m_CameraZoom + m_CameraOffset;
 }
 
+std::optional<std::size_t> CBoardEditor::WorldAboveNode(const glm::vec2& WorldPos) const noexcept
+{
+    for (const auto& [Left, Right] : m_NodeRenderer->GetValidRange()) {
+        for (auto i = Left; i <= Right; ++i) {
+            if (i != m_VirtualNodeForPinDrag && m_NodeRenderer->InBound(i, WorldPos)) [[unlikely]] {
+                return i;
+            }
+        }
+    }
+
+    return std::nullopt;
+}
+
 std::optional<size_t> CBoardEditor::TryRegisterConnection(CPin* OutputPin, CPin* InputPin)
 {
     CHECK(OutputPin != nullptr && InputPin != nullptr)
@@ -147,7 +161,7 @@ size_t CBoardEditor::RegisterNode(NodeStorage Node, const std::string& Title, co
     const auto NodeId = m_NodeRenderer->CreateNode(Title, Position, HeaderColor);
     if (NodeId >= m_Nodes.size())
         m_Nodes.resize(NodeId + 1);
-    m_Nodes[NodeId] = { .Node = std::move(Node), .LogicalPosition = Position };
+    m_Nodes[NodeId] = { .Node = std::move(Node), .SupportFileDrop = false, .LogicalPosition = Position };
     m_NodeRenderer->SetNodePosition(NodeId, m_Nodes[NodeId].GetDisplayPosition(m_NodeSnapValue));
 
     const auto PinConnectionUpdateCallback = [this](CPin* This, CPin* Other, const bool IsConnect) {
@@ -227,6 +241,8 @@ size_t CBoardEditor::RegisterNode(NodeStorage Node, const std::string& Title, co
         InnerText->SetOnUpdate(TextUpdate);
         TextUpdate();
     }
+
+    m_Nodes[NodeId].SupportFileDrop = dynamic_cast<IFileDrop*>(m_Nodes[NodeId].Node.get()) != nullptr;
 
     return NodeId;
 }
@@ -510,26 +526,20 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
     CPin* CursorHoveringPtr = nullptr;
 
     /// Node interaction pre-compute
-    for (const auto& [Left, Right] : m_NodeRenderer->GetValidRange()) {
-        for (auto i = Left; i <= Right; ++i) {
-            if (i != m_VirtualNodeForPinDrag && m_NodeRenderer->InBound(i, MouseWorldPos)) [[unlikely]] {
-                CursorHoveringNode = i;
+    if ((CursorHoveringNode = WorldAboveNode(MouseWorldPos))) {
 
-                if ((CursorHoveringPin = m_NodeRenderer->GetHoveringPin(i, MouseWorldPos, m_DraggingPin.has_value() ? 8 : 0))) {
-                    CursorHoveringPtr = m_PinIdMapping.right.at(*CursorHoveringPin);
-                }
-
-                if (m_LastHoveringPin != CursorHoveringPin) {
-                    if (m_LastHoveringPin.has_value()) /// Deselect
-                        m_NodeRenderer->ToggleHoverPin(*m_LastHoveringPin);
-                    if (CursorHoveringPin.has_value()) /// Select
-                        m_NodeRenderer->HoverPin(*CursorHoveringPin);
-                }
-
-                m_LastHoveringPin = CursorHoveringPin;
-                break;
-            }
+        if ((CursorHoveringPin = m_NodeRenderer->GetHoveringPin(*CursorHoveringNode, MouseWorldPos, m_DraggingPin.has_value() ? 8 : 0))) {
+            CursorHoveringPtr = m_PinIdMapping.right.at(*CursorHoveringPin);
         }
+
+        if (m_LastHoveringPin != CursorHoveringPin) {
+            if (m_LastHoveringPin.has_value()) /// Deselect
+                m_NodeRenderer->ToggleHoverPin(*m_LastHoveringPin);
+            if (CursorHoveringPin.has_value()) /// Select
+                m_NodeRenderer->HoverPin(*CursorHoveringPin);
+        }
+
+        m_LastHoveringPin = CursorHoveringPin;
     }
 
     /// Save
@@ -880,4 +890,50 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
         ImGui::Render();
         ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), RenderContext.RenderPassEncoder.Get());
     }
+}
+
+bool CBoardEditor::OnFileDrag(int WindowX, int WindowY)
+{
+    if (CWindowBase::OnFileDrag(WindowX, WindowY)) {
+        return true;
+    }
+
+    const auto HoveringNode = WorldAboveNode(ScreenToWorld({ WindowX, WindowY })).and_then([this](auto&& Node) -> std::optional<std::size_t> {
+        if (!m_Nodes[Node].SupportFileDrop)
+            return std::nullopt;
+        return Node;
+    });
+
+    if (m_LastFileDragNode != HoveringNode) {
+        if (m_LastFileDragNode.has_value()) /// Deselect
+            m_NodeRenderer->ResetState(*m_LastFileDragNode, ECommonNodeState::FileDropAccept);
+        if (HoveringNode.has_value()) /// Select
+            m_NodeRenderer->SetState(*HoveringNode, ECommonNodeState::FileDropAccept);
+    }
+
+    m_LastFileDragNode = HoveringNode;
+
+    return HoveringNode.has_value();
+}
+
+void CBoardEditor::OnFileDragLeave()
+{
+    CWindowBase::OnFileDragLeave();
+
+    if (m_LastFileDragNode.has_value()) /// Deselect
+        m_NodeRenderer->ResetState(*m_LastFileDragNode, ECommonNodeState::FileDropAccept);
+    m_LastFileDragNode.reset();
+}
+
+void CBoardEditor::OnFileDragDrop(int WindowX, int WindowY, const std::vector<std::string>& Files)
+{
+    CWindowBase::OnFileDragDrop(WindowX, WindowY, Files);
+
+    if (m_LastFileDragNode.has_value() && m_Nodes[*m_LastFileDragNode].SupportFileDrop) {
+        dynamic_cast<IFileDrop*>(m_Nodes[*m_LastFileDragNode].Node.get())->OnFileDrop(Files);
+    }
+
+    if (m_LastFileDragNode.has_value()) /// Deselect
+        m_NodeRenderer->ResetState(*m_LastFileDragNode, ECommonNodeState::FileDropAccept);
+    m_LastFileDragNode.reset();
 }

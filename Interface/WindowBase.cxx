@@ -132,7 +132,7 @@ public:
         GetLocalCoords(pt, x, y);
 
         // Only process if the user allowed the drop at this location
-        if (window->OnFileDrag(x, y)) {
+        if (!window->OnFileDrag(x, y)) {
             *pdwEffect = DROPEFFECT_NONE;
             return S_OK;
         }

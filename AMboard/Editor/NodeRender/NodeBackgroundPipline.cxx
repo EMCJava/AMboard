@@ -41,10 +41,12 @@ const CORNER_RADIUS: f32 = 8.0;
 const BORDER_WIDTH: f32 = 2.0;
 const PICKED_BORDER_WIDTH: f32 = 3.0;
 const EXECUTING_BORDER_WIDTH: f32 = 5.0;
+const FILEDROP_BORDER_WIDTH: f32 = 3.0;
 const BODY_COLOR: vec4<f32> = vec4<f32>(0.15, 0.15, 0.2, 1.0);
 const BORDER_COLOR: vec4<f32> = vec4<f32>(0.3, 0.5, 0.9, 0.7);
 const PICKED_BORDER_COLOR: vec4<f32> = vec4<f32>(1.0, 0.74, 0.0, 1.0);
 const EXECUTING_BORDER_COLOR: vec4<f32> = vec4<f32>(0.74, 1.0, 0.0, 1.0);
+const FILEDROP_BORDER_COLOR: vec4<f32> = vec4<f32>(0.0, 1.0, 0.74, 1.0);
 
 @vertex
 fn vs_main(input: VertexInput) -> VertexOutput {
@@ -142,6 +144,12 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
             if((input.state & 1) != 0) {
                 if (node_dist > -PICKED_BORDER_WIDTH) {
                     color = PICKED_BORDER_COLOR;
+                }
+            }
+
+            if((input.state & 4) != 0){
+                if (node_dist > -FILEDROP_BORDER_WIDTH) {
+                    color = FILEDROP_BORDER_COLOR;
                 }
             }
         }

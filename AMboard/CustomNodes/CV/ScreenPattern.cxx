@@ -6,6 +6,7 @@
 #include <AMboard/Macro/BaseNode.hxx>
 #include <AMboard/Macro/DataPin.hxx>
 #include <AMboard/Macro/ExecuteNode.hxx>
+#include <AMboard/Macro/Ext/FileDrop.hxx>
 #include <AMboard/Macro/Ext/ImGuiPopup.hxx>
 #include <AMboard/Macro/Ext/NodeInnerText.hxx>
 #include <filesystem>
@@ -180,7 +181,7 @@ protected:
     }
 };
 
-class CLoadImage : public CExecuteNode, public INodeImGuiPupUpExt {
+class CLoadImage : public CExecuteNode, public INodeImGuiPupUpExt, public IFileDrop {
 
 public:
     CLoadImage()
@@ -218,6 +219,11 @@ public:
     void ReadExtraContext(const std::string& ExtContext) override
     {
         m_ImagePath = ExtContext;
+    }
+
+    void OnFileDrop(const std::vector<std::string>& Files) override
+    {
+        m_ImagePath = Files.empty() ? m_ImagePath : Files.front();
     }
 
 private:
