@@ -98,7 +98,7 @@ protected:
     bool m_ControlDraggingCanvas = false;
 
     bool m_DraggingNode = false;
-    std::optional<std::size_t> m_SelectedNode;
+    std::vector<size_t> m_SelectedNodes;
     std::optional<std::size_t> m_EntranceNode;
 
     std::optional<std::size_t> m_VirtualNodeForPinDrag;

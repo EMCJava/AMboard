@@ -594,14 +594,15 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
     /// Remove Node
     if (GetInputManager().GetKeyboardButtons().ConsumeEvent(GLFW_KEY_DELETE)) {
         SetCancelOnHoldAction(nullptr);
-        if (m_SelectedNode.has_value()) {
-            m_Nodes[*m_SelectedNode].Node.reset();
-            m_NodeRenderer->RemoveNode(*m_SelectedNode);
-            if (m_SelectedNode == m_EntranceNode) [[unlikely]] {
+        for (const auto NodeId : m_SelectedNodes) {
+            m_Nodes[NodeId].Node.reset();
+            m_NodeRenderer->RemoveNode(NodeId);
+            if (m_EntranceNode == NodeId) [[unlikely]] {
                 m_EntranceNode.reset();
             }
-            m_SelectedNode.reset();
         }
+
+        m_SelectedNodes.clear();
     }
 
     /// Create Node
@@ -617,17 +618,27 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
         /// Click, not drag
         if (glm::length2(glm::vec2 { MouseCurrentPos - *MouseStartClickPos }) < 3 * 3) {
 
-            if (!m_DraggingPin.has_value() && CursorHoveringNode.has_value()) [[unlikely]] {
+            if (/* We clicked on a pin */ !m_DraggingPin.has_value() && CursorHoveringNode.has_value()) [[unlikely]] {
 
-                if (m_SelectedNode.has_value()) {
-                    m_NodeRenderer->ToggleSelect(*m_SelectedNode);
+                bool IsDeselect = false;
+
+                /// If control is not held, we clear all previous selection
+                if (!GetInputManager().GetKeyboardButtons().IsKeyDown(GLFW_KEY_LEFT_CONTROL)) {
+                    for (const auto NodeId : m_SelectedNodes) {
+                        m_NodeRenderer->ResetState(NodeId, ECommonNodeState::Selected);
+                    }
+                    m_SelectedNodes.clear();
+                } else if (CursorHoveringNode.has_value()) {
+                    if (const auto It = std::ranges::find(m_SelectedNodes, *CursorHoveringNode); It != m_SelectedNodes.end()) {
+                        m_NodeRenderer->ResetState(*It, ECommonNodeState::Selected);
+                        m_SelectedNodes.erase(It);
+                        IsDeselect = true;
+                    }
                 }
 
-                if (m_SelectedNode.has_value() && *m_SelectedNode == *CursorHoveringNode) { /// Deselect
-                    m_SelectedNode.reset();
-                } else {
-                    m_SelectedNode = *CursorHoveringNode;
-                    m_NodeRenderer->Select(*CursorHoveringNode);
+                if (!IsDeselect && CursorHoveringNode.has_value()) {
+                    m_SelectedNodes.emplace_back(*CursorHoveringNode);
+                    m_NodeRenderer->SetState(*CursorHoveringNode, ECommonNodeState::Selected);
                 }
             }
         }
@@ -642,7 +653,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
                 std::pair Pins = { m_PinIdMapping.right.at(*m_DraggingPin), CursorHoveringPtr };
                 if (Pins.first->IsInputPin())
                     std::swap(Pins.first, Pins.second);
-                TryRegisterConnection(Pins.first, Pins.second).has_value();
+                (void)TryRegisterConnection(Pins.first, Pins.second).has_value();
             } else if (!CursorHoveringNode.has_value()) {
                 StopDrag = false;
                 m_NodeContextMenu->OpenPopup();
@@ -712,8 +723,8 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
             /// Drag selected node
             m_DraggingNode = false;
-            if (!FirstClickHasUsed && m_SelectedNode.has_value()) {
-                if (m_SelectedNode == CursorHoveringNode) {
+            if (!FirstClickHasUsed && CursorHoveringNode.has_value()) {
+                if (std::ranges::contains(m_SelectedNodes, *CursorHoveringNode)) {
                     m_DraggingNode = true;
                     NodeDragThreshold = 3 * 3;
                 }
@@ -731,7 +742,11 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
 
             if (!NodeDragThreshold.has_value()) {
                 if (MouseDeltaPos.x || MouseDeltaPos.y) {
-                    m_NodeRenderer->SetNodePosition(*m_SelectedNode, m_Nodes[*m_SelectedNode].MoveLogicalPosition(glm::vec2 { MouseDeltaPos } / m_CameraZoom, m_NodeSnapValue));
+                    const auto MouseWorldDelta = glm::vec2 { MouseDeltaPos } / m_CameraZoom;
+
+                    for (const auto NodeId : m_SelectedNodes) {
+                        m_NodeRenderer->SetNodePosition(NodeId, m_Nodes[NodeId].MoveLogicalPosition(MouseWorldDelta, m_NodeSnapValue));
+                    }
                 }
             }
         }

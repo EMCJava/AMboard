@@ -202,7 +202,10 @@ CWindowBase::GetNextSurfaceView()
     viewDescriptor.dimension = wgpu::TextureViewDimension::e2D;
     return surfaceTexture.texture.CreateView(&viewDescriptor);
 }
+void drop_callback(GLFWwindow* window, int count, const char** paths)
+{
 
+}
 CWindowBase::CWindowBase()
 {
     m_StartTime = std::chrono::steady_clock::now();
@@ -220,6 +223,7 @@ CWindowBase::CWindowBase()
                     glfwTerminate();
                 } };
 
+    glfwSetDropCallback(m_Window.get(), drop_callback);
     glfwSetKeyCallback(m_Window.get(), WindowKeyInputCallback);
     glfwSetMouseButtonCallback(m_Window.get(), WindowMouseButtonCallback);
     glfwSetCursorPosCallback(m_Window.get(), WindowCursorCallback);
