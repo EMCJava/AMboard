@@ -44,6 +44,7 @@ class CBoardEditor : public CWindowBase {
 
     void RenderImGuiMenu();
 
+    [[nodiscard]] glm::vec2 WorldToScreen(const glm::vec2& WorldPos) const noexcept;
     [[nodiscard]] glm::vec2 ScreenToWorld(const glm::vec2& ScreenPos) const noexcept;
     [[nodiscard]] std::optional<std::size_t> WorldAboveNode(const glm::vec2& WorldPos) const noexcept;
 
@@ -65,6 +66,8 @@ class CBoardEditor : public CWindowBase {
     void FlushPendingNodeTextUpdate();
 
     void SetCancelOnHoldAction(auto&& Func);
+
+    void UpdateDragSelection();
 
 public:
     CBoardEditor();
@@ -93,12 +96,20 @@ protected:
     std::string_view m_CurrentToolTips;
 
     std::optional<glm::ivec2> MouseStartClickPos;
+    glm::vec2 m_MouseStartClickWorldPos; // If MouseStartClickPos has value, this is valid
     std::optional<int> NodeDragThreshold;
 
     bool m_ControlDraggingCanvas = false;
+    bool m_ControlDraggingNode = false;
+    bool m_ControlDraggingSelection = false;
 
-    bool m_DraggingNode = false;
     std::vector<size_t> m_SelectedNodes;
+    std::vector<size_t> m_LiveSelectedNodes;
+    std::vector<size_t> m_LiveSelectedNodesBuffer;
+
+    bool m_LiveSelectNodeToggle = false;
+    std::vector<size_t> m_LiveBoundedNodesBuffer;
+
     std::optional<std::size_t> m_EntranceNode;
 
     std::optional<std::size_t> m_VirtualNodeForPinDrag;

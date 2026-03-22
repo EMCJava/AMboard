@@ -447,6 +447,26 @@ bool CNodeRenderer::InBound(const size_t Id, const glm::vec2& Position) const
     return Position.x >= Offset.x && Position.y >= Offset.y && Position.x <= Offset.x + Size.x && Position.y <= Offset.y + Size.y;
 }
 
+bool CNodeRenderer::InBound(size_t Id, const glm::vec4& Rect) const
+{
+    MAKE_SURE(Id < m_IdCount)
+
+    const auto& Offset = m_CommonNodeSSBOBuffer->At<SCommonNodeSSBO>(Id).Position;
+    const auto& Size = m_NodeBackgroundPipline->GetVertexBuffer().At<SNodeBackgroundInstanceBuffer>(Id).Size;
+
+    // Check for no overlap on X-axis
+    if (Offset.x + Size.x <= Rect.s || Rect.p <= Offset.x) {
+        return false;
+    }
+    // Check for no overlap on Y-axis
+    if (Offset.y + Size.y <= Rect.t || Rect.q <= Offset.y) {
+        return false;
+    }
+
+    // Overlap exists on both axes
+    return true;
+}
+
 std::optional<std::size_t> CNodeRenderer::GetHoveringPin(const size_t HoveringNodeId, const glm::vec2& Position, const float Tolerance) const
 {
     MAKE_SURE(HoveringNodeId < m_IdCount)

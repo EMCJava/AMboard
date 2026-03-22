@@ -12,6 +12,7 @@
 #include <Util/RangeManager.hxx>
 
 #include <glm/vec2.hpp>
+#include <glm/vec4.hpp>
 
 #include <dawn/webgpu_cpp.h>
 
@@ -103,6 +104,7 @@ public:
     void RemoveNode(size_t Id);
 
     [[nodiscard]] bool InBound(size_t Id, const glm::vec2& Position) const;
+    [[nodiscard]] bool InBound(size_t Id, const glm::vec4& Rect) const;
 
     /// Assuming the position is within bound of the node, find the hovering pin
     [[nodiscard]] std::optional<std::size_t> GetHoveringPin(size_t HoveringNodeId, const glm::vec2& Position, float Tolerance = 0) const;

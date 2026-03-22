@@ -114,6 +114,11 @@ void CBoardEditor::RenderImGuiMenu()
     }
 }
 
+glm::vec2 CBoardEditor::WorldToScreen(const glm::vec2& WorldPos) const noexcept
+{
+    return (WorldPos - m_CameraOffset) * m_CameraZoom;
+}
+
 glm::vec2 CBoardEditor::ScreenToWorld(const glm::vec2& ScreenPos) const noexcept
 {
     return ScreenPos / m_CameraZoom + m_CameraOffset;
@@ -455,6 +460,70 @@ void CBoardEditor::SetCancelOnHoldAction(auto&& Func)
     m_CancelOnHoldAction = Func;
 }
 
+void CBoardEditor::UpdateDragSelection()
+{
+    bool IsBoundChanged = false;
+
+    {
+        const glm::vec2 MouseWorldPos = ScreenToWorld(GetInputManager().GetCursorPosition());
+        size_t BoundedBufferIndex = 0;
+        const auto MouseBound = glm::vec4 { glm::min(m_MouseStartClickWorldPos, MouseWorldPos), glm::max(m_MouseStartClickWorldPos, MouseWorldPos) };
+        for (const auto& [Left, Right] : m_NodeRenderer->GetValidRange()) {
+            for (auto i = Left; i <= Right; ++i) {
+                if (m_NodeRenderer->InBound(i, MouseBound)) {
+                    if (m_LiveBoundedNodesBuffer.size() <= BoundedBufferIndex) {
+                        m_LiveBoundedNodesBuffer.emplace_back(i);
+                        IsBoundChanged = true;
+                    } else if (m_LiveBoundedNodesBuffer[BoundedBufferIndex] != i) {
+                        m_LiveBoundedNodesBuffer[BoundedBufferIndex] = i;
+                        IsBoundChanged = true;
+                    }
+                    ++BoundedBufferIndex;
+                }
+            }
+        }
+
+        if (m_LiveBoundedNodesBuffer.size() != BoundedBufferIndex) {
+            m_LiveBoundedNodesBuffer.resize(BoundedBufferIndex);
+            IsBoundChanged = true;
+        }
+    }
+
+    if (IsBoundChanged) {
+        std::swap(m_LiveSelectedNodes, m_LiveSelectedNodesBuffer);
+        m_LiveSelectedNodes.clear();
+
+        if (m_LiveSelectNodeToggle) {
+            std::ranges::set_symmetric_difference(
+                m_SelectedNodes, m_LiveBoundedNodesBuffer,
+                std::back_inserter(m_LiveSelectedNodes));
+        } else {
+            std::ranges::set_union(
+                m_SelectedNodes, m_LiveBoundedNodesBuffer,
+                std::back_inserter(m_LiveSelectedNodes));
+        }
+
+        auto old_it = m_LiveSelectedNodesBuffer.begin();
+        auto old_end = m_LiveSelectedNodesBuffer.end();
+
+        for (size_t id : m_LiveSelectedNodes) {
+            while (old_it != old_end && *old_it < id) {
+                m_NodeRenderer->ResetState(*old_it, ECommonNodeState::Selected);
+                ++old_it;
+            }
+            if (old_it != old_end && *old_it == id) {
+                ++old_it;
+            } else {
+                m_NodeRenderer->SetState(id, ECommonNodeState::Selected);
+            }
+        }
+        while (old_it != old_end) {
+            m_NodeRenderer->ResetState(*old_it, ECommonNodeState::Selected);
+            ++old_it;
+        }
+    }
+}
+
 CBoardEditor::CBoardEditor()
 {
     SetUpImGui();
@@ -669,6 +738,11 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
         }
 
         MouseStartClickPos.reset();
+
+        if (m_ControlDraggingSelection) {
+            std::swap(m_SelectedNodes, m_LiveSelectedNodes);
+            m_ControlDraggingSelection = false;
+        }
     }
 
     if (GetInputManager().GetMouseButtons().IsDoubleClick(GLFW_MOUSE_BUTTON_LEFT)) {
@@ -688,12 +762,13 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
         /// First frame clicking
         if (!MouseStartClickPos.has_value()) {
             MouseStartClickPos = MouseCurrentPos;
+            m_MouseStartClickWorldPos = MouseWorldPos;
 
             bool FirstClickHasUsed = false;
 
             /// Dragging takes priority
             m_ControlDraggingCanvas = false;
-            if (GetInputManager().GetKeyboardButtons().IsKeyDown(GLFW_KEY_LEFT_CONTROL)) [[unlikely]] {
+            if (GetInputManager().GetKeyboardButtons().IsKeyDown(GLFW_KEY_LEFT_SHIFT)) [[unlikely]] {
                 m_ControlDraggingCanvas = true;
                 FirstClickHasUsed = true;
             }
@@ -722,17 +797,24 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
             }
 
             /// Drag selected node
-            m_DraggingNode = false;
+            m_ControlDraggingNode = false;
             if (!FirstClickHasUsed && CursorHoveringNode.has_value()) {
                 if (std::ranges::contains(m_SelectedNodes, *CursorHoveringNode)) {
-                    m_DraggingNode = true;
+                    m_ControlDraggingNode = true;
                     NodeDragThreshold = 3 * 3;
                 }
             }
 
+            m_ControlDraggingSelection = false;
+            if (!FirstClickHasUsed && !CursorHoveringNode.has_value()) {
+                m_LiveSelectNodeToggle = GetInputManager().GetKeyboardButtons().IsKeyDown(GLFW_KEY_LEFT_CONTROL);
+                m_LiveSelectedNodes = m_SelectedNodes;
+                m_ControlDraggingSelection = true;
+            }
+
         } else if (m_ControlDraggingCanvas) {
             MoveCanvas(-glm::vec2 { MouseDeltaPos } / m_CameraZoom);
-        } else if (m_DraggingNode) {
+        } else if (m_ControlDraggingNode) {
 
             if (NodeDragThreshold.has_value()) {
                 if (glm::length2(glm::vec2 { MouseCurrentPos - *MouseStartClickPos }) > *NodeDragThreshold) {
@@ -749,6 +831,8 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
                     }
                 }
             }
+        } else if (m_ControlDraggingSelection) {
+            UpdateDragSelection();
         }
     }
 
@@ -899,6 +983,25 @@ void CBoardEditor::RenderBoard(const SRenderContext& RenderContext)
             ImGui::PopStyleColor();
 
             // End the invisible host window
+            ImGui::End();
+        }
+
+        if (m_ControlDraggingSelection) {
+            ImGui::SetNextWindowPos(ImVec2(0, 0));
+            ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+            ImGui::Begin("##SelectionOverlay", nullptr,
+                ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus);
+
+            const auto StartPos = WorldToScreen(m_MouseStartClickWorldPos);
+            const auto MouseCurrentPos = glm::vec2(GetInputManager().GetCursorPosition());
+
+            ImVec2 min_pos(glm::min(StartPos.x, MouseCurrentPos.x), glm::min(StartPos.y, MouseCurrentPos.y));
+            ImVec2 max_pos(glm::max(StartPos.x, MouseCurrentPos.x), glm::max(StartPos.y, MouseCurrentPos.y));
+
+            ImDrawList* draw_list = ImGui::GetWindowDrawList();
+            draw_list->AddRectFilled(min_pos, max_pos, IM_COL32(51, 153, 255, 40));
+            draw_list->AddRect(min_pos, max_pos, IM_COL32(51, 153, 255, 180), 0.0f, 0, 1.0f);
+
             ImGui::End();
         }
 
