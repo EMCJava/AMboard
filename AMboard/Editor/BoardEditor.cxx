@@ -460,11 +460,14 @@ void CBoardEditor::SetCancelOnHoldAction(auto&& Func)
     m_CancelOnHoldAction = Func;
 }
 
-void CBoardEditor::UpdateDragSelection()
+void CBoardEditor::UpdateDragSelection(const bool ResetSelection)
 {
     bool IsBoundChanged = false;
 
-    {
+    if (ResetSelection) {
+        IsBoundChanged = !m_LiveBoundedNodesBuffer.empty();
+        m_LiveBoundedNodesBuffer.clear();
+    } else {
         const glm::vec2 MouseWorldPos = ScreenToWorld(GetInputManager().GetCursorPosition());
         size_t BoundedBufferIndex = 0;
         const auto MouseBound = glm::vec4 { glm::min(m_MouseStartClickWorldPos, MouseWorldPos), glm::max(m_MouseStartClickWorldPos, MouseWorldPos) };
@@ -678,10 +681,18 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
     if (GetInputManager().GetMouseButtons().ConsumeEvent(GLFW_MOUSE_BUTTON_RIGHT)) {
         SetCancelOnHoldAction(nullptr);
         m_NodeContextMenu->OpenPopup();
+        return EWindowEventState::Normal;
     }
 
     /// Select Node (release mouse)
     if (GetInputManager().GetMouseButtons().ConsumeEvent({ GLFW_MOUSE_BUTTON_LEFT, GLFW_RELEASE }) && /* Clicking title bar will not register */ MouseStartClickPos.has_value()) {
+
+        if (m_ControlDraggingSelection) {
+            std::swap(m_SelectedNodes, m_LiveSelectedNodes);
+            m_ControlDraggingSelection = false;
+            m_CancelOnHoldAction = nullptr;
+        }
+
         SetCancelOnHoldAction(nullptr);
 
         /// Click, not drag
@@ -738,11 +749,6 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
         }
 
         MouseStartClickPos.reset();
-
-        if (m_ControlDraggingSelection) {
-            std::swap(m_SelectedNodes, m_LiveSelectedNodes);
-            m_ControlDraggingSelection = false;
-        }
     }
 
     if (GetInputManager().GetMouseButtons().IsDoubleClick(GLFW_MOUSE_BUTTON_LEFT)) {
@@ -810,6 +816,12 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
                 m_LiveSelectNodeToggle = GetInputManager().GetKeyboardButtons().IsKeyDown(GLFW_KEY_LEFT_CONTROL);
                 m_LiveSelectedNodes = m_SelectedNodes;
                 m_ControlDraggingSelection = true;
+
+                SetCancelOnHoldAction([this] {
+                    UpdateDragSelection(true);
+                    m_ControlDraggingSelection = false;
+                    MouseStartClickPos.reset();
+                });
             }
 
         } else if (m_ControlDraggingCanvas) {

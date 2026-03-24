@@ -67,7 +67,7 @@ class CBoardEditor : public CWindowBase {
 
     void SetCancelOnHoldAction(auto&& Func);
 
-    void UpdateDragSelection();
+    void UpdateDragSelection(bool ResetSelection = false);
 
 public:
     CBoardEditor();

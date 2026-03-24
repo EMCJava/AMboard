@@ -5,6 +5,7 @@
 #include "NodeContextMenu.hxx"
 
 #include "imgui.h"
+#include "imgui_internal.h"
 
 #include <algorithm>
 #include <bit>
@@ -139,6 +140,8 @@ std::variant<std::monostate, std::string, bool> CNodeContextMenu::Draw()
         m_PickedItem.reset();
         m_PreviouslyOpen = true;
         m_ShouldOpen = false;
+
+        ImGui::UpdateHoveredWindowAndCaptureFlags(ImGui::GetIO().MousePos);
     }
 
     if (ImGui::BeginPopup("NCM")) {
