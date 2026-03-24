@@ -136,6 +136,7 @@ protected:
     class CExecuteNode* m_LastExecutedNode = nullptr;
     std::unique_ptr<class CExecutionManager> m_ExecutionManager;
 
+    std::unordered_map<std::string, NodeStorage> m_NodeTemplates;
     std::vector<SEditorNodeContext> m_Nodes;
 
     glm::vec2 m_CameraOffset { };

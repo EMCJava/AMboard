@@ -37,7 +37,8 @@ void CNodeContextMenu::UpdateFilter()
 
         for (const auto* node : nodes) {
             if (!isSearching || categoryMatches || CaseInsensitiveContains(node->Name, searchStr)) {
-                matchedNodes.push_back(node);
+                if (m_CustomFilter == nullptr || m_CustomFilter(node->Name))
+                    matchedNodes.push_back(node);
             }
         }
 

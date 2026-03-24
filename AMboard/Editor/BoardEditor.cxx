@@ -563,8 +563,10 @@ CBoardEditor::CBoardEditor()
 
     m_ExecutionManager = std::make_unique<CExecutionManager>();
     m_CustomNodeLoader = std::make_unique<CCustomNodeLoader>("NodeExts", ImGui::GetCurrentContext());
-    for (const auto& NodeName : m_CustomNodeLoader->GetNodeExts())
-        MenuItems.emplace_back(NodeName, std::string(m_CustomNodeLoader->CreateNodeExt(NodeName)->GetCategory()));
+    for (const auto& NodeName : m_CustomNodeLoader->GetNodeExts()) {
+        const auto& NodeTemplate = m_NodeTemplates.insert_or_assign(NodeName, m_CustomNodeLoader->CreateNodeExt(NodeName)).first->second;
+        MenuItems.emplace_back(NodeName, std::string(NodeTemplate->GetCategory()));
+    }
     m_NodeContextMenu->Initialize(std::move(MenuItems));
 
     LoadCanvas("graph.yaml");
@@ -737,10 +739,23 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
             } else if (!CursorHoveringNode.has_value()) {
                 StopDrag = false;
                 m_NodeContextMenu->OpenPopup();
+                m_NodeContextMenu->SetNodeFilter([this](const std::string& Name) {
+                    VERIFY(m_DraggingPin.has_value() && m_CancelOnHoldAction, return true)
+                    auto* DraggingPinPtr = m_PinIdMapping.right.at(*m_DraggingPin);
+                    if (const auto It = m_NodeTemplates.find(Name); It != m_NodeTemplates.end()) {
+                        return std::ranges::any_of(It->second->GetPins(!DraggingPinPtr->IsInputPin()), [&](auto&& Pin) { return Pin->Compatible(DraggingPinPtr); });
+                    }
+
+                    VERIFY(false && "Filter not in node template", return false)
+                });
+
                 SetCancelOnHoldAction([this] {
                     if (m_DraggingPin.has_value()) {
                         EndPinDrag();
                     }
+
+                    /// Reset Filter
+                    m_NodeContextMenu->SetNodeFilter(nullptr);
                 });
             }
 

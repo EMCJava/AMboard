@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <functional>
 #include <map>
 #include <optional>
 #include <string>
@@ -45,10 +46,13 @@ public:
     void OpenPopup();
     auto GetPopupLocation() const noexcept { return m_PopupPos; }
 
+    void SetNodeFilter(auto&& Filter) {m_CustomFilter = Filter; }
+
 private:
     std::vector<SNodeNameMeta> m_AllNodes;
     std::map<std::string, std::vector<const SNodeNameMeta*>> m_NodesByCategory;
 
+    std::function<bool(const std::string&)> m_CustomFilter;
     std::vector<SVisibleMenuItem> m_VisibleItems;
     std::unordered_map<std::string, bool> m_CategoryExpandedState;
 
