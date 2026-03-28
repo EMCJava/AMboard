@@ -178,6 +178,89 @@ public:
     }
 };
 
+class COnTriggerNode : public CExecuteNode, public INodeImGuiPupUpExt {
+public:
+    COnTriggerNode()
+    {
+        ErasePin(GetInputPins()[0].get());
+    }
+
+    std::string GetTitle() override
+    {
+        return "On Trigger";
+    }
+
+    void Begin() noexcept override
+    {
+        CExecuteNode::Begin();
+        m_InputMonitor = CInputService::Get().Subscribe(std::bind_front(&COnTriggerNode::InputCallback, this));
+    }
+
+    void End() noexcept override
+    {
+        CExecuteNode::End();
+        CInputService::Get().Unsubscribe(m_InputMonitor);
+    }
+
+    void InputCallback(const SInputEvent& InputEvent)
+    {
+        if (InputEvent.type == EInputType::KeyDown) {
+            if (m_IsRecording) {
+                m_KeyCode = InputEvent.keyCode;
+                m_IsRecording = false;
+                return;
+            }
+
+            if (m_KeyCode == InputEvent.keyCode)
+                if (m_Manager != nullptr)
+                    m_Manager->Execute(this);
+        }
+    }
+
+    void OnStartPopup() override
+    {
+        m_IsRecording = true;
+    }
+
+    void OnEndPopup() override
+    {
+        m_IsRecording = false;
+    }
+
+    bool Render() override
+    {
+        ImGui::Text("Press any key to trigger this node");
+        return m_IsRecording;
+    }
+
+    std::string_view GetCategory() noexcept override
+    {
+        return "Flow";
+    }
+
+    void WriteExtraContext(std::string& ExtContext) const override
+    {
+        if (m_KeyCode.has_value()) {
+            ExtContext = std::to_string(*m_KeyCode);
+        }
+    }
+    void ReadExtraContext(const std::string& ExtContext) override
+    {
+        if (ExtContext.empty())
+            return;
+
+        int Value = 0;
+        std::from_chars(ExtContext.data(), ExtContext.data() + ExtContext.size(), Value);
+        m_KeyCode = Value;
+    }
+
+protected:
+    CInputService::SubscriptionID m_InputMonitor { };
+
+    bool m_IsRecording = false;
+    std::optional<int> m_KeyCode;
+};
+
 class CToStringNode : public CBaseNode {
 public:
     CToStringNode()
@@ -521,7 +604,8 @@ public:
 
     void WriteExtraContext(std::string& ExtContext) const override
     {
-        if (OtherTy == "void") return;
+        if (OtherTy == "void")
+            return;
         ExtContext = std::format("{} {}", OtherTy, m_StrBuffer);
     }
     void ReadExtraContext(const std::string& ExtContext) override
@@ -775,5 +859,5 @@ private:
     std::chrono::steady_clock::time_point m_LastEventTime;
 };
 
-REGISTER_MACROS(CActionReplayNode, CDelayNode, CTrivialValueNode, CAddNode, CEntranceNode, CToStringNode, CPrintingNode, CBranchingNode, CSequenceNode)
+REGISTER_MACROS(CActionReplayNode, CDelayNode, CTrivialValueNode, CAddNode, CEntranceNode, COnTriggerNode, CToStringNode, CPrintingNode, CBranchingNode, CSequenceNode)
 ENABLE_IMGUI()

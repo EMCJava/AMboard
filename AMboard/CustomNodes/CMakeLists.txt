@@ -23,6 +23,7 @@ target_include_directories(ExtWindowUtil PRIVATE ${OpenCV_INCLUDE_DIRS})
 add_subdirectory(CV)
 
 set(EXT_LIBRARIES
+        MacroSharedLib
         ExtCommonNode
         ExtWindowUtil
 )

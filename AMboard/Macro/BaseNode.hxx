@@ -73,6 +73,11 @@ public:
     /// return true if successful
     virtual bool Evaluate() noexcept;
 
+    /// Actually placed on the canvas
+    virtual void Begin() noexcept { }
+    /// Actually removed from the canvas
+    virtual void End() noexcept { }
+
     const auto& GetInputPins() const noexcept { return m_InputPins; }
     const auto& GetOutputPins() const noexcept { return m_OutputPins; }
     const auto& GetPins(bool IsInput) const noexcept { return IsInput ? GetInputPins() : GetOutputPins(); }

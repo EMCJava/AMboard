@@ -249,12 +249,15 @@ size_t CBoardEditor::RegisterNode(NodeStorage Node, const std::string& Title, co
 
     m_Nodes[NodeId].SupportFileDrop = dynamic_cast<IFileDrop*>(m_Nodes[NodeId].Node.get()) != nullptr;
 
+    m_Nodes[NodeId].Node->Begin();
+
     return NodeId;
 }
 
 void CBoardEditor::UnregisterNode(const size_t NodeId)
 {
     m_NodeRenderer->RemoveNode(NodeId);
+    m_Nodes[NodeId].Node->End();
     m_Nodes[NodeId] = { { nullptr, NodeDefaultDeleter } };
 }
 
