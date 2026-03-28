@@ -102,11 +102,11 @@ void CInputService::DispatchEvent(const SInputEvent& event)
 LRESULT CALLBACK WinMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if (nCode >= 0) {
-        MSLLHOOKSTRUCT* ms = reinterpret_cast<MSLLHOOKSTRUCT*>(lParam);
-        SInputEvent ev { EInputType::MouseMove, 0, ms->pt.x, ms->pt.y };
-        if (wParam == WM_LBUTTONDOWN || wParam == WM_RBUTTONDOWN)
+        const auto* ms = reinterpret_cast<MSLLHOOKSTRUCT*>(lParam);
+        SInputEvent ev { EInputType::MouseMove, static_cast<int>(wParam), ms->pt.x, ms->pt.y };
+        if (wParam == WM_LBUTTONDOWN || wParam == WM_RBUTTONDOWN || wParam == WM_MBUTTONDOWN || wParam == WM_XBUTTONDOWN)
             ev.type = EInputType::MouseDown;
-        else if (wParam == WM_LBUTTONUP || wParam == WM_RBUTTONUP)
+        else if (wParam == WM_LBUTTONUP || wParam == WM_RBUTTONUP || wParam == WM_MBUTTONUP || wParam == WM_XBUTTONUP)
             ev.type = EInputType::MouseUp;
         CInputService::Get().DispatchEvent(ev);
     }
@@ -116,7 +116,7 @@ LRESULT CALLBACK WinMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 LRESULT CALLBACK WinKbdProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if (nCode >= 0) {
-        KBDLLHOOKSTRUCT* ks = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
+        const auto* ks = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
         SInputEvent ev { EInputType::KeyDown, static_cast<int>(ks->vkCode), 0, 0 };
         if (wParam == WM_KEYUP || wParam == WM_SYSKEYUP)
             ev.type = EInputType::KeyUp;
