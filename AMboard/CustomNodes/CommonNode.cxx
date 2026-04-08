@@ -211,9 +211,15 @@ public:
                 return;
             }
 
-            if (m_KeyCode == InputEvent.keyCode)
-                if (m_Manager != nullptr)
-                    m_Manager->Execute(this);
+            if (m_KeyCode == InputEvent.keyCode) {
+                if (m_Manager != nullptr) {
+                    if (m_Manager->StartExecuteAsync(this)) {
+                        spdlog::info("[OnTrigger] Trigger accepted, async execution started");
+                    } else {
+                        spdlog::info("[OnTrigger] Trigger ignored: execution already in flight");
+                    }
+                }
+            }
         }
     }
 

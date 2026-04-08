@@ -664,7 +664,7 @@ CWindowBase::EWindowEventState CBoardEditor::ProcessEvent()
     if (m_EntranceNode.has_value() && GetInputManager().GetKeyboardButtons().ConsumeEvent(GLFW_KEY_R)) {
         SetCancelOnHoldAction(nullptr);
         if (auto* ENode = dynamic_cast<CExecuteNode*>(m_Nodes[*m_EntranceNode].Node.get())) {
-            m_ExecutionManager->StartExecuteThread(ENode);
+            m_ExecutionManager->StartExecuteAsync(ENode);
         }
     }
 

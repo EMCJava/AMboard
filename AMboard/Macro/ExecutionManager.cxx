@@ -6,30 +6,35 @@
 
 #include "ExecuteNode.hxx"
 
-void CExecutionManager::ExecutionThread(CExecuteNode* Target)
-{
-    Execute(Target);
-}
-
 CExecutionManager::~CExecutionManager()
 {
     m_TerminationFlag.test_and_set();
-    if (m_ExecutionThread)
-        if (m_ExecutionThread->joinable())
-            m_ExecutionThread->join();
+    if (m_AsyncThread)
+        if (m_AsyncThread->joinable())
+            m_AsyncThread->join();
 }
 
-bool CExecutionManager::StartExecuteThread(CExecuteNode* Target)
+bool CExecutionManager::StartExecuteAsync(CExecuteNode* Target, std::function<void()> OnComplete)
 {
-    if (m_ExecutionThread) {
-        if (!m_ExecutionThread->joinable())
-            return false;
-
-        m_ExecutionThread->join();
-        m_ExecutionThread.reset();
+    // Bounded reentry: reject if an async execution is already in flight
+    if (m_AsyncRunning.test_and_set(std::memory_order_acq_rel)) {
+        return false;
     }
 
-    m_ExecutionThread = std::make_unique<std::thread>(&CExecutionManager::ExecutionThread, this, Target);
+    // Join any previously completed async thread before launching a new one
+    if (m_AsyncThread && m_AsyncThread->joinable()) {
+        m_AsyncThread->join();
+    }
+
+    m_AsyncThread = std::make_unique<std::thread>([this, Target, Cb = std::move(OnComplete)]() {
+        Execute(Target);
+        m_AsyncRunning.clear(std::memory_order_release);
+        if (Cb) {
+            Cb();
+        }
+    });
+
+    return true;
 }
 
 void CExecutionManager::Execute(CExecuteNode* Target)

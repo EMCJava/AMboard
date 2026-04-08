@@ -103,6 +103,13 @@ LRESULT CALLBACK WinMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if (nCode >= 0) {
         MSLLHOOKSTRUCT* ms = reinterpret_cast<MSLLHOOKSTRUCT*>(lParam);
+
+        // Skip events injected by SendInput to prevent feedback loops during playback
+        if (ms->flags & LLMHF_INJECTED) {
+            spdlog::debug("[InputService] Skipping injected mouse event");
+            return CallNextHookEx(nullptr, nCode, wParam, lParam);
+        }
+
         SInputEvent ev { EInputType::MouseMove, 0, ms->pt.x, ms->pt.y };
         if (wParam == WM_LBUTTONDOWN || wParam == WM_RBUTTONDOWN)
             ev.type = EInputType::MouseDown;
@@ -117,6 +124,13 @@ LRESULT CALLBACK WinKbdProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if (nCode >= 0) {
         KBDLLHOOKSTRUCT* ks = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
+
+        // Skip events injected by SendInput to prevent feedback loops during playback
+        if (ks->flags & LLKHF_INJECTED) {
+            spdlog::debug("[InputService] Skipping injected keyboard event");
+            return CallNextHookEx(nullptr, nCode, wParam, lParam);
+        }
+
         SInputEvent ev { EInputType::KeyDown, static_cast<int>(ks->vkCode), 0, 0 };
         if (wParam == WM_KEYUP || wParam == WM_SYSKEYUP)
             ev.type = EInputType::KeyUp;
