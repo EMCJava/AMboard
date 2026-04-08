@@ -153,6 +153,7 @@ void CInputService::StopPlatformLoop()
 {
     if (m_threadId != 0) {
         PostThreadMessage(m_threadId, WM_QUIT, 0, 0);
+        JoinThreadInternal();
     }
 }
 
@@ -251,7 +252,11 @@ void CInputService::StopInternal()
         return;
 
     StopPlatformLoop();
+    JoinThreadInternal();
+}
 
+void CInputService::JoinThreadInternal()
+{
     if (m_hookThread.joinable()) {
         // Safe-guard: If a consumer unsubscribes from inside their own callback,
         // we cannot join() the thread from itself. We detach it and let it die naturally.
@@ -261,4 +266,6 @@ void CInputService::StopInternal()
             m_hookThread.join();
         }
     }
+
+    m_hookThread = { };
 }

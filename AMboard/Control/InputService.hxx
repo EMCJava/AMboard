@@ -61,6 +61,7 @@ private:
 
     void StartInternal();
     void StopInternal();
+    void JoinThreadInternal();
     void RunPlatformLoop(std::promise<void>* initialized);
     void StopPlatformLoop();
 
