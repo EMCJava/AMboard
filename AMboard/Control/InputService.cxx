@@ -113,7 +113,7 @@ LRESULT CALLBACK WinMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
         SInputEvent ev { EInputType::MouseMove, 0, ms->pt.x, ms->pt.y };
         if (wParam == WM_LBUTTONDOWN || wParam == WM_RBUTTONDOWN)
             ev.type = EInputType::MouseDown;
-        else if (wParam == WM_LBUTTONUP || wParam == WM_RBUTTONUP)
+        else if (wParam == WM_LBUTTONUP || wParam == WM_RBUTTONUP || wParam == WM_MBUTTONUP || wParam == WM_XBUTTONUP)
             ev.type = EInputType::MouseUp;
         CInputService::Get().DispatchEvent(ev);
     }

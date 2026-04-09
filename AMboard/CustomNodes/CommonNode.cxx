@@ -204,20 +204,27 @@ public:
 
     void InputCallback(const SInputEvent& InputEvent)
     {
+        int NewKeyCode = 0;
         if (InputEvent.type == EInputType::KeyDown) {
-            if (m_IsRecording) {
-                m_KeyCode = InputEvent.keyCode;
-                m_IsRecording = false;
-                return;
-            }
+            NewKeyCode = InputEvent.keyCode;
+        } else if (InputEvent.type == EInputType::MouseDown) {
+            NewKeyCode = -InputEvent.keyCode;
+        } else {
+            return;
+        }
 
-            if (m_KeyCode == InputEvent.keyCode) {
-                if (m_Manager != nullptr) {
-                    if (m_Manager->StartExecuteAsync(this)) {
-                        spdlog::info("[OnTrigger] Trigger accepted, async execution started");
-                    } else {
-                        spdlog::info("[OnTrigger] Trigger ignored: execution already in flight");
-                    }
+        if (m_IsRecording) {
+            m_KeyCode = NewKeyCode;
+            m_IsRecording = false;
+            return;
+        }
+
+        if (m_KeyCode == InputEvent.keyCode) {
+            if (m_Manager != nullptr) {
+                if (m_Manager->StartExecuteAsync(this)) {
+                    spdlog::info("[OnTrigger] Trigger accepted, async execution started");
+                } else {
+                    spdlog::info("[OnTrigger] Trigger ignored: execution already in flight");
                 }
             }
         }
